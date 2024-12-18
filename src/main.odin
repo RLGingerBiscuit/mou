@@ -201,7 +201,7 @@ main :: proc() {
 							if !world_generate_chunk(&state.world, chunk_pos) {
 								chunk := &state.world.chunks[chunk_pos]
 								if len(chunk.opaque_mesh) == 0 {
-									world_mark_needs_remeshing(&state.world, chunk)
+									world_mark_chunk_remesh(&state.world, chunk)
 								}
 							}
 						}

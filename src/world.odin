@@ -78,8 +78,8 @@ world_generate_chunk :: proc(world: ^World, chunk_pos: glm.ivec3) -> bool {
 				OCTAVES :: 4
 				PERSISTENCE :: 0.5
 
-				xf := f32(chunk_pos.x*CHUNK_WIDTH + x)
-				zf := f32(chunk_pos.z*CHUNK_DEPTH + z)
+				xf := f32(chunk_pos.x * CHUNK_WIDTH + x)
+				zf := f32(chunk_pos.z * CHUNK_DEPTH + z)
 
 				frequency := f32(1) / f32(64)
 				amplitude := f32(1)
@@ -94,11 +94,11 @@ world_generate_chunk :: proc(world: ^World, chunk_pos: glm.ivec3) -> bool {
 				n /= amplitude_total
 				n *= 0.5
 				n += 0.5
-				n *= CHUNK_HEIGHT*2
+				n *= CHUNK_HEIGHT * 2
 
 				height := cast(i32)math.round(n)
 
-				cy := y + chunk_pos.y*CHUNK_HEIGHT
+				cy := y + chunk_pos.y * CHUNK_HEIGHT
 				switch {
 				case cy == height:
 					chunk.blocks[local_coords_to_block_index(x, y, z)] = Block{.Grass}
@@ -138,15 +138,17 @@ world_remesh_surrounding_chunks :: proc(world: ^World, chunk_pos: glm.ivec3) {
 		for y in i32(-1) ..= 1 {
 			for x in i32(-1) ..= 1 {
 				if chunk, ok := &world.chunks[chunk_pos + {x, y, z}]; ok {
-					world_mark_needs_remeshing(world, chunk)
+					world_mark_chunk_remesh(world, chunk)
 				}
 			}
 		}
 	}
 }
 
+// Marks a chunk as in need of remeshing and signals to the meshgen thread to do so.
+// 
 // NOTE: caller needs to have the lock on the world
-world_mark_needs_remeshing :: proc(world: ^World, chunk: ^Chunk) {
+world_mark_chunk_remesh :: proc(world: ^World, chunk: ^Chunk) {
 	sync.atomic_store(&chunk.needs_remeshing, true)
 	// FIXME: Don't append chunks already marked for remesh
 	append(&world.remesh_queue, chunk.pos)
