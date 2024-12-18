@@ -1,9 +1,8 @@
 package noise
 
-import "core:fmt"
+// Implemention adapted from https://github.com/daniilsjb/perlin-noise
+
 import "core:math"
-_ :: math
-_ :: fmt
 
 // odinfmt:disable
 @(rodata)
@@ -64,52 +63,21 @@ grad2d :: proc(hash: i32, x, y: f32) -> f32 {
 // odinfmt:enable
 }
 
-// perlin2d :: proc(x, y: f32) -> f32 {
-// 	P := PERLIN_PERMUTATIONS
-
-// 	xi, yi := cast(i32)math.floor(x), cast(i32)math.floor(y)
-
-// 	x0, y0 := x - f32(xi), y - f32(yi)
-// 	x1, y1 := x0 - 1, y0 - 1
-
-// 	xi, yi = xi & 0xff, yi & 0xff
-
-// 	u, v := fade(x0), fade(y0)
-
-// 	fmt.eprintln("\t", x, y, xi, yi, x0, y0, x1, x1)
-// 	_ :: fmt
-
-// 	h00 := P[P[xi + 0] + yi + 0]
-// 	h01 := P[P[xi + 0] + yi + 1]
-// 	h10 := P[P[xi + 1] + yi + 0]
-// 	h11 := P[P[xi + 1] + yi + 1]
-
-// 	x, y := x, y
-// 	x = math.lerp(grad2d(h00, x0, y0), grad2d(h10, x1, y0), u)
-// 	y = math.lerp(grad2d(h01, x0, y1), grad2d(h11, x1, y1), u)
-// 	return math.lerp(x, y, v)
-// }
-
-perlin2d :: proc(x, y: $T) -> T {
+perlin2d :: proc(x, y: f32) -> f32 {
 	p := PERLIN_PERMUTATIONS
 
 	// Top-left coordinates of the unit-square.
-	xi0 := cast(i32)math.floor(x)
-	yi0 := cast(i32)math.floor(y)
+	xi, yi := cast(i32)math.floor(x), cast(i32)math.floor(y)
 
 	// Input location in the unit-square.
-	xf0 := x - T(xi0)
-	yf0 := y - T(yi0)
-	xf1 := xf0 - T(1.0)
-	yf1 := yf0 - T(1.0)
+	x0, y0 := x - f32(xi), y - f32(yi)
+	x1, y1 := x0 - 1, y0 - 1
 
 	// Wrap to range 0-255.
-	xi := xi0 & 0xFF
-	yi := yi0 & 0xFF
+	xi, yi = xi & 255, yi & 255
 
 	// Apply the fade function to the location.
-	u := fade(xf0)
-	v := fade(yf0)
+	u, v := fade(x0), fade(y0)
 
 	// Generate hash values for each point of the unit-square.
 	h00 := p[p[xi + 0] + yi + 0]
@@ -118,7 +86,7 @@ perlin2d :: proc(x, y: $T) -> T {
 	h11 := p[p[xi + 1] + yi + 1]
 
 	// Linearly interpolate between dot products of each gradient with its distance to the input location.
-	x1 := math.lerp(grad2d(h00, xf0, yf0), grad2d(h10, xf1, yf0), u)
-	x2 := math.lerp(grad2d(h01, xf0, yf1), grad2d(h11, xf1, yf1), u)
-	return math.lerp(x1, x2, v)
+	a := math.lerp(grad2d(h00, x0, y0), grad2d(h10, x1, y0), u)
+	b := math.lerp(grad2d(h01, x0, y1), grad2d(h11, x1, y1), u)
+	return math.lerp(a, b, v)
 }
