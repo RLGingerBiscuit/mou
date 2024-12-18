@@ -7,8 +7,6 @@ import "core:os"
 import "core:strings"
 import path "core:path/filepath"
 
-import stbi "vendor:stb/image"
-
 ATLAS_WIDTH :: 128
 ATLAS_HEIGHT :: 128
 ATLAS_PADDING :: 0
