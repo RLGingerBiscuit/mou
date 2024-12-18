@@ -1,0 +1,69 @@
+{
+	"folders":
+	[
+		{
+			"folder_exclude_patterns": [".git", ".Trash", ".Trash-*"],
+			"path": ".",
+		},
+		{
+			"path": "C:\\Odin\\base",
+		},
+		{
+			"path": "C:\\Odin\\core",
+		},
+		{
+			"path": "C:\\Odin\\vendor",
+		}
+	],
+	"build_systems":
+	[
+		{
+			"name": "Odin Build",
+			"selector": "source.odin",
+			"keyfiles": [ "ols.json"],
+			"cancel": { "kill": true, },
+			"working_dir": "$project_path",
+            		"variants":
+			[
+				{
+					"cmd": ["just", "check"],
+					"name": "Check",
+				},
+				{
+					"cmd": ["just", "clean"],
+					"name": "Clean",
+				},
+				{
+					"cmd": ["just", "build-debug"],
+					"name": "Build",
+				},
+				{
+					"cmd": ["just", "run-debug"],
+					"name": "Run",
+				},
+				{
+					"cmd": ["just", "build-release"],
+					"name": "Build (Release)",
+				},
+				{
+					"cmd": ["just", "run-release"],
+					"name": "Run (Release)",
+				},				{
+					"cmd": ["just", "package"],
+					"name": "Package",
+				}
+			],
+		}
+	],
+	"settings":
+	{
+		"LSP":
+		{
+			"ols":
+			{
+				"enabled": true,
+			},
+		},
+		"translate_tabs_to_spaces": false
+	},
+}

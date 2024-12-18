@@ -1,0 +1,16 @@
+bin/*
+!bin/.gitkeep
+
+*.so
+*.o
+*.a
+*.dll
+*.obj
+*.lib
+*.exe
+
+*.sublime-workspace
+
+*.zip
+
+Notes.md

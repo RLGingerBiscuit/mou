@@ -1,0 +1,9 @@
+{
+	"$schema": "https://github.com/DanielGavin/ols/raw/master/misc/ols.schema.json",
+	"collections": [],
+	"enable_document_symbols": true,
+	"enable_semantic_tokens": true,
+	"enable_hover": true,
+	"enable_snippets": true,
+	"checker_args": "-vet -vet-cast -vet-tabs -strict-style"
+}

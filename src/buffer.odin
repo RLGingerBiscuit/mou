@@ -1,0 +1,53 @@
+package mou
+
+import gl "vendor:OpenGL"
+
+Buffer_Target :: enum u32 {
+	Array         = gl.ARRAY_BUFFER,
+	Element_Array = gl.ELEMENT_ARRAY_BUFFER,
+}
+
+Buffer_Usage :: enum u32 {
+	Static  = gl.STATIC_DRAW,
+	Dynamic = gl.DYNAMIC_DRAW,
+	Stream  = gl.STREAM_DRAW,
+}
+
+Buffer :: struct {
+	handle: u32,
+	target: Buffer_Target,
+	usage:  Buffer_Usage,
+}
+
+make_buffer :: proc(target: Buffer_Target, usage: Buffer_Usage) -> (buffer: Buffer) {
+	gl.GenBuffers(1, &buffer.handle)
+	buffer.target = target
+	buffer.usage = usage
+	return
+}
+
+destroy_buffer :: proc(buffer: ^Buffer) {
+	gl.DeleteBuffers(1, &buffer.handle)
+	buffer^ = {}
+}
+
+bind_buffer :: proc(buffer: Buffer) {
+	gl.BindBuffer(cast(u32)buffer.target, buffer.handle)
+}
+
+unbind_buffer :: proc(target: Buffer_Target) {
+	gl.BindBuffer(cast(u32)target, 0)
+}
+
+buffer_data :: proc(buffer: Buffer, data: $S/[]$T) {
+	gl.BufferData(
+		cast(u32)buffer.target,
+		len(data) * size_of(T),
+		raw_data(data),
+		cast(u32)buffer.usage,
+	)
+}
+
+buffer_sub_data :: proc(buffer: Buffer, offset: int, data: $S/[]$T) {
+	gl.BufferSubData(cast(u32)buffer.target, offset, len(data) * size_of(T), raw_data(data))
+}
