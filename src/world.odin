@@ -36,9 +36,9 @@ _meshgen_thread_proc :: proc(ptr: rawptr) {
 			if !ok {break} 	// HACK: for stopping thread
 
 			// Should:tm: never happen, but you never know
-			if chunk, exists := &world.chunks[chunk_pos]; exists {
-				mesh_chunk(world, chunk)
-			}
+			chunk, exists := &world.chunks[chunk_pos]
+			assert(exists, "Chunk sent for meshing doesn't exist")
+			mesh_chunk(world, chunk)
 		}
 	}
 }
