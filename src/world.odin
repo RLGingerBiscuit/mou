@@ -45,15 +45,19 @@ _meshgen_thread_proc :: proc(ptr: rawptr) {
 
 destroy_world :: proc(world: ^World) {
 	context.allocator = world.allocator
-	// sync.guard(&world.lock)
-	// clear(&world.remesh_queue)
-	sync.post(&world.sema)
+
+	if sync.guard(&world.lock) {
+		clear(&world.remesh_queue)
+		sync.post(&world.sema)
+	}
 	thread.destroy(world.mesh_thread)
+
 	for _, &chunk in world.chunks {
 		destroy_chunk(&chunk)
 	}
 	delete(world.chunks)
 	delete(world.remesh_queue)
+
 	world^ = {}
 }
 
