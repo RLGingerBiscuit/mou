@@ -19,7 +19,6 @@ DEFAULT_RENDER_DISTANCE :: 4
 MAX_RENDER_DISTANCE :: 8
 DEFAULT_FOV :: 45
 NEAR_PLANE :: 0.1
-// FAR_PLANE :: (RENDER_DISTANCE + 2) * CHUNK_WIDTH
 
 when ODIN_DEBUG {
 	tracking_allocator: mem.Tracking_Allocator
@@ -162,7 +161,6 @@ main :: proc() {
 
 	show_window(&state.window)
 
-	// NOTE: We set cursor pos again here to ensure that any scaling doesn't mean a camera snap
 	window_center_cursor(&state.window)
 
 	gl.LineWidth(4)
@@ -184,6 +182,7 @@ main :: proc() {
 			update_camera(&state.camera, &state.window, delta_time)
 			update_window(&state.window)
 
+			// TODO: Don't forget to turn this back on nerd
 			if false {
 			// if sync.guard(&state.world.lock) {
 				N := i32(1.2 * f32(state.render_distance))
@@ -222,7 +221,7 @@ main :: proc() {
 				for chunk_pos in sa.slice(&chunks_to_demesh) {
 					chunk := &state.world.chunks[chunk_pos]
 					// TODO: separate chunks from mesh so mesh can be fully deleted
-					// TODO: ensure chunks are also removed from remesh queue if they're in there for some reasons
+					// TODO: ensure chunks are also removed from remesh queue if they're in there for some reason
 					clear(&chunk.opaque_mesh)
 					clear(&chunk.transparent_mesh)
 				}

@@ -79,9 +79,6 @@ init_window :: proc(
 	resize_window(WINDOW, size.x, size.y)
 
 	glfw.SetWindowUserPointer(WINDOW.handle, state)
-
-	window_center_cursor(WINDOW)
-
 	glfw.SetFramebufferSizeCallback(WINDOW.handle, _window_framebuffer_size_callback)
 	glfw.SetCursorPosCallback(WINDOW.handle, _window_cursor_pos_callback)
 	glfw.SetKeyCallback(WINDOW.handle, _window_key_callback)
