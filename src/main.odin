@@ -156,8 +156,8 @@ main :: proc() {
 		unbind_vertex_array()
 	}
 
-	init_ui(&state)
-	defer destroy_ui(&state)
+	mu_init_ui(&state)
+	defer mu_destroy_ui(&state)
 
 	show_window(&state.window)
 
@@ -177,14 +177,14 @@ main :: proc() {
 				set_window_should_close(state.window, true)
 			}
 
-			update_ui(&state, delta_time)
+			mu_update_ui(&state, delta_time)
 
 			update_camera(&state.camera, &state.window, delta_time)
 			update_window(&state.window)
 
 			// TODO: Don't forget to turn this back on nerd
 			if false {
-			// if sync.guard(&state.world.lock) {
+				// if sync.guard(&state.world.lock) {
 				N := i32(1.2 * f32(state.render_distance))
 
 				global_pos := glm.ivec3 {
@@ -208,7 +208,7 @@ main :: proc() {
 					}
 				}
 
-				@(static)chunks_to_demesh: sa.Small_Array(MAX_RENDER_DISTANCE * 16, glm.ivec3)
+				@(static) chunks_to_demesh: sa.Small_Array(MAX_RENDER_DISTANCE * 16, glm.ivec3)
 
 				for chunk_pos in state.world.chunks {
 					if len(state.world.chunks[chunk_pos].opaque_mesh) > 0 &&
@@ -301,7 +301,7 @@ main :: proc() {
 			unbind_buffer(.Array)
 			unbind_vertex_array()
 
-			render_ui(state)
+			mu_render_ui(&state)
 		}
 
 		window_swap_buffers(state.window)

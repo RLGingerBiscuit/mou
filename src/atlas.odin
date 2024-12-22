@@ -4,8 +4,8 @@ import "core:log"
 import glm "core:math/linalg/glsl"
 import "core:mem"
 import "core:os"
-import "core:strings"
 import path "core:path/filepath"
+import "core:strings"
 
 ATLAS_WIDTH :: 128
 ATLAS_HEIGHT :: 128
@@ -37,9 +37,10 @@ make_atlas :: proc(asset_path: string, allocator := context.allocator) -> (atlas
 		"::/atlas.png",
 		ATLAS_WIDTH,
 		ATLAS_HEIGHT,
+		do_log = false,
 		allocator = context.temp_allocator,
 	)
-	defer destroy_image(&atlas_img)
+	defer destroy_image(&atlas_img, false)
 
 	packer := Packer {
 		atlas  = &atlas,

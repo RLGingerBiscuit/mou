@@ -5,7 +5,6 @@ import "core:log"
 import "core:strings"
 import gl "vendor:OpenGL"
 import "vendor:glfw"
-import mu "vendor:microui"
 
 GL_MAJOR :: 3
 GL_MINOR :: 3
@@ -19,8 +18,6 @@ Window :: struct {
 		Visible,
 		UI,
 	};u8],
-	// UI
-	ui_ctx:       ^mu.Context,
 	// Input
 	cursor:       [2]f64,
 	buttons:      [i32(Mouse_Button.Last)]Action,
@@ -39,11 +36,6 @@ init_window :: proc(
 	ok: bool,
 ) {
 	WINDOW := &state.window
-
-	WINDOW.ui_ctx = new(mu.Context)
-	mu.init(WINDOW.ui_ctx)
-	WINDOW.ui_ctx.text_width = mu.default_atlas_text_width
-	WINDOW.ui_ctx.text_height = mu.default_atlas_text_height
 
 	log.debug("Creating GLFW window")
 
@@ -91,7 +83,6 @@ init_window :: proc(
 destroy_window :: proc(wnd: ^Window) {
 	log.debug("Destroying GLFW window")
 	glfw.DestroyWindow(wnd.handle)
-	free(wnd.ui_ctx)
 }
 
 update_window :: proc(wnd: ^Window) {
@@ -105,47 +96,6 @@ update_window :: proc(wnd: ^Window) {
 			glfw.SetInputMode(wnd.handle, glfw.CURSOR, glfw.CURSOR_DISABLED)
 		}
 		window_center_cursor(wnd)
-	}
-
-	if .UI in wnd.flags {
-		buttons_map := [mu.Mouse]Mouse_Button {
-			.LEFT   = .Left,
-			.RIGHT  = .Right,
-			.MIDDLE = .Middle,
-		}
-
-		key_map := [mu.Key][2]Key {
-			.SHIFT     = {.Left_Shift, .Right_Shift},
-			.CTRL      = {.Left_Control, .Right_Control},
-			.ALT       = {.Left_Alt, .Right_Alt},
-			.BACKSPACE = {.Backspace, .Unknown},
-			.DELETE    = {.Delete, .Unknown},
-			.RETURN    = {.Enter, .Enter},
-			.LEFT      = {.Left, .Unknown},
-			.RIGHT     = {.Right, .Unknown},
-			.HOME      = {.Home, .Unknown},
-			.END       = {.End, .Unknown},
-			.A         = {.A, .Unknown},
-			.X         = {.X, .Unknown},
-			.C         = {.C, .Unknown},
-			.V         = {.V, .Unknown},
-		}
-
-		_ = buttons_map
-		_ = key_map
-
-		mu.input_mouse_move(wnd.ui_ctx, i32(wnd.cursor.x), i32(wnd.cursor.y))
-
-		for bgl, bmu in buttons_map {
-			switch {
-			case wnd.buttons[bgl] == .Press && wnd.prev_buttons[bgl] == .Release:
-				mu.input_mouse_down(wnd.ui_ctx, i32(wnd.cursor.x), i32(wnd.cursor.y), bmu)
-			case wnd.buttons[bgl] == .Release && wnd.prev_buttons[bgl] == .Press:
-				mu.input_mouse_up(wnd.ui_ctx, i32(wnd.cursor.x), i32(wnd.cursor.y), bmu)
-			}
-		}
-
-		// TODO: convert and forward key map
 	}
 
 	wnd.prev_keys = wnd.keys
