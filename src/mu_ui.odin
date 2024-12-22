@@ -194,24 +194,11 @@ mu_init_ui :: proc(state: ^State) {
 
 			height := f32(ascent - descent + line_gap) * scale + 0.5
 
-			return i32(height)
+			return cast(i32)math.round(height)
 		}
 		state.ui.ctx.text_width = proc(font_ptr: mu.Font, str: string) -> i32 {
 			font := cast(^Font)font_ptr
-
 			scale := stbtt.ScaleForMappingEmToPixels(&font.info, FONT_HEIGHT * POINTS_TO_PIXELS)
-
-			ascent, descent, line_gap: f32
-			{
-				a, d, l: i32
-				stbtt.GetFontVMetrics(&font.info, &a, &d, &l)
-				ascent = f32(a)
-				descent = f32(d)
-				line_gap = f32(l)
-			}
-
-			ascent = math.round(ascent * scale)
-			descent = math.round(descent * scale)
 
 			width: f32 = 0
 			i := 0
@@ -245,7 +232,7 @@ mu_init_ui :: proc(state: ^State) {
 					glyph_index_2 := stbtt.FindGlyphIndex(&font.info, char2)
 
 					kerning := stbtt.GetGlyphKernAdvance(&font.info, glyph_index, glyph_index_2)
-					width += math.round(f32(kerning) * scale)
+					width += f32(kerning) * scale
 				}
 			}
 
@@ -267,7 +254,7 @@ mu_init_ui :: proc(state: ^State) {
 	buffer_data(state.ui.vbo, vbo_buf[:])
 
 	// position [x,y]
-	vertex_attrib_i_pointer(0, 2, .Int, size_of(Vert), offset_of(Vert, pos))
+	vertex_attrib_pointer(0, 2, .Float, false, size_of(Vert), offset_of(Vert, pos))
 	// tex_coord [x,y]
 	vertex_attrib_pointer(1, 2, .Float, false, size_of(Vert), offset_of(Vert, tex_coord))
 	// colour [rgba]
@@ -451,7 +438,11 @@ mu_render_ui :: proc(state: ^State) {
 		buf_idx = 0
 	}
 
-	push_quad :: proc(state: ^State, dst: mu.Rect, src: mu.Rect, colour: mu.Color) {
+	RectF :: struct {
+		x, y, w, h: f32,
+	}
+
+	push_quad :: proc(state: ^State, dst: RectF, src: RectF, colour: mu.Color) {
 		if buf_idx == BUF_SZ {flush(state)}
 
 		tex_idx := buf_idx * 4
@@ -459,10 +450,10 @@ mu_render_ui :: proc(state: ^State) {
 		index_idx := buf_idx * 6
 		buf_idx += 1
 
-		x := cast(f32)src.x / FONT_ATLAS_WIDTH
-		y := cast(f32)src.y / FONT_ATLAS_HEIGHT
-		w := cast(f32)src.w / FONT_ATLAS_WIDTH
-		h := cast(f32)src.h / FONT_ATLAS_HEIGHT
+		x := src.x / FONT_ATLAS_WIDTH
+		y := src.y / FONT_ATLAS_HEIGHT
+		w := src.w / FONT_ATLAS_WIDTH
+		h := src.h / FONT_ATLAS_HEIGHT
 
 		vbo_buf[tex_idx + 0] = {{dst.x, dst.y}, {x, y}, colour}
 		vbo_buf[tex_idx + 1] = {{dst.x + dst.w, dst.y}, {x + w, y}, colour}
@@ -482,7 +473,8 @@ mu_render_ui :: proc(state: ^State) {
 
 	draw_rect :: proc(state: ^State, rect: mu.Rect, colour: mu.Color) {
 		x, y := state.ui.font.pixel.x, state.ui.font.pixel.y
-		push_quad(state, rect, {x, y, 1, 1}, colour)
+		dst := RectF{f32(rect.x), f32(rect.y), f32(rect.w), f32(rect.h)}
+		push_quad(state, dst, {f32(x), f32(y), 1, 1}, colour)
 		when FLUSH_ALL do flush(state)
 	}
 
@@ -503,19 +495,20 @@ mu_render_ui :: proc(state: ^State) {
 			char_index := i32(char - ' ')
 			assert(char_index >= 0 && char_index < 96)
 
+			// NOTE: 1 for width/height is passed here so no uv scaling is performed
 			stbtt.GetPackedQuad(raw_data(font.glyphs), 1, 1, char_index, &x, &y, &quad, false)
 
-			src := mu.Rect {
-				x = cast(i32)(quad.s0),
-				y = cast(i32)(quad.t0),
-				w = cast(i32)(quad.s1 - quad.s0),
-				h = cast(i32)(quad.t1 - quad.t0),
+			src := RectF {
+				x = quad.s0,
+				y = quad.t0,
+				w = quad.s1 - quad.s0,
+				h = quad.t1 - quad.t0,
 			}
-			dst := mu.Rect {
-				x = cast(i32)math.ceil(quad.x0),
-				y = cast(i32)math.ceil(quad.y0),
-				w = cast(i32)math.floor(quad.x1 - quad.x0),
-				h = cast(i32)math.floor(quad.y1 - quad.y0),
+			dst := RectF {
+				x = quad.x0,
+				y = quad.y0,
+				w = quad.x1 - quad.x0,
+				h = quad.y1 - quad.y0,
 			}
 
 			push_quad(state, dst, src, colour)
@@ -523,16 +516,18 @@ mu_render_ui :: proc(state: ^State) {
 			if len(text) > 0 {
 				char2, _ := utf8.decode_rune(text)
 				kerning := stbtt.GetCodepointKernAdvance(&font.info, char, char2)
-				x += math.round(f32(kerning) * scale)
+				x += f32(kerning) * scale
 			}
 		}
 	}
 
 	draw_icon :: proc(state: ^State, id: mu.Icon, rect: mu.Rect, colour: mu.Color) {
-		src := state.ui.font.icons[id]
-		x := rect.x + (rect.w - src.w) / 2
-		y := rect.y + (rect.h - src.h) / 2
-		push_quad(state, {x, y, src.w, src.h}, src, colour)
+		src_i := state.ui.font.icons[id]
+		src := RectF{f32(src_i.x), f32(src_i.y), f32(src_i.w), f32(src_i.h)}
+		x := cast(f32)(rect.x + (rect.w - src_i.w) / 2)
+		y := cast(f32)(rect.y + (rect.h - src_i.h) / 2)
+		dst := RectF{x, y, src.w, src.h}
+		push_quad(state, dst, src, colour)
 		when FLUSH_ALL do flush(state)
 	}
 
@@ -577,7 +572,7 @@ mu_render_ui :: proc(state: ^State) {
 BUF_SZ :: 16384
 @(private = "file")
 Vert :: struct #packed {
-	pos:       mu.Vec2,
+	pos:       [2]f32,
 	tex_coord: [2]f32,
 	colour:    mu.Color,
 }

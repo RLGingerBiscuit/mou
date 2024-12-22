@@ -1,6 +1,6 @@
 #version 330 core
 
-layout(location = 0) in ivec2 position0;
+layout(location = 0) in vec2 position0;
 layout(location = 1) in vec2 tex_coord0;
 layout(location = 2) in uint vertex_colour0;
 
