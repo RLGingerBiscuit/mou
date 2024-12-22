@@ -20,20 +20,20 @@ create_image :: proc(
 	name: string,
 	width: i32,
 	height: i32,
+	channels: i32 = 4,
 	do_log := true,
 	allocator := context.allocator,
 ) -> (
 	img: Image,
 ) {
-	CHANNELS :: 4
 	context.allocator = allocator
 
 	if do_log do log.debugf("Creating image '{}'", name)
 
-	img.data = make([]byte, width * height * CHANNELS)
+	img.data = make([]byte, width * height * channels)
 	img.width = width
 	img.height = height
-	img.channels = CHANNELS
+	img.channels = channels
 
 	img.name = strings.clone(name)
 	img.allocator = allocator
@@ -52,14 +52,12 @@ load_image :: proc(path: string, do_log := true, allocator := context.allocator)
 	}
 	defer delete(data, context.temp_allocator)
 
-	CHANNELS :: 4
-
 	x, y, ch: i32
-	raw := stbi.load_from_memory(raw_data(data), cast(i32)len(data), &x, &y, &ch, CHANNELS)
-	img.data = raw[:x * y * CHANNELS]
+	raw := stbi.load_from_memory(raw_data(data), cast(i32)len(data), &x, &y, &ch, 0)
+	img.data = raw[:x * y * ch]
 	img.width = x
 	img.height = y
-	img.channels = CHANNELS
+	img.channels = ch
 
 	img.name = strings.clone(path)
 	img.allocator = allocator

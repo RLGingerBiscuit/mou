@@ -14,14 +14,28 @@ Texture :: struct {
 }
 
 Format :: enum i32 {
-	Alpha = gl.ALPHA,
-	RGB   = gl.RGB,
-	RGBA  = gl.RGBA,
+	R8   = gl.R8,
+	Red  = gl.RED,
+	RGB  = gl.RGB,
+	RGBA = gl.RGBA,
+}
+
+Wrap :: enum i32 {
+	Clamp_To_Edge   = gl.CLAMP_TO_EDGE,
+	Clamp_To_Border = gl.CLAMP_TO_BORDER,
+	Mirrored_Repeat = gl.MIRRORED_REPEAT,
+	Repeat          = gl.REPEAT,
+}
+
+Filter :: enum i32 {
+	Nearest = gl.NEAREST,
+	Linear  = gl.LINEAR,
 }
 
 image_to_texture :: proc(
 	img: Image,
-	format := Format.RGBA,
+	wrap := Wrap.Repeat,
+	filter := Filter.Nearest,
 	mipmap := true,
 	allocator := context.allocator,
 ) -> (
@@ -34,12 +48,22 @@ image_to_texture :: proc(
 	tex.height = img.height
 	tex.allocator = allocator
 
+	format: Format
+	internal_format: Format
+	// odinfmt:disable
+	switch img.channels {
+	case 1: format = .R8;   internal_format = .Red
+	case 3: format = .RGB;  internal_format = .RGB
+	case 4: format = .RGBA; internal_format = .RGBA
+	}
+	// odinfmt:enable
+
 	gl.GenTextures(1, &tex.handle)
 	gl.BindTexture(gl.TEXTURE_2D, tex.handle)
-	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.REPEAT)
-	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.REPEAT)
-	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST)
-	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST)
+	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, cast(i32)wrap)
+	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, cast(i32)wrap)
+	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, cast(i32)filter)
+	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, cast(i32)filter)
 	gl.TexImage2D(
 		gl.TEXTURE_2D,
 		0,
@@ -47,7 +71,7 @@ image_to_texture :: proc(
 		tex.width,
 		tex.height,
 		0,
-		cast(u32)format,
+		cast(u32)internal_format,
 		gl.UNSIGNED_BYTE,
 		raw_data(img.data),
 	)
