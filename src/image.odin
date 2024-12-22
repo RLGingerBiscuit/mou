@@ -7,13 +7,13 @@ import "core:strings"
 import stbi "third:stb/image"
 
 Image :: struct {
-	data:          []byte,
+	data:          []byte `fmt:"-"`,
 	width, height: i32,
 	channels:      i32,
-	_loaded:       bool, // true if an image was loaded from disk, false otherwise
+	_loaded:       bool `fmt:"-"`, // true if an image was loaded from disk, false otherwise
 	// Only for debug
 	name:          string,
-	allocator:     mem.Allocator,
+	allocator:     mem.Allocator `fmt:"-"`,
 }
 
 create_image :: proc(
@@ -79,9 +79,7 @@ destroy_image :: proc(img: ^Image, do_log := true) {
 }
 
 image_blit :: proc(destination: ^Image, source: Image, x, y: i32) {
-	if source.channels != destination.channels {
-		return
-	}
+	// TODO: alpha blending
 
 	// bounds in destination image
 	bounds: [2][2]i32
@@ -126,10 +124,67 @@ image_blit :: proc(destination: ^Image, source: Image, x, y: i32) {
 		source_offset :=
 			source.channels * ((source_bounds[0].y + dy) * source.width + source_bounds[0].x)
 
-		mem.copy_non_overlapping(
-			&destination.data[destination_offset],
-			&source.data[source_offset],
-			int(clipped_width * source.channels),
-		)
+		if destination.channels == source.channels {
+			mem.copy_non_overlapping(
+				&destination.data[destination_offset],
+				&source.data[source_offset],
+				int(clipped_width * source.channels),
+			)
+			continue
+		}
+		assert(destination.channels > source.channels)
+
+		if source.channels == 1 {
+			// Grayscale
+			for dx in 0 ..< clipped_width {
+				sdx := dx * source.channels
+				ddx := dx * destination.channels
+				px := source.data[source_offset + sdx]
+				destination.data[destination_offset + ddx + 0] = px
+				if destination.channels == 2 {
+					// Grayscale + Alpha
+					destination.data[destination_offset + ddx + 1] = 255
+				}
+				if destination.channels >= 3 {
+					// RGB(A)
+					destination.data[destination_offset + ddx + 1] = px
+					destination.data[destination_offset + ddx + 2] = px
+				}
+				if destination.channels >= 4 {
+					// RGBA
+					destination.data[destination_offset + ddx + 3] = 255
+				}
+			}
+		} else if source.channels == 2 {
+			// Grayscale + Alpha
+			for dx in 0 ..< clipped_width {
+				sdx := dx * source.channels
+				ddx := dx * destination.channels
+				g := source.data[source_offset + sdx + 0]
+				a := source.data[source_offset + sdx + 1]
+				destination.data[destination_offset + ddx + 0] = g
+				destination.data[destination_offset + ddx + 1] = g
+				destination.data[destination_offset + ddx + 2] = g
+				if destination.channels >= 4 {
+					// RGBA
+					destination.data[destination_offset + ddx + 3] = a
+				}
+			}
+		} else if source.channels == 3 {
+			// RGB
+			for dx in 0 ..< clipped_width {
+				sdx := dx * source.channels
+				ddx := dx * destination.channels
+				mem.copy_non_overlapping(
+					&destination.data[destination_offset + ddx],
+					&source.data[source_offset + sdx],
+					3,
+				)
+				if destination.channels >= 4 {
+					// RGBA
+					destination.data[destination_offset + ddx + 3] = 255
+				}
+			}
+		}
 	}
 }
