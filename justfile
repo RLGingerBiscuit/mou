@@ -9,7 +9,7 @@ ext := if os_family() == 'windows' { '.exe' } else { '' }
 out_dir := 'bin'
 pkg_dir := 'packaged'
 odin_exe := 'odin'
-odin_args := '-vet -vet-cast -vet-tabs -strict-style'
+odin_args := '-vet -vet-cast -vet-tabs -strict-style -collection:third=third/'
 
 # Default recipe which runs `just build-release`
 default: build-release

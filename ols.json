@@ -1,6 +1,11 @@
 {
 	"$schema": "https://github.com/DanielGavin/ols/raw/master/misc/ols.schema.json",
-	"collections": [],
+	"collections": [
+		{
+			"name": "third",
+			"path": "third"
+		}
+	],
 	"enable_document_symbols": true,
 	"enable_semantic_tokens": true,
 	"enable_hover": true,

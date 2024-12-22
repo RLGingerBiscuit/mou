@@ -4,7 +4,7 @@ import "core:log"
 import "core:mem"
 import "core:os"
 import "core:strings"
-import stbi "vendor:stb/image"
+import stbi "third:stb/image"
 
 Image :: struct {
 	data:          []byte,

@@ -1,6 +1,7 @@
 bin/*
 !bin/.gitkeep
 
+# Extraenous compilation output
 *.so
 *.o
 *.a
@@ -8,9 +9,22 @@ bin/*
 *.obj
 *.lib
 *.exe
+## But not compiled third-party libraries
+!third/**/*.so
+!third/**/*.o
+!third/**/*.a
+!third/**/*.lib
+!third/**/*.obj
+!third/**/*.dll
 
+# Personal sublime workspace
 *.sublime-workspace
 
+# Packaged output
 *.zip
 
+# Bitmaps for debugging (e.g. font atlas)
+*.bmp
+
+# Personal notes
 Notes.md
