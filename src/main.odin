@@ -16,7 +16,7 @@ WINDOW_SIZE :: [2]i32{WINDOW_WIDTH, WINDOW_HEIGHT}
 WINDOW_TITLE :: "Goofin Minecraft Clone"
 
 DEFAULT_RENDER_DISTANCE :: 4
-MAX_RENDER_DISTANCE :: 8
+MAX_RENDER_DISTANCE :: 16
 DEFAULT_FOV :: 45
 NEAR_PLANE :: 0.1
 
@@ -102,7 +102,7 @@ main :: proc() {
 		fov = DEFAULT_FOV,
 	)
 
-	window_ok := init_window(&state, WINDOW_TITLE, WINDOW_SIZE, vsync = false, visible = false)
+	window_ok := init_window(&state, WINDOW_TITLE, WINDOW_SIZE, vsync = true, visible = false)
 	if !window_ok {
 		os.exit(1)
 	}
@@ -258,7 +258,7 @@ main :: proc() {
 			if state.fog_enabled {
 				gl.Uniform1f(
 					gl.GetUniformLocation(shader.handle, "fog_start"),
-					f32(state.render_distance - 1) * CHUNK_WIDTH,
+					f32(state.render_distance) * CHUNK_WIDTH - CHUNK_WIDTH / 2,
 				)
 				gl.Uniform1f(
 					gl.GetUniformLocation(shader.handle, "fog_end"),
