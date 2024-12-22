@@ -6,6 +6,9 @@ import "core:mem"
 import "core:os"
 import path "core:path/filepath"
 import "core:strings"
+import stbi "third:stb/image"
+
+_ :: stbi
 
 ATLAS_WIDTH :: 128
 ATLAS_HEIGHT :: 128
@@ -41,6 +44,13 @@ make_atlas :: proc(asset_path: string, allocator := context.allocator) -> (atlas
 		allocator = context.temp_allocator,
 	)
 	defer destroy_image(&atlas_img, false)
+	defer when ODIN_DEBUG do stbi.write_bmp(
+		"atlas.bmp",
+		atlas_img.width,
+		atlas_img.height,
+		atlas_img.channels,
+		raw_data(atlas_img.data),
+	)
 
 	packer := Packer {
 		atlas  = &atlas,

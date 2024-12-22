@@ -13,6 +13,8 @@ import stbtt "third:stb/truetype"
 import gl "vendor:OpenGL"
 import mu "vendor:microui"
 
+_ :: stbi
+
 FONT_ATLAS_WIDTH :: 512
 FONT_ATLAS_HEIGHT :: 512
 FONT_HEIGHT :: 18
@@ -61,7 +63,7 @@ mu_init_ui :: proc(state: ^State) {
 			context.temp_allocator,
 		)
 		defer destroy_image(&font_img, false)
-		defer stbi.write_bmp(
+		defer when ODIN_DEBUG do stbi.write_bmp(
 			"font.bmp",
 			font_img.width,
 			font_img.height,
