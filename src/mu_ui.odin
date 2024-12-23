@@ -19,6 +19,7 @@ FONT_ATLAS_WIDTH :: 512
 FONT_ATLAS_HEIGHT :: 512
 FONT_HEIGHT :: 18
 FONT_FIRST_CODEPOINT :: 32
+FONT_LAST_CODEPOINT :: 255
 POINTS_TO_PIXELS :: f32(96) / f32(72)
 
 Font :: struct {
@@ -73,7 +74,8 @@ mu_init_ui :: proc(state: ^State) {
 
 		ranges: [1]stbtt.pack_range
 		ranges[0].first_unicode_codepoint_in_range = FONT_FIRST_CODEPOINT
-		ranges[0].num_chars = i32('~' - ' ')
+		// ranges[0].num_chars = i32('~' - ' ')
+		ranges[0].num_chars = FONT_LAST_CODEPOINT - FONT_FIRST_CODEPOINT
 		ranges[0].font_size = stbtt.POINT_SIZE(f32(FONT_HEIGHT))
 		state.ui.font.glyphs = make([]stbtt.packedchar, ranges[0].num_chars)
 		ranges[0].chardata_for_range = raw_data(state.ui.font.glyphs)
@@ -361,7 +363,6 @@ mu_update_ui :: proc(state: ^State, dt: f64) {
 	defer mu.end(ctx)
 
 	if mu.window(ctx, "Minceraft", {10, 10, 340, 160}, {.NO_CLOSE, .NO_RESIZE}) {
-		_ :: fmt
 		LABEL_WIDTH :: 160
 
 		mu.layout_row(ctx, {LABEL_WIDTH, -1})
