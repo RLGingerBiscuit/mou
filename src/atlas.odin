@@ -12,7 +12,7 @@ _ :: stbi
 
 ATLAS_WIDTH :: 128
 ATLAS_HEIGHT :: 128
-ATLAS_PADDING :: 0
+ATLAS_PADDING :: 1
 
 Atlas :: struct {
 	uvs:       map[string][2]glm.vec2,
