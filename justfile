@@ -21,11 +21,13 @@ clean:
 _clean-windows:
 	-del /F /Q {{out_dir}}\{{name}}{{ext}} >nul 2>nul
 	-del /F /Q {{out_dir}}\{{name}}_debug{{ext}} >nul 2>nul
-# 	todo rmdir
+	-rmdir /S /Q {{pkg_dir}} >nul 2>nul
+	-del /F /Q atlas.bmp font.bmp packaged.zip >nul 2>nul
 
 _clean-unix:
-	-rm -f {{out_dir}}/{{name}}*
-	-rm -f {{out_dir}}/{{name}}_debug*
+	-rm -rf {{out_dir}}/*
+	-rm -rf {{pkg_dir}}
+	-rm -f *.bmp packaged.zip
 
 # Compiles with debug profile
 build-debug *args:
@@ -63,6 +65,7 @@ _package-windows:
 	7z a -y {{pkg_dir}}.zip .\{{pkg_dir}}\*
 
 _package-unix:
+	-rm -rf {{pkg_dir}}
 	-mkdir -p {{pkg_dir}}
-	cp -fr {{out_dir}}/{{name}}{{ext}} assets/ {{pkg_dir}}/
+	cp -fr {{out_dir}}/{{name}}{{ext}} assets {{pkg_dir}}/
 	7z a -y {{pkg_dir}}.zip ./{{pkg_dir}}/*

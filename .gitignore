@@ -21,6 +21,7 @@ bin/*
 *.sublime-workspace
 
 # Packaged output
+packaged/
 *.zip
 
 # Bitmaps for debugging (e.g. font atlas)
