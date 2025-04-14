@@ -3,8 +3,6 @@ set windows-shell := ['cmd', '/c']
 
 name := 'mou'
 src := 'src/'
-# name := 'noise'
-# src := 'src/noise'
 ext := if os_family() == 'windows' { '.exe' } else { '' }
 out_dir := 'bin'
 pkg_dir := 'packaged'
@@ -13,6 +11,15 @@ odin_args := '-vet -vet-cast -vet-tabs -strict-style -collection:third=third/'
 
 # Default recipe which runs `just build-release`
 default: build-release
+
+init:
+	@just _init-{{os_family()}}
+
+_init-windows:
+	-mkdir bin >nul 2>nul
+
+_init-unix:
+	-mkdir -p bin
 
 # Cleans the build directory
 clean:
@@ -30,25 +37,25 @@ _clean-unix:
 	-rm -f *.bmp packaged.zip
 
 # Compiles with debug profile
-build-debug *args:
+build-debug *args: init
 	{{odin_exe}} build {{src}} -debug -out:{{out_dir}}/{{name}}_debug{{ext}} {{odin_args}} {{args}}
 
 # Compiles with release profile
-build-release *args:
+build-release *args: init
 	{{odin_exe}} build {{src}} -out:{{out_dir}}/{{name}}{{ext}} {{odin_args}} {{args}}
 alias build := build-release
 
 # Runs `odin check`
-check:
+check: init
 	{{odin_exe}} check {{src}} {{odin_args}}
 
 # Runs the application with debug profile
-run-debug *args:
+run-debug *args: init
 	{{odin_exe}} run {{src}} -debug -out:{{out_dir}}/{{name}}_debug{{ext}} {{odin_args}} {{args}}
 alias debug := run-debug
 
 # Runs the application with release profile
-run-release *args:
+run-release *args: init
 	{{odin_exe}} run {{src}} -out:{{out_dir}}/{{name}}{{ext}} {{odin_args}} {{args}}
 alias run := run-release
 
