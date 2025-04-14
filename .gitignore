@@ -24,6 +24,9 @@ bin/*
 packaged/
 *.zip
 
+# RenderDoc captures
+captures/
+
 # Bitmaps for debugging (e.g. font atlas)
 *.bmp
 

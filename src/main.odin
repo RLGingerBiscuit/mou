@@ -6,9 +6,12 @@ import "core:log"
 import glm "core:math/linalg/glsl"
 import "core:mem"
 import "core:os"
+import "core:path/filepath"
 import "core:sync"
 import gl "vendor:OpenGL"
 import "vendor:glfw"
+
+import rdoc "third:renderdoc"
 
 WINDOW_WIDTH :: 1280
 WINDOW_HEIGHT :: 720
@@ -73,6 +76,17 @@ main :: proc() {
 			}
 		}
 	}
+
+	rdoc_lib, rdoc_api, rdoc_ok := rdoc.load_api()
+	if rdoc_ok {
+		log.infof("loaded renderdoc %v", rdoc_api)
+	}
+	defer if rdoc_ok {
+		rdoc.unload_api(rdoc_lib)
+	}
+
+	rdoc.SetCaptureFilePathTemplate(rdoc_api, "captures/")
+	rdoc.SetCaptureKeys(rdoc_api, {})
 
 	log.info("Hellope!")
 
@@ -171,10 +185,18 @@ main :: proc() {
 		delta_time := current_time - previous_time
 		previous_time = current_time
 
+		capture_frame := false
+
 		{ 	// Update
 			if window_get_key(state.window, .Escape) == .Press {
 				log.debugf("Escape pressed, closing window")
 				set_window_should_close(state.window, true)
+			}
+
+			if rdoc_api != nil &&
+			   window_get_key(state.window, .F1) == .Press &&
+			   window_get_prev_key(state.window, .F1) != .Press {
+				capture_frame = true
 			}
 
 			mu_update_ui(&state, delta_time)
@@ -208,7 +230,7 @@ main :: proc() {
 					}
 				}
 
-				@(static) chunks_to_demesh: sa.Small_Array(MAX_RENDER_DISTANCE * 16, glm.ivec3)
+				@(static)chunks_to_demesh: sa.Small_Array(MAX_RENDER_DISTANCE * 16, glm.ivec3)
 
 				for chunk_pos in state.world.chunks {
 					if len(state.world.chunks[chunk_pos].opaque_mesh) > 0 &&
@@ -226,6 +248,44 @@ main :: proc() {
 					clear(&chunk.transparent_mesh)
 				}
 				sa.clear(&chunks_to_demesh)
+			}
+		}
+
+		if capture_frame {
+			log.debug("capturing frame")
+			rdoc.StartFrameCapture(rdoc_api, nil, nil)
+		}
+		defer if capture_frame {
+			ensure(rdoc_api != nil)
+			log.debug("captured frame")
+			rdoc.EndFrameCapture(rdoc_api, nil, nil)
+
+			cap_idx := rdoc.GetNumCaptures(rdoc_api) - 1
+			if cap_idx >= 0 {
+				ts: u64
+				fp := make([]u8, 512, context.temp_allocator)
+				fp_len: u32
+
+				if rdoc.GetCapture(rdoc_api, cap_idx, cast(cstring)raw_data(fp), &fp_len, &ts) !=
+				   0 {
+					ensure(int(fp_len) < len(fp))
+					cwd := os.get_current_directory(context.temp_allocator)
+
+					cap_path := filepath.join({cwd, string(fp[:fp_len])}, context.temp_allocator)
+
+					log.infof("loading capture {}", cap_path)
+
+					if rdoc.IsTargetControlConnected(rdoc_api) {
+						rdoc.ShowReplayUI(rdoc_api)
+					} else {
+						pid := rdoc.LaunchReplayUI(rdoc_api, 1, cast(cstring)raw_data(cap_path))
+						if pid != 0 {
+							log.infof("launched RenderDoc (pid={})", pid)
+						}
+					}
+
+				}
+
 			}
 		}
 
@@ -300,7 +360,9 @@ main :: proc() {
 
 			unbind_buffer(.Array)
 			unbind_vertex_array()
+		}
 
+		{ 	// UI
 			mu_render_ui(&state)
 		}
 

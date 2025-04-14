@@ -573,8 +573,8 @@ mu_render_ui :: proc(state: ^State) {
 BUF_SZ :: 16384
 @(private = "file")
 Vert :: struct #packed {
-	pos:       [2]f32,
-	tex_coord: [2]f32,
+	pos:       glm.vec2,
+	tex_coord: glm.vec2,
 	colour:    mu.Color,
 }
 @(private = "file")
