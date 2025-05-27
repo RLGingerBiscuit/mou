@@ -1,5 +1,4 @@
-bin/*
-!bin/.gitkeep
+bin/
 
 # Extraenous compilation output
 *.so
@@ -31,4 +30,5 @@ captures/
 *.bmp
 
 # Personal notes
+[Nn]otes/
 Notes.md

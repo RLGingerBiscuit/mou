@@ -129,7 +129,7 @@ main :: proc() {
 	gl.Enable(gl.BLEND)
 	gl.BlendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA)
 
-	shader := make_shader("assets/shaders/basic.vert", "assets/shaders/basic.frag")
+	shader := make_shader("assets/shaders/chunk.vert", "assets/shaders/chunk.frag")
 	defer destroy_shader(&shader)
 
 	atlas := make_atlas("assets/textures/")
