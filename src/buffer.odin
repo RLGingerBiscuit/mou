@@ -48,6 +48,16 @@ buffer_data :: proc(buffer: Buffer, data: $S/[]$T) {
 	)
 }
 
-buffer_sub_data :: proc(buffer: Buffer, offset: int, data: $S/[]$T) {
-	gl.BufferSubData(cast(u32)buffer.target, offset, len(data) * size_of(T), raw_data(data))
+buffer_sub_data :: proc(buffer: Buffer, offset: int, data: $S/[]$T, loc := #caller_location) {
+	when ODIN_DEBUG {
+		gl.BufferSubData(
+			cast(u32)buffer.target,
+			offset,
+			len(data) * size_of(T),
+			raw_data(data),
+			loc = loc,
+		)
+	} else {
+		gl.BufferSubData(cast(u32)buffer.target, offset, len(data) * size_of(T), raw_data(data))
+	}
 }

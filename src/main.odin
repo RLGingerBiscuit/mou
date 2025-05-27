@@ -17,7 +17,7 @@ WINDOW_HEIGHT :: 720
 WINDOW_SIZE :: [2]i32{WINDOW_WIDTH, WINDOW_HEIGHT}
 WINDOW_TITLE :: "Goofin Minecraft Clone"
 
-DEFAULT_RENDER_DISTANCE :: 4
+DEFAULT_RENDER_DISTANCE :: 8
 MAX_RENDER_DISTANCE :: 16
 DEFAULT_FOV :: 45
 NEAR_PLANE :: 0.1
@@ -130,8 +130,11 @@ main :: proc() {
 	gl.Enable(gl.BLEND)
 	gl.BlendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA)
 
-	shader := make_shader("assets/shaders/chunk.vert", "assets/shaders/chunk.frag")
-	defer destroy_shader(&shader)
+	chunk_shader := make_shader("assets/shaders/chunk.vert", "assets/shaders/chunk.frag")
+	defer destroy_shader(&chunk_shader)
+
+	line_shader := make_shader("assets/shaders/line.vert", "assets/shaders/line.frag")
+	defer destroy_shader(&line_shader)
 
 	atlas := make_atlas("assets/textures/")
 	defer destroy_atlas(&atlas)
@@ -171,6 +174,31 @@ main :: proc() {
 		buffer_data(transparent_vbo, temp)
 
 		unbind_buffer(.Array)
+		unbind_vertex_array()
+	}
+
+	line_vao := make_vertex_array()
+	defer destroy_vertex_array(&line_vao)
+	line_vbo := make_buffer(.Array, .Dynamic)
+	defer destroy_buffer(&line_vbo)
+	line_ebo := make_buffer(.Element_Array, .Static)
+	defer destroy_buffer(&line_ebo)
+
+	{
+		@(static, rodata)
+		VERTICES_TEMP := [8]glm.vec3{}
+
+		bind_vertex_array(line_vao)
+
+		bind_buffer(line_vbo)
+		buffer_data(line_vbo, VERTICES_TEMP[:])
+
+		bind_buffer(line_ebo)
+		buffer_data(line_ebo, get_frustum_indices())
+
+		vertex_attrib_pointer(0, 3, .Float, false, size_of(glm.vec3), 0)
+
+		// unbind_buffer(.Array)
 		unbind_vertex_array()
 	}
 
@@ -235,7 +263,6 @@ main :: proc() {
 				}
 
 				chunks_to_demesh := &state.frame.chunks_to_demesh
-				reserve(chunks_to_demesh, MAX_RENDER_DISTANCE * 16)
 
 				for _, &chunk in &state.world.chunks {
 					if len(chunk.opaque_mesh) > 0 && glm.abs(cam_chunk_pos.x - chunk.pos.x) > N ||
@@ -302,42 +329,43 @@ main :: proc() {
 			view_matrix := state.camera.view_matrix
 			u_mvp := projection_matrix * view_matrix
 
-			frustum := create_frustum(u_mvp)
+			frustum_matrix := state.frozen_frustum.? or_else u_mvp
+			frustum := create_frustum(frustum_matrix)
 
 			bind_vertex_array(vao)
 			defer unbind_vertex_array()
 
-			use_shader(shader)
+			use_shader(chunk_shader)
 			bind_texture(atlas.texture)
 			gl.UniformMatrix4fv(
-				gl.GetUniformLocation(shader.handle, "u_mvp"),
+				gl.GetUniformLocation(chunk_shader.handle, "u_mvp"),
 				1,
 				false,
 				&u_mvp[0, 0],
 			)
 			gl.Uniform3fv(
-				gl.GetUniformLocation(shader.handle, "u_campos"),
+				gl.GetUniformLocation(chunk_shader.handle, "u_campos"),
 				1,
 				&state.camera.pos[0],
 			)
 
 			if state.fog_enabled {
 				gl.Uniform1f(
-					gl.GetUniformLocation(shader.handle, "fog_start"),
+					gl.GetUniformLocation(chunk_shader.handle, "fog_start"),
 					f32(state.render_distance) * CHUNK_WIDTH - CHUNK_WIDTH / 4,
 				)
 				gl.Uniform1f(
-					gl.GetUniformLocation(shader.handle, "fog_end"),
+					gl.GetUniformLocation(chunk_shader.handle, "fog_end"),
 					f32(state.render_distance) * CHUNK_WIDTH,
 				)
 				gl.Uniform4fv(
-					gl.GetUniformLocation(shader.handle, "fog_colour"),
+					gl.GetUniformLocation(chunk_shader.handle, "fog_colour"),
 					1,
 					&SKY_COLOUR[0],
 				)
 			} else {
-				gl.Uniform1f(gl.GetUniformLocation(shader.handle, "fog_start"), max(f32))
-				gl.Uniform1f(gl.GetUniformLocation(shader.handle, "fog_end"), max(f32))
+				gl.Uniform1f(gl.GetUniformLocation(chunk_shader.handle, "fog_start"), max(f32))
+				gl.Uniform1f(gl.GetUniformLocation(chunk_shader.handle, "fog_end"), max(f32))
 			}
 
 			sync.shared_guard(&state.world.lock)
@@ -381,11 +409,55 @@ main :: proc() {
 
 			unbind_buffer(.Array)
 			unbind_vertex_array()
+
+			if state.render_frustum {
+				frustum_vertices := get_frustum_vertices(frustum)
+
+				old_far_plane := state.far_plane
+				state.far_plane = false
+				defer state.far_plane = old_far_plane
+				_update_camera_axes(&state)
+				projection_matrix = state.camera.projection_matrix
+				view_matrix = state.camera.view_matrix
+				u_mvp = projection_matrix * view_matrix
+
+				gl.Disable(gl.DEPTH_TEST)
+				defer gl.Enable(gl.DEPTH_TEST)
+
+				LINE_COLOUR := glm.vec3{1, 1, 1}
+
+				bind_vertex_array(line_vao)
+				defer unbind_vertex_array()
+				bind_buffer(line_vbo)
+
+				use_shader(line_shader)
+				gl.UniformMatrix4fv(
+					gl.GetUniformLocation(line_shader.handle, "u_mvp"),
+					1,
+					false,
+					&u_mvp[0, 0],
+				)
+				gl.Uniform3fv(
+					gl.GetUniformLocation(line_shader.handle, "u_line_colour"),
+					1,
+					&LINE_COLOUR[0],
+				)
+
+				buffer_sub_data(line_vbo, 0, frustum_vertices[:])
+
+				gl.DrawElements(
+					gl.LINES,
+					cast(i32)len(get_frustum_indices()),
+					gl.UNSIGNED_INT,
+					nil,
+				)
+			}
+
+			{ 	// UI
+				mu_render_ui(&state)
+			}
 		}
 
-		{ 	// UI
-			mu_render_ui(&state)
-		}
 
 		window_swap_buffers(state.window)
 		glfw.PollEvents()

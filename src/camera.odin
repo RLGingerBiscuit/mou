@@ -58,7 +58,7 @@ _update_camera_axes :: proc(state: ^State) {
 		cam.fov,
 		cast(f32)state.window.size.x / cast(f32)state.window.size.y,
 		NEAR_PLANE,
-		state.far_plane ? f32(state.render_distance + 2) * CHUNK_WIDTH : 100_000,
+		state.far_plane ? f32(state.render_distance + 2) * CHUNK_WIDTH : 10_000,
 	)
 	cam.front = glm.normalize(glm.vec3{glm.cos(yaw), 0, glm.sin(yaw)})
 	cam.right = glm.normalize(glm.cross(cam.front, cam.global_up))

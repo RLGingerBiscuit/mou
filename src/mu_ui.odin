@@ -362,41 +362,62 @@ mu_update_ui :: proc(state: ^State, dt: f64) {
 	mu.begin(ctx)
 	defer mu.end(ctx)
 
-	if mu.window(ctx, "Minceraft", {10, 10, 340, 160}, {.NO_CLOSE, .NO_RESIZE}) {
+
+	if mu.window(ctx, "Minceraft", {10, 10, 380, 240}, {.NO_CLOSE, .NO_RESIZE}) {
 		LABEL_WIDTH :: 160
 
 		mu.layout_row(ctx, {LABEL_WIDTH, -1})
 
-		mu.label(ctx, "FPS:")
-		mu.text(ctx, fmt.tprintf("{:.1f}", 1 / dt))
+		mu.label(ctx, "Frame Time:")
+		mu.text(ctx, fmt.tprintf("{:.3f}", dt))
 
 		mu.label(ctx, "Coords:")
 		mu.text(
 			ctx,
 			fmt.tprintf(
-				"{:.1f}, {:.1f}, {:.1f}",
+				"X: {:.1f}, Y: {:.1f}, Z: {:.1f}",
 				state.camera.pos.x,
 				state.camera.pos.y,
 				state.camera.pos.z,
 			),
 		)
 
+		mu.label(ctx, "Camera:")
+		mu.text(
+			ctx,
+			fmt.tprintf(
+				"Yaw: {:.1f}, Pitch: {:.1f}",
+				glm.mod(glm.abs(state.camera.yaw), 360),
+				state.camera.pitch,
+			),
+		)
+
 		mu.label(ctx, "Render Distance:")
-		tmp_rnd_dst := cast(f32)state.render_distance
-		mu.number(ctx, &tmp_rnd_dst, 1, "%.0f")
-		if tmp_rnd_dst < 1 {
-			tmp_rnd_dst = 1
+		temp_render_distance := cast(f32)state.render_distance
+		mu.number(ctx, &temp_render_distance, 1, "%.0f")
+		if temp_render_distance < 1 {
+			temp_render_distance = 1
 		}
-		if tmp_rnd_dst > MAX_RENDER_DISTANCE {
-			tmp_rnd_dst = MAX_RENDER_DISTANCE
+		if temp_render_distance > MAX_RENDER_DISTANCE {
+			temp_render_distance = MAX_RENDER_DISTANCE
 		}
-		state.render_distance = cast(i32)tmp_rnd_dst
+		state.render_distance = cast(i32)temp_render_distance
 
 		mu.label(ctx, "Fog:")
 		checkbox_no_label(ctx, "fog_enabled", &state.fog_enabled)
 
 		mu.label(ctx, "Clip Plane:")
 		checkbox_no_label(ctx, "far_plane", &state.far_plane)
+
+		mu.label(ctx, "Render Frustum:")
+		checkbox_no_label(ctx, "render_frustum", &state.render_frustum)
+
+		_, temp_frozen_frustum := state.frozen_frustum.?
+		mu.label(ctx, "Freeze Frustum:")
+		if .CHANGE in checkbox_no_label(ctx, "frozen_frustum", &temp_frozen_frustum) {
+			state.frozen_frustum =
+				temp_frozen_frustum ? (state.camera.projection_matrix * state.camera.view_matrix) : nil
+		}
 	}
 }
 
