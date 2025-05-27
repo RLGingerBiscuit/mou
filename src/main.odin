@@ -1,7 +1,6 @@
 package mou
 
 import "base:runtime"
-import sa "core:container/small_array"
 import "core:log"
 import glm "core:math/linalg/glsl"
 import "core:mem"
@@ -85,7 +84,7 @@ main :: proc() {
 		rdoc.unload_api(rdoc_lib)
 	}
 
-	rdoc.SetCaptureFilePathTemplate(rdoc_api, "captures/")
+	rdoc.SetCaptureFilePathTemplate(rdoc_api, "captures/cap")
 	rdoc.SetCaptureKeys(rdoc_api, {})
 
 	log.info("Hellope!")
@@ -105,6 +104,8 @@ main :: proc() {
 	state.render_distance = DEFAULT_RENDER_DISTANCE
 	state.fog_enabled = true
 	state.far_plane = true
+	init_state(&state)
+	defer destroy_state(&state)
 
 	init_camera(
 		&state,
@@ -140,7 +141,7 @@ main :: proc() {
 
 	if sync.guard(&state.world.lock) {
 		N := state.render_distance
-		for y in i32(-N) ..= N {
+		for y in i32(-1) ..= 1 {
 			for z in i32(-N) ..= N {
 				for x in i32(-N) ..= N {
 					world_generate_chunk(&state.world, {x, y, z})
@@ -208,8 +209,8 @@ main :: proc() {
 			update_window(&state.window)
 
 			// TODO: Don't forget to turn this back on nerd
-			if false {
-				// if sync.guard(&state.world.lock) {
+			// if false {
+			if sync.guard(&state.world.lock) {
 				N := i32(1.2 * f32(state.render_distance))
 
 				global_pos := glm.ivec3 {
@@ -219,9 +220,9 @@ main :: proc() {
 				}
 				cam_chunk_pos := global_pos_to_chunk_pos(global_pos)
 				cam_chunk_pos.y = 0
-				for y in i32(-N) ..< N {
-					for z in i32(-N) ..< N {
-						for x in i32(-N) ..< N {
+				for y in i32(-1) ..= 1 {
+					for z in i32(-N) ..= N {
+						for x in i32(-N) ..= N {
 							chunk_pos := cam_chunk_pos + {x, y, z}
 							if !world_generate_chunk(&state.world, chunk_pos) {
 								chunk := &state.world.chunks[chunk_pos]
@@ -233,24 +234,23 @@ main :: proc() {
 					}
 				}
 
-				@(static) chunks_to_demesh: sa.Small_Array(MAX_RENDER_DISTANCE * 16, glm.ivec3)
+				chunks_to_demesh := &state.frame.chunks_to_demesh
+				reserve(chunks_to_demesh, MAX_RENDER_DISTANCE * 16)
 
-				for chunk_pos in state.world.chunks {
-					if len(state.world.chunks[chunk_pos].opaque_mesh) > 0 &&
-						   glm.abs(cam_chunk_pos.x - chunk_pos.x) > N ||
-					   glm.abs(cam_chunk_pos.z - chunk_pos.z) > N {
-						sa.append_elem(&chunks_to_demesh, chunk_pos)
+				for _, &chunk in &state.world.chunks {
+					if len(chunk.opaque_mesh) > 0 && glm.abs(cam_chunk_pos.x - chunk.pos.x) > N ||
+					   glm.abs(cam_chunk_pos.z - chunk.pos.z) > N {
+						append(chunks_to_demesh, &chunk)
 					}
 				}
 
-				for chunk_pos in sa.slice(&chunks_to_demesh) {
-					chunk := &state.world.chunks[chunk_pos]
+				for chunk in chunks_to_demesh {
 					// TODO: separate chunks from mesh so mesh can be fully deleted
 					// TODO: ensure chunks are also removed from remesh queue if they're in there for some reason
 					clear(&chunk.opaque_mesh)
 					clear(&chunk.transparent_mesh)
 				}
-				sa.clear(&chunks_to_demesh)
+				clear(chunks_to_demesh)
 			}
 		}
 
@@ -339,18 +339,18 @@ main :: proc() {
 
 			sync.shared_guard(&state.world.lock)
 
-			@(static) opaque_chunks: sa.Small_Array(MAX_RENDER_DISTANCE * 16, ^Chunk)
-			@(static) transparent_chunks: sa.Small_Array(MAX_RENDER_DISTANCE * 16, ^Chunk)
-			defer sa.clear(&opaque_chunks)
-			defer sa.clear(&transparent_chunks)
+			opaque_chunks := &state.frame.opaque_chunks
+			transparent_chunks := &state.frame.transparent_chunks
 
-			// NOTE: Pointers are fine here because we have the lock and they don't outlive it
+			defer clear(&state.frame.opaque_chunks)
+			defer clear(&state.frame.transparent_chunks)
+
 			for _, &chunk in state.world.chunks {
 				if len(chunk.opaque_mesh) > 0 {
-					sa.append(&opaque_chunks, &chunk)
+					append(opaque_chunks, &chunk)
 				}
 				if len(chunk.transparent_mesh) > 0 {
-					sa.append(&transparent_chunks, &chunk)
+					append(transparent_chunks, &chunk)
 				}
 			}
 
@@ -358,7 +358,7 @@ main :: proc() {
 			gl.Enable(gl.CULL_FACE)
 			vertex_attrib_pointer(0, 3, .Float, false, 5 * size_of(f32), 0)
 			vertex_attrib_pointer(1, 2, .Float, false, 5 * size_of(f32), 3 * size_of(f32))
-			for &chunk in sa.slice(&opaque_chunks) {
+			for &chunk in opaque_chunks {
 				buffer_sub_data(vbo, 0, chunk.opaque_mesh[:])
 				gl.DrawArrays(gl.TRIANGLES, 0, cast(i32)len(chunk.opaque_mesh) / 3)
 			}
@@ -367,7 +367,7 @@ main :: proc() {
 			gl.Disable(gl.CULL_FACE)
 			vertex_attrib_pointer(0, 3, .Float, false, 5 * size_of(f32), 0)
 			vertex_attrib_pointer(1, 2, .Float, false, 5 * size_of(f32), 3 * size_of(f32))
-			for chunk in sa.slice(&transparent_chunks) {
+			for chunk in transparent_chunks {
 				buffer_sub_data(vbo, 0, chunk.transparent_mesh[:])
 				gl.DrawArrays(gl.TRIANGLES, 0, cast(i32)len(chunk.transparent_mesh) / 3)
 			}

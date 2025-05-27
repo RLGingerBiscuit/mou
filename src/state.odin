@@ -12,5 +12,26 @@ State :: struct {
 	fog_enabled:     bool,
 	far_plane:       bool,
 	// Other state
+	frame:           Frame_State,
 	world:           World,
+}
+
+Frame_State :: struct {
+	// Frame state
+	// NOTE: Pointers are fine here because they are always locked
+	chunks_to_demesh:   [dynamic]^Chunk,
+	opaque_chunks:      [dynamic]^Chunk,
+	transparent_chunks: [dynamic]^Chunk,
+}
+
+init_state :: proc(state: ^State) {
+	state.frame.chunks_to_demesh = make([dynamic]^Chunk, 0,MAX_RENDER_DISTANCE * 16)
+	state.frame.opaque_chunks = make([dynamic]^Chunk, 0,MAX_RENDER_DISTANCE * 16)
+	state.frame.transparent_chunks = make([dynamic]^Chunk, 0,MAX_RENDER_DISTANCE * 16)
+}
+
+destroy_state :: proc(state: ^State) {
+	delete(state.frame.chunks_to_demesh)
+	delete(state.frame.opaque_chunks)
+	delete(state.frame.transparent_chunks)
 }
