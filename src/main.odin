@@ -107,7 +107,7 @@ main :: proc() {
 	state.far_plane = true
 
 	init_camera(
-		&state.camera,
+		&state,
 		pos = {0, 17, 0},
 		yaw = 90,
 		pitch = 0,
@@ -150,8 +150,11 @@ main :: proc() {
 	}
 
 	vao := make_vertex_array()
+	defer destroy_vertex_array(&vao)
 	vbo := make_buffer(.Array, .Dynamic)
+	defer destroy_buffer(&vbo)
 	transparent_vbo := make_buffer(.Array, .Dynamic)
+	defer destroy_buffer(&transparent_vbo)
 
 	{
 		MAX_VERTEX_SIZE :: (CHUNK_SIZE * 6 * 6) * 5
@@ -201,7 +204,7 @@ main :: proc() {
 
 			mu_update_ui(&state, delta_time)
 
-			update_camera(&state.camera, &state.window, delta_time)
+			update_camera(&state, delta_time)
 			update_window(&state.window)
 
 			// TODO: Don't forget to turn this back on nerd
@@ -230,7 +233,7 @@ main :: proc() {
 					}
 				}
 
-				@(static)chunks_to_demesh: sa.Small_Array(MAX_RENDER_DISTANCE * 16, glm.ivec3)
+				@(static) chunks_to_demesh: sa.Small_Array(MAX_RENDER_DISTANCE * 16, glm.ivec3)
 
 				for chunk_pos in state.world.chunks {
 					if len(state.world.chunks[chunk_pos].opaque_mesh) > 0 &&
@@ -295,7 +298,7 @@ main :: proc() {
 			gl.ClearColor(SKY_COLOUR[0], SKY_COLOUR[1], SKY_COLOUR[2], SKY_COLOUR[3])
 			gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
 
-			projection_matrix := get_projection_matrix(state)
+			projection_matrix := state.camera.projection_matrix
 			view_matrix := state.camera.view_matrix
 
 			bind_vertex_array(vao)
@@ -318,7 +321,7 @@ main :: proc() {
 			if state.fog_enabled {
 				gl.Uniform1f(
 					gl.GetUniformLocation(shader.handle, "fog_start"),
-					f32(state.render_distance) * CHUNK_WIDTH - CHUNK_WIDTH / 2,
+					f32(state.render_distance) * CHUNK_WIDTH - CHUNK_WIDTH / 4,
 				)
 				gl.Uniform1f(
 					gl.GetUniformLocation(shader.handle, "fog_end"),
@@ -336,26 +339,37 @@ main :: proc() {
 
 			sync.shared_guard(&state.world.lock)
 
+			@(static) opaque_chunks: sa.Small_Array(MAX_RENDER_DISTANCE * 16, ^Chunk)
+			@(static) transparent_chunks: sa.Small_Array(MAX_RENDER_DISTANCE * 16, ^Chunk)
+			defer sa.clear(&opaque_chunks)
+			defer sa.clear(&transparent_chunks)
+
+			// NOTE: Pointers are fine here because we have the lock and they don't outlive it
+			for _, &chunk in state.world.chunks {
+				if len(chunk.opaque_mesh) > 0 {
+					sa.append(&opaque_chunks, &chunk)
+				}
+				if len(chunk.transparent_mesh) > 0 {
+					sa.append(&transparent_chunks, &chunk)
+				}
+			}
+
 			bind_buffer(vbo)
 			gl.Enable(gl.CULL_FACE)
 			vertex_attrib_pointer(0, 3, .Float, false, 5 * size_of(f32), 0)
 			vertex_attrib_pointer(1, 2, .Float, false, 5 * size_of(f32), 3 * size_of(f32))
-			for _, &chunk in state.world.chunks {
-				if len(chunk.opaque_mesh) > 0 {
-					buffer_sub_data(vbo, 0, chunk.opaque_mesh[:])
-					gl.DrawArrays(gl.TRIANGLES, 0, cast(i32)len(chunk.opaque_mesh) / 3)
-				}
+			for &chunk in sa.slice(&opaque_chunks) {
+				buffer_sub_data(vbo, 0, chunk.opaque_mesh[:])
+				gl.DrawArrays(gl.TRIANGLES, 0, cast(i32)len(chunk.opaque_mesh) / 3)
 			}
 
 			bind_buffer(transparent_vbo)
 			gl.Disable(gl.CULL_FACE)
 			vertex_attrib_pointer(0, 3, .Float, false, 5 * size_of(f32), 0)
 			vertex_attrib_pointer(1, 2, .Float, false, 5 * size_of(f32), 3 * size_of(f32))
-			for _, &chunk in state.world.chunks {
-				if len(chunk.transparent_mesh) > 0 {
-					buffer_sub_data(vbo, 0, chunk.transparent_mesh[:])
-					gl.DrawArrays(gl.TRIANGLES, 0, cast(i32)len(chunk.transparent_mesh) / 3)
-				}
+			for chunk in sa.slice(&transparent_chunks) {
+				buffer_sub_data(vbo, 0, chunk.transparent_mesh[:])
+				gl.DrawArrays(gl.TRIANGLES, 0, cast(i32)len(chunk.transparent_mesh) / 3)
 			}
 
 			unbind_buffer(.Array)

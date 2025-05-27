@@ -7,25 +7,28 @@ import "vendor:glfw"
 FAST_MODIFIER :: 2.5
 
 Camera :: struct {
-	yaw, pitch:  f32,
-	pos:         glm.vec3,
-	global_up:   glm.vec3,
-	speed:       f32,
-	sensitivity: f32,
-	fov:         f32,
-	view_matrix: glm.mat4,
-	flags:       bit_set[enum u8 {
+	yaw, pitch:        f32,
+	pos:               glm.vec3,
+	speed:             f32,
+	sensitivity:       f32,
+	fov:               f32,
+	view_matrix:       glm.mat4,
+	projection_matrix: glm.mat4,
+	global_up:         glm.vec3,
+	front, right, up:  glm.vec3,
+	flags:             bit_set[enum u8 {
 		Fast,
 		Wireframe,
 	};u8],
 }
 
 init_camera :: proc(
-	cam: ^Camera,
+	state: ^State,
 	pos: glm.vec3,
 	yaw, pitch, speed, sensitivity, fov: f32,
 	up := glm.vec3{0, 1, 0},
 ) {
+	cam := &state.camera
 	cam.pos = pos
 	cam.yaw = yaw
 	cam.pitch = pitch
@@ -33,19 +36,38 @@ init_camera :: proc(
 	cam.sensitivity = sensitivity
 	cam.fov = fov
 	cam.global_up = up
+	cam.up = up
+
+	_update_camera_axes(state)
 }
 
-get_projection_matrix :: proc(state: State) -> glm.mat4 {
-	aspect_ratio := cast(f32)state.window.size.x / cast(f32)state.window.size.y
-	return glm.mat4Perspective(
-		state.camera.fov,
-		aspect_ratio,
-		NEAR_PLANE,
-		state.far_plane ? f32(state.render_distance + 2) * CHUNK_WIDTH : 10_000,
+_update_camera_axes :: proc(state: ^State) {
+	cam := &state.camera
+
+	yaw := glm.radians(cam.yaw)
+	pitch := glm.radians(cam.pitch)
+
+	cam.front = glm.normalize(
+		glm.vec3{glm.cos(yaw) * glm.cos(pitch), glm.sin(pitch), glm.sin(yaw) * glm.cos(pitch)},
 	)
+	cam.right = glm.normalize(glm.cross(cam.front, cam.global_up))
+	cam.up = glm.normalize(glm.cross(cam.right, cam.front))
+
+	cam.view_matrix = glm.mat4LookAt(cam.pos, cam.pos + cam.front, cam.up)
+	cam.projection_matrix = glm.mat4Perspective(
+		cam.fov,
+		cast(f32)state.window.size.x / cast(f32)state.window.size.y,
+		NEAR_PLANE,
+		state.far_plane ? f32(state.render_distance + 2) * CHUNK_WIDTH : 100_000,
+	)
+	cam.front = glm.normalize(glm.vec3{glm.cos(yaw), 0, glm.sin(yaw)})
+	cam.right = glm.normalize(glm.cross(cam.front, cam.global_up))
 }
 
-update_camera :: proc(cam: ^Camera, wnd: ^Window, dt: f64) {
+update_camera :: proc(state: ^State, dt: f64) {
+	cam := &state.camera
+	wnd := &state.window
+
 	if .UI in wnd.flags {
 		return
 	}
@@ -65,18 +87,7 @@ update_camera :: proc(cam: ^Camera, wnd: ^Window, dt: f64) {
 	cam.yaw -= cast(f32)x
 	cam.pitch = clamp(cam.pitch + cast(f32)y, -89.99, 89.99)
 
-	yaw := glm.radians(cam.yaw)
-	pitch := glm.radians(cam.pitch)
-	front := glm.normalize(
-		glm.vec3{glm.cos(yaw) * glm.cos(pitch), glm.sin(pitch), glm.sin(yaw) * glm.cos(pitch)},
-	)
-	right := glm.normalize(glm.cross(front, cam.global_up))
-	up := glm.normalize(glm.cross(right, front))
-
-	cam.view_matrix = glm.mat4LookAt(cam.pos, cam.pos + front, up)
-
-	front = glm.normalize(glm.vec3{glm.cos(yaw), 0, glm.sin(yaw)})
-	right = glm.normalize(glm.cross(front, cam.global_up))
+	_update_camera_axes(state)
 
 	old_pos := cam.pos
 
@@ -99,16 +110,16 @@ update_camera :: proc(cam: ^Camera, wnd: ^Window, dt: f64) {
 	}
 
 	if window_get_key(wnd^, .W) == .Press {
-		cam.pos += front * velocity
+		cam.pos += cam.front * velocity
 	}
 	if window_get_key(wnd^, .A) == .Press {
-		cam.pos += right * velocity
+		cam.pos += cam.right * velocity
 	}
 	if window_get_key(wnd^, .S) == .Press {
-		cam.pos -= front * velocity
+		cam.pos -= cam.front * velocity
 	}
 	if window_get_key(wnd^, .D) == .Press {
-		cam.pos -= right * velocity
+		cam.pos -= cam.right * velocity
 	}
 	if window_get_key(wnd^, .Space) == .Press {
 		cam.pos += cam.global_up * velocity
