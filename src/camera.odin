@@ -69,6 +69,7 @@ update_camera :: proc(state: ^State, dt: f64) {
 	wnd := &state.window
 
 	if .UI in wnd.flags {
+		_update_camera_axes(state)
 		return
 	}
 

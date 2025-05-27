@@ -141,7 +141,7 @@ main :: proc() {
 
 	if sync.guard(&state.world.lock) {
 		N := state.render_distance
-		for y in i32(-1) ..= 1 {
+		for y in i32(0) ..= 1 {
 			for z in i32(-N) ..= N {
 				for x in i32(-N) ..= N {
 					world_generate_chunk(&state.world, {x, y, z})
@@ -209,8 +209,8 @@ main :: proc() {
 			update_window(&state.window)
 
 			// TODO: Don't forget to turn this back on nerd
-			// if false {
-			if sync.guard(&state.world.lock) {
+			if false {
+				// if sync.guard(&state.world.lock) {
 				N := i32(1.2 * f32(state.render_distance))
 
 				global_pos := glm.ivec3 {
@@ -220,7 +220,7 @@ main :: proc() {
 				}
 				cam_chunk_pos := global_pos_to_chunk_pos(global_pos)
 				cam_chunk_pos.y = 0
-				for y in i32(-1) ..= 1 {
+				for y in i32(0) ..= 1 {
 					for z in i32(-N) ..= N {
 						for x in i32(-N) ..= N {
 							chunk_pos := cam_chunk_pos + {x, y, z}
@@ -300,12 +300,15 @@ main :: proc() {
 
 			projection_matrix := state.camera.projection_matrix
 			view_matrix := state.camera.view_matrix
+			u_mvp := projection_matrix * view_matrix
+
+			frustum := create_frustum(u_mvp)
 
 			bind_vertex_array(vao)
+			defer unbind_vertex_array()
 
 			use_shader(shader)
 			bind_texture(atlas.texture)
-			u_mvp := projection_matrix * view_matrix
 			gl.UniformMatrix4fv(
 				gl.GetUniformLocation(shader.handle, "u_mvp"),
 				1,
@@ -346,6 +349,10 @@ main :: proc() {
 			defer clear(&state.frame.transparent_chunks)
 
 			for _, &chunk in state.world.chunks {
+				if !frustum_contains_chunk(frustum, chunk.pos) {
+					continue
+				}
+
 				if len(chunk.opaque_mesh) > 0 {
 					append(opaque_chunks, &chunk)
 				}
