@@ -41,7 +41,7 @@ get_projection_matrix :: proc(state: State) -> glm.mat4 {
 		state.camera.fov,
 		aspect_ratio,
 		NEAR_PLANE,
-		state.far_plane?f32(state.render_distance + 2) * CHUNK_WIDTH:10_000,
+		state.far_plane ? f32(state.render_distance + 2) * CHUNK_WIDTH : 10_000,
 	)
 }
 
