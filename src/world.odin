@@ -76,31 +76,40 @@ world_generate_chunk :: proc(world: ^World, chunk_pos: glm.ivec3) -> bool {
 	world.chunks[chunk_pos] = generate_chunk(chunk_pos)
 	chunk := &world.chunks[chunk_pos]
 
+	chunk_noise: [CHUNK_WIDTH * CHUNK_DEPTH]i32
+
+	for z in i32(0) ..< CHUNK_DEPTH {
+		for x in i32(0) ..< CHUNK_WIDTH {
+			OCTAVES :: 4
+			PERSISTENCE :: 0.5
+
+			xf := f32(chunk_pos.x * CHUNK_WIDTH + x)
+			zf := f32(chunk_pos.z * CHUNK_DEPTH + z)
+
+			frequency := f32(1) / f32(64)
+			amplitude := f32(1)
+			amplitude_total: f32
+			n: f32
+			#unroll for _ in 0 ..< OCTAVES {
+				n += noise.perlin2d(xf * frequency, zf * frequency) * amplitude
+				amplitude_total += amplitude
+				amplitude *= PERSISTENCE
+				frequency *= 2
+			}
+			n /= amplitude_total
+			n *= 0.5
+			n += 0.5
+			n *= CHUNK_HEIGHT * 2
+
+			height := cast(i32)math.round(n)
+			chunk_noise[z * CHUNK_DEPTH + x] = height
+		}
+	}
+
 	for y in i32(0) ..< CHUNK_HEIGHT {
 		for z in i32(0) ..< CHUNK_DEPTH {
 			for x in i32(0) ..< CHUNK_WIDTH {
-				OCTAVES :: 4
-				PERSISTENCE :: 0.5
-
-				xf := f32(chunk_pos.x * CHUNK_WIDTH + x)
-				zf := f32(chunk_pos.z * CHUNK_DEPTH + z)
-
-				frequency := f32(1) / f32(64)
-				amplitude := f32(1)
-				amplitude_total: f32
-				n: f32
-				#unroll for _ in 0 ..< OCTAVES {
-					n += noise.perlin2d(xf * frequency, zf * frequency) * amplitude
-					amplitude_total += amplitude
-					amplitude *= PERSISTENCE
-					frequency *= 2
-				}
-				n /= amplitude_total
-				n *= 0.5
-				n += 0.5
-				n *= CHUNK_HEIGHT * 2
-
-				height := cast(i32)math.round(n)
+				height := chunk_noise[z * CHUNK_DEPTH + x]
 
 				cy := y + chunk_pos.y * CHUNK_HEIGHT
 				switch {
@@ -117,6 +126,7 @@ world_generate_chunk :: proc(world: ^World, chunk_pos: glm.ivec3) -> bool {
 		}
 	}
 
+	world_mark_chunk_remesh(world, chunk)
 	world_remesh_surrounding_chunks(world, chunk_pos)
 
 	return true

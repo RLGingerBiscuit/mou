@@ -237,8 +237,8 @@ main :: proc() {
 			update_window(&state.window)
 
 			// TODO: Don't forget to turn this back on nerd
-			if false {
-				// if sync.guard(&state.world.lock) {
+			// if false {
+			if sync.guard(&state.world.lock) {
 				N := i32(1.2 * f32(state.render_distance))
 
 				global_pos := glm.ivec3 {
@@ -252,12 +252,7 @@ main :: proc() {
 					for z in i32(-N) ..= N {
 						for x in i32(-N) ..= N {
 							chunk_pos := cam_chunk_pos + {x, y, z}
-							if !world_generate_chunk(&state.world, chunk_pos) {
-								chunk := &state.world.chunks[chunk_pos]
-								if len(chunk.opaque_mesh) == 0 {
-									world_mark_chunk_remesh(&state.world, chunk)
-								}
-							}
+							world_generate_chunk(&state.world, chunk_pos)
 						}
 					}
 				}
