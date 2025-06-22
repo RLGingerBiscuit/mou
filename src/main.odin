@@ -6,6 +6,7 @@ import glm "core:math/linalg/glsl"
 import "core:mem"
 import "core:os"
 import "core:path/filepath"
+import "core:slice"
 import "core:sync"
 import gl "vendor:OpenGL"
 import "vendor:glfw"
@@ -383,6 +384,14 @@ main :: proc() {
 					append(transparent_chunks, &chunk)
 				}
 			}
+
+			context.user_ptr = &state
+			slice.sort_by(transparent_chunks[:], proc(i, j: ^Chunk) -> bool {
+				state := cast(^State)context.user_ptr
+				i_dist := glm.length(state.camera.pos - chunk_pos_to_global_pos(i.pos))
+				j_dist := glm.length(state.camera.pos - chunk_pos_to_global_pos(j.pos))
+				return i_dist > j_dist
+			})
 
 			bind_buffer(vbo)
 			gl.Enable(gl.CULL_FACE)
