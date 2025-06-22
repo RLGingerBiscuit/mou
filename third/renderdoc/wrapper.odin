@@ -7,6 +7,9 @@ import "core:math"
 import "core:os"
 import "core:path/filepath"
 
+_ :: os
+_ :: filepath
+
 LOAD_RENDERDOC :: #config(LOAD_RENDERDOC, ODIN_DEBUG)
 
 // utility to load renderdoc, pass in the path to renderdoc if not installed at the default path
