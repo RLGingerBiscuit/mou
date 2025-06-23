@@ -207,7 +207,6 @@ main :: proc() {
 	defer mu_destroy_ui(&state)
 
 	show_window(&state.window)
-
 	window_center_cursor(&state.window)
 
 	gl.LineWidth(4)

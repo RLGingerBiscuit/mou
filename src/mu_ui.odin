@@ -362,8 +362,7 @@ mu_update_ui :: proc(state: ^State, dt: f64) {
 	mu.begin(ctx)
 	defer mu.end(ctx)
 
-
-	if mu.window(ctx, "Minceraft", {10, 10, 380, 240}, {.NO_CLOSE, .NO_RESIZE}) {
+	if mu.window(ctx, "Minceraft", {10, 10, 400, 260}, {.NO_CLOSE, .NO_RESIZE}) {
 		LABEL_WIDTH :: 160
 
 		mu.layout_row(ctx, {LABEL_WIDTH, -1})
@@ -402,6 +401,16 @@ mu_update_ui :: proc(state: ^State, dt: f64) {
 			temp_render_distance = MAX_RENDER_DISTANCE
 		}
 		state.render_distance = cast(i32)temp_render_distance
+
+		temp_wireframe_enabled := .Wireframe in state.camera.flags
+		mu.label(ctx, "Wireframe:")
+		if .CHANGE in checkbox_no_label(ctx, "wireframe_enabled", &temp_wireframe_enabled) {
+			if temp_wireframe_enabled {
+				state.camera.flags |= {.Wireframe}
+			} else {
+				state.camera.flags &~= {.Wireframe}
+			}
+		}
 
 		mu.label(ctx, "Fog:")
 		checkbox_no_label(ctx, "fog_enabled", &state.fog_enabled)
