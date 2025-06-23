@@ -141,6 +141,14 @@ get_chunk_layers :: proc(chunk: ^Chunk, start_y, end_y: i32) -> []Block {
 	return chunk.blocks[start:end]
 }
 
+get_chunk_centre :: proc(chunk: ^Chunk) -> glm.vec3 {
+	return chunk_pos_to_global_pos(chunk.pos) + ({CHUNK_WIDTH, CHUNK_HEIGHT, CHUNK_DEPTH} / 2)
+}
+
+chunk_pos_to_global_pos :: proc(chunk_pos: glm.ivec3) -> glm.vec3 {
+	return {f32(chunk_pos.x << 4), f32(chunk_pos.y << 4), f32(chunk_pos.z << 4)}
+}
+
 local_coords_to_block_index :: proc(x, y, z: i32) -> i32 {
 	return (y * CHUNK_DEPTH * CHUNK_WIDTH) + (z * CHUNK_WIDTH) + x
 }

@@ -388,8 +388,8 @@ main :: proc() {
 			context.user_ptr = &state
 			slice.sort_by(transparent_chunks[:], proc(i, j: ^Chunk) -> bool {
 				state := cast(^State)context.user_ptr
-				i_dist := glm.length(state.camera.pos - chunk_pos_to_global_pos(i.pos))
-				j_dist := glm.length(state.camera.pos - chunk_pos_to_global_pos(j.pos))
+				i_dist := glm.length(state.camera.pos - get_chunk_centre(i))
+				j_dist := glm.length(state.camera.pos - get_chunk_centre(j))
 				return i_dist > j_dist
 			})
 
