@@ -9,13 +9,13 @@ import "core:thread"
 import "noise"
 
 World :: struct {
-	chunks:       map[glm.ivec3]Chunk,
-	remesh_queue: [dynamic]glm.ivec3,
-	mesh_thread:  ^thread.Thread,
-	lock:         sync.RW_Mutex,
-	sema:         sync.Sema,
-	atlas:        ^Atlas,
-	allocator:    mem.Allocator,
+	chunks:          map[glm.ivec3]Chunk,
+	remesh_queue:    [dynamic]glm.ivec3,
+	meshgen_thread:  ^thread.Thread,
+	meshgen_sema:    sync.Sema,
+	lock:            sync.RW_Mutex,
+	atlas:           ^Atlas,
+	allocator:       mem.Allocator,
 }
 
 init_world :: proc(world: ^World, atlas: ^Atlas, allocator := context.allocator) {
@@ -23,14 +23,14 @@ init_world :: proc(world: ^World, atlas: ^Atlas, allocator := context.allocator)
 	world.allocator = allocator
 	world.chunks = make(map[glm.ivec3]Chunk)
 	world.atlas = atlas
-	world.mesh_thread = thread.create_and_start_with_data(world, _meshgen_thread_proc)
+	world.meshgen_thread = thread.create_and_start_with_data(world, _meshgen_thread_proc)
 }
 
 _meshgen_thread_proc :: proc(ptr: rawptr) {
 	world := cast(^World)ptr
 
 	for {
-		sync.wait(&world.sema)
+		sync.wait(&world.meshgen_sema)
 		if sync.guard(&world.lock) {
 			chunk_pos, ok := pop_front_safe(&world.remesh_queue)
 			if !ok {break} 	// HACK: for stopping thread
@@ -48,9 +48,9 @@ destroy_world :: proc(world: ^World) {
 
 	if sync.guard(&world.lock) {
 		clear(&world.remesh_queue)
-		sync.post(&world.sema)
+		sync.post(&world.meshgen_sema)
 	}
-	thread.destroy(world.mesh_thread)
+	thread.destroy(world.meshgen_thread)
 
 	for _, &chunk in world.chunks {
 		destroy_chunk(&chunk)
@@ -166,7 +166,7 @@ world_mark_chunk_remesh :: proc(world: ^World, chunk: ^Chunk) {
 	sync.atomic_store(&chunk.needs_remeshing, true)
 	// FIXME: Don't append chunks already marked for remesh
 	append(&world.remesh_queue, chunk.pos)
-	sync.post(&world.sema)
+	sync.post(&world.meshgen_sema)
 }
 
 global_pos_to_chunk_pos :: proc(global_pos: glm.ivec3) -> glm.ivec3 {
