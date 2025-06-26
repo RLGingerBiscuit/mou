@@ -19,7 +19,7 @@ block_is_opaque :: proc(block: Block) -> bool {
 	case .Stone, .Grass, .Dirt:
 		return true
 	}
-	panic("unreachable " + #procedure)
+	unreachable()
 }
 
 block_culls_self :: proc(block: Block) -> bool {
@@ -29,7 +29,7 @@ block_culls_self :: proc(block: Block) -> bool {
 	case .Stone, .Grass, .Dirt, .Glass:
 		return true
 	case:
-		panic("unreachable " + #procedure)
+		unreachable()
 	}
 }
 
@@ -37,6 +37,7 @@ block_asset_name :: proc(block: Block, face: Block_Face_Bit) -> string {
 	switch block.id {
 	case .Stone:
 		return "stone.png"
+
 	case .Grass:
 		#partial switch face {
 		case .Neg_Y:
@@ -46,15 +47,18 @@ block_asset_name :: proc(block: Block, face: Block_Face_Bit) -> string {
 		case:
 			return "grass_side.png"
 		}
+
 	case .Dirt:
 		return "dirt.png"
+
 	case .Glass:
 		return "glass.png"
 
 	case .Air:
 		fallthrough
+
 	case:
-		panic("unreachable " + #procedure)
+		unreachable()
 	}
 }
 
