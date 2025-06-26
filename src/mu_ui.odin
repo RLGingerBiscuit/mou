@@ -5,13 +5,26 @@ import "core:log"
 import glm "core:math/linalg/glsl"
 import "core:mem"
 import mu "third:microui"
-import stbi "vendor:stb/image"
 import gl "vendor:OpenGL"
 import fons "vendor:fontstash"
+import stbi "vendor:stb/image"
 
 _ :: stbi
 
 FONT_HEIGHT :: 18
+FONT_NORMAL :: mu.Font_Options {
+	index = 0,
+	size  = FONT_HEIGHT,
+}
+FONT_BOUNCY :: mu.Font_Options {
+	index = 1,
+	size  = FONT_HEIGHT,
+}
+FONT_MONO :: mu.Font_Options {
+	index = 2,
+	size  = FONT_HEIGHT,
+}
+
 FONT_ATLAS_WIDTH :: 512
 FONT_ATLAS_HEIGHT :: 512
 
@@ -33,10 +46,7 @@ mu_init_ui :: proc(state: ^State) {
 	state.ui.ctx = new(mu.Context)
 	mu.init(state.ui.ctx)
 	state.ui.ctx.style.font = cast(mu.Font)&state.ui.font_ctx
-	state.ui.ctx.style.font_opts = {
-		index = 0,
-		size  = FONT_HEIGHT,
-	}
+	state.ui.ctx.style.font_opts = FONT_NORMAL
 	state.ui.ctx.style.title_height = FONT_HEIGHT + 6
 
 	{
@@ -80,6 +90,11 @@ mu_init_ui :: proc(state: ^State) {
 
 		fons.AddFont(font, "Inter-Bold", "assets/fonts/Inter/Inter-Bold.ttf")
 		fons.AddFont(font, "Jellee-Bold", "assets/fonts/Jellee/Jellee-Bold.ttf")
+		fons.AddFont(
+			font,
+			"JetBrainsMono-Bold",
+			"assets/fonts/JetBrainsMono/JetBrainsMono-Bold.ttf",
+		)
 
 		for icon in ICONS {
 			src := mu.default_atlas[i32(icon)]
@@ -252,19 +267,13 @@ mu_update_ui :: proc(state: ^State, dt: f64) {
 	mu.begin(ctx)
 	defer mu.end(ctx)
 
-	if mu.window(
-		ctx,
-		"Minceraft",
-		{10, 10, 400, 260},
-		{.NO_CLOSE, .NO_RESIZE},
-		mu.Font_Options{index = 1, size = FONT_HEIGHT},
-	) {
+	if mu.window(ctx, "Minceraft", {10, 10, 400, 260}, {.NO_CLOSE, .NO_RESIZE}, FONT_BOUNCY) {
 		LABEL_WIDTH :: 160
 
 		mu.layout_row(ctx, {LABEL_WIDTH, -1})
 
 		mu.label(ctx, "Frame Time:")
-		mu.text(ctx, fmt.tprintf("{:.1f}ms", dt * 1000))
+		mu.text(ctx, fmt.tprintf("{:.1f}ms", dt * 1000), FONT_MONO)
 
 		mu.label(ctx, "Coords:")
 		mu.text(
@@ -275,6 +284,7 @@ mu_update_ui :: proc(state: ^State, dt: f64) {
 				state.camera.pos.y,
 				state.camera.pos.z,
 			),
+			FONT_MONO,
 		)
 
 		mu.label(ctx, "Camera:")
@@ -285,11 +295,12 @@ mu_update_ui :: proc(state: ^State, dt: f64) {
 				glm.mod(glm.abs(state.camera.yaw), 360),
 				state.camera.pitch,
 			),
+			FONT_MONO,
 		)
 
 		mu.label(ctx, "Render Distance:")
 		temp_render_distance := cast(f32)state.render_distance
-		mu.number(ctx, &temp_render_distance, 1, "%.0f")
+		mu.number(ctx, &temp_render_distance, 1, "%.0f", font_opts = FONT_MONO)
 		if temp_render_distance < 1 {
 			temp_render_distance = 1
 		}
