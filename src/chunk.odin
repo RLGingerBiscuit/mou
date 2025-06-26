@@ -136,8 +136,8 @@ get_chunk_layer :: proc(chunk: ^Chunk, y: i32) -> []Block {
 }
 
 get_chunk_layers :: proc(chunk: ^Chunk, start_y, end_y: i32) -> []Block {
-	start := local_coords_to_block_index(0, end_y, 0)
-	end := local_coords_to_block_index(15, start_y, 15) + 1
+	start := local_coords_to_block_index(0, start_y, 0)
+	end := local_coords_to_block_index(15, end_y, 15) + 1
 	return chunk.blocks[start:end]
 }
 
