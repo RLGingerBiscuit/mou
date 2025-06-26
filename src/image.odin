@@ -4,7 +4,7 @@ import "core:log"
 import "core:mem"
 import "core:os"
 import "core:strings"
-import stbi "third:stb/image"
+import stbi "vendor:stb/image"
 
 Image :: struct {
 	data:          []byte `fmt:"-"`,

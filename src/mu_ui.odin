@@ -5,7 +5,7 @@ import "core:log"
 import glm "core:math/linalg/glsl"
 import "core:mem"
 import mu "third:microui"
-import stbi "third:stb/image"
+import stbi "vendor:stb/image"
 import gl "vendor:OpenGL"
 import fons "vendor:fontstash"
 

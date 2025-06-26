@@ -6,7 +6,7 @@ import "core:mem"
 import "core:os"
 import path "core:path/filepath"
 import "core:strings"
-import stbi "third:stb/image"
+import stbi "vendor:stb/image"
 
 _ :: stbi
 
