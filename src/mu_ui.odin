@@ -1,39 +1,30 @@
 package mou
 
 import "core:fmt"
-import "core:math"
+import "core:log"
 import glm "core:math/linalg/glsl"
 import "core:mem"
-import "core:os"
-import "core:slice"
-import "core:unicode/utf8"
+import mu "third:microui"
 import stbi "third:stb/image"
-import stbrp "third:stb/rect_pack"
-import stbtt "third:stb/truetype"
 import gl "vendor:OpenGL"
-import mu "vendor:microui"
+import fons "vendor:fontstash"
 
 _ :: stbi
 
 FONT_ATLAS_WIDTH :: 512
 FONT_ATLAS_HEIGHT :: 512
-FONT_HEIGHT :: 18
 FONT_FIRST_CODEPOINT :: 32
 FONT_LAST_CODEPOINT :: 255
 POINTS_TO_PIXELS :: f32(96) / f32(72)
 
-Font :: struct {
-	info:   stbtt.fontinfo,
-	data:   []byte,
-	glyphs: []stbtt.packedchar,
-	tex:    Texture,
-	icons:  [mu.Icon]mu.Rect,
-	pixel:  mu.Vec2, // single pixel (for rectangles)
-}
+@(private = "file")
+ICONS :: [?]mu.Icon{.CLOSE, .CHECK, .COLLAPSED, .EXPANDED, .RESIZE}
 
 UI_State :: struct {
-	ctx:      ^mu.Context,
-	font:     Font,
+	ctx:      ^mu.Context, // Microui context
+	font_ctx:     fons.FontContext, // Fontstash context
+	font_tex: Texture,
+	icons:    [mu.Icon]mu.Rect,
 	// Rendering
 	vao:      Vertex_Array,
 	vbo, ebo: Buffer,
@@ -43,202 +34,97 @@ UI_State :: struct {
 mu_init_ui :: proc(state: ^State) {
 	state.ui.ctx = new(mu.Context)
 	mu.init(state.ui.ctx)
-	state.ui.ctx.style.font = cast(mu.Font)&state.ui.font
-
-	font_data, ok := os.read_entire_file("assets/fonts/Inter/Inter-Bold.ttf")
-	// font_data, ok := os.read_entire_file("assets/fonts/Jellee/Jellee-Bold.ttf")
-	assert(ok)
-	state.ui.font.data = font_data
-
-	assert(!!stbtt.InitFont(&state.ui.font.info, raw_data(font_data), 0))
+	state.ui.ctx.style.font = cast(mu.Font)&state.ui.font_ctx
 
 	{
-		ICONS :: [?]mu.Icon{.CLOSE, .CHECK, .COLLAPSED, .EXPANDED, .RESIZE}
+		font := &state.ui.font_ctx
 
-		font_img := create_image(
+		font.userData = &state.ui
+		font.callbackResize = proc(data: rawptr, w: int, h: int) {
+			log.debugf("Font atlas resized: {}x{}", w, h)
+		}
+		font.callbackUpdate = proc(user_data: rawptr, dirty_rect: [4]f32, texture_data: rawptr) {
+			ui := cast(^UI_State)user_data
+			font := &ui.font_ctx
+			pixels := (cast([^]byte)texture_data)[:font.width * font.height]
+			log.debugf("Font atlas updated: {}", dirty_rect)
+			// FIXME: We should only update the dirty rect
+			bind_texture(ui.font_tex)
+			texture_update(ui.font_tex, pixels)
+			unbind_texture()
+
+			when ODIN_DEBUG {
+				stbi.write_bmp(
+					"font.bmp",
+					ui.font_tex.width,
+					ui.font_tex.height,
+					texture_format_bytes(ui.font_tex.format),
+					texture_data,
+				)
+			}
+		}
+
+		fons.Init(font, FONT_ATLAS_WIDTH, FONT_ATLAS_HEIGHT, .TOPLEFT)
+
+		font.userData = &state.ui
+		state.ui.font_tex = make_texture(
 			"::/font.png",
 			FONT_ATLAS_WIDTH,
 			FONT_ATLAS_HEIGHT,
-			1,
-			false,
-			context.temp_allocator,
-		)
-		defer destroy_image(&font_img, false)
-		defer when ODIN_DEBUG do stbi.write_bmp(
-			"font.bmp",
-			font_img.width,
-			font_img.height,
-			font_img.channels,
-			raw_data(font_img.data),
+			.Red,
+			mipmap = false,
 		)
 
-		ranges: [1]stbtt.pack_range
-		ranges[0].first_unicode_codepoint_in_range = FONT_FIRST_CODEPOINT
-		// ranges[0].num_chars = i32('~' - ' ')
-		ranges[0].num_chars = FONT_LAST_CODEPOINT - FONT_FIRST_CODEPOINT
-		ranges[0].font_size = stbtt.POINT_SIZE(f32(FONT_HEIGHT))
-		state.ui.font.glyphs = make([]stbtt.packedchar, ranges[0].num_chars)
-		ranges[0].chardata_for_range = raw_data(state.ui.font.glyphs)
+		fons.AddFont(font, "Inter-Bold", "assets/fonts/Inter/Inter-Bold.ttf")
+		fons.AddFont(font, "Jellee-Bold", "assets/fonts/Jellee/Jellee-Bold.ttf")
 
-		num_chars: i32 = 0
-		for range in ranges {
-			num_chars += range.num_chars
-		}
-
-		// `+ 1` for single pixel
-		rects := make([]stbrp.Rect, num_chars + len(ICONS) + 1, context.temp_allocator)
-		defer delete(rects, context.temp_allocator)
-
-		pctx: stbtt.pack_context
-		stbtt.PackBegin(
-			&pctx,
-			raw_data(font_img.data),
-			FONT_ATLAS_WIDTH,
-			FONT_ATLAS_HEIGHT,
-			0,
-			1,
-			nil,
-		)
-		defer stbtt.PackEnd(&pctx)
-		stbtt.PackSetOversampling(&pctx, 2, 2)
-
-		stbtt.PackFontRangesGatherRects(
-			&pctx,
-			&state.ui.font.info,
-			&ranges[0],
-			cast(i32)len(ranges),
-			raw_data(rects),
-		)
-
-		{
-			px_rect := slice.last_ptr(rects)
-			px_rect.w = 1
-			px_rect.h = 1
-		}
-
-		{
-			icon_rects := rects[num_chars:len(rects) - 1]
-			assert(len(icon_rects) == len(ICONS))
-			for icon, i in ICONS {
-				src := mu.default_atlas[i32(icon)]
-				icon_rects[i].w = cast(stbrp.Coord)src.w
-				icon_rects[i].h = cast(stbrp.Coord)src.h
-			}
-		}
-
-		assert(
-			1 ==
-			stbrp.pack_rects(
-				cast(^stbrp.Context)pctx.pack_info,
-				raw_data(rects),
-				cast(i32)len(rects),
-			),
-			"Didn't pack all rects",
-		)
-
-		stbtt.PackFontRangesRenderIntoRects(
-			&pctx,
-			&state.ui.font.info,
-			&ranges[0],
-			cast(i32)len(ranges),
-			raw_data(rects),
-		)
-
-		{
-			px_rect := slice.last(rects)
-			x, y := cast(i32)px_rect.x, cast(i32)px_rect.y
-			state.ui.font.pixel = {x, y}
-			font_img.data[y * font_img.width + x] = 255
-		}
-
-		{
-			icon_rects := rects[num_chars:len(rects) - 1]
-			assert(len(icon_rects) == len(ICONS))
-			for icon, i in ICONS {
-				assert(cast(bool)icon_rects[i].was_packed)
-				src := mu.default_atlas[i32(icon)]
-				rect := icon_rects[i]
-
-				icon_rect := &state.ui.font.icons[icon]
-				icon_rect.x = cast(i32)icon_rects[i].x
-				icon_rect.y = cast(i32)icon_rects[i].y
-				icon_rect.w = cast(i32)icon_rects[i].w
-				icon_rect.h = cast(i32)icon_rects[i].h
-
-				for y in 0 ..< src.h {
-					dst_offset := (i32(rect.y) + y) * font_img.width + i32(rect.x)
-					src_offset := (src.y + y) * mu.DEFAULT_ATLAS_WIDTH + src.x
-					mem.copy_non_overlapping(
-						&font_img.data[dst_offset],
-						&mu.default_atlas_alpha[src_offset],
-						cast(int)src.w,
-					)
+		for icon in ICONS {
+			src := mu.default_atlas[i32(icon)]
+			ix, iy, ok := fons.__AtlasAddRect(font, cast(int)src.w + 2, cast(int)src.h + 2) // + 2 for padding
+			if !ok {
+				fons.ExpandAtlas(font, font.width * 2, font.height * 2)
+				ix, iy, ok = fons.__AtlasAddRect(font, cast(int)src.w + 2, cast(int)src.h + 2) // + 2 for padding
+				if !ok {
+					log.fatal("Couldn't expand font atlas for icons")
+					return
 				}
-
-				// FIXME: add cropping to blit function
-				// image_blit(
-				// 	&font_img,
-				// 	{width = src.w, height = src.h, data = potato, channels = 1},
-				// 	cast(i32)icon_rects[i].x,
-				// 	cast(i32)icon_rects[i].y,
-				// )
 			}
-		}
+			state.ui.icons[icon].x = i32(ix) + 1 // skip padding here
+			state.ui.icons[icon].y = i32(iy) + 1 // skip padding here
+			state.ui.icons[icon].w = src.w
+			state.ui.icons[icon].h = src.h
 
-		state.ui.font.tex = image_to_texture(font_img, .Clamp_To_Edge, mipmap = false)
-
-		state.ui.ctx.text_height = proc(font_ptr: mu.Font) -> i32 {
-			font := cast(^Font)font_ptr
-			scale := stbtt.ScaleForMappingEmToPixels(&font.info, FONT_HEIGHT)
-
-			ascent, descent, line_gap: i32
-			stbtt.GetFontVMetrics(&font.info, &ascent, &descent, &line_gap)
-
-			height := f32(ascent - descent + line_gap) * scale + 0.5
-
-			return cast(i32)math.round(height)
-		}
-		state.ui.ctx.text_width = proc(font_ptr: mu.Font, str: string) -> i32 {
-			font := cast(^Font)font_ptr
-			scale := stbtt.ScaleForMappingEmToPixels(&font.info, FONT_HEIGHT * POINTS_TO_PIXELS)
-
-			width: f32 = 0
-			i := 0
-			str := str
-			for i < len(str) {
-				char, char_sz := utf8.decode_rune(str)
-				i += char_sz
-				str = str[char_sz:]
-
-				glyph_index := stbtt.FindGlyphIndex(&font.info, char)
-
-				box: [2]mu.Vec2
-				stbtt.GetGlyphBitmapBox(
-					&font.info,
-					glyph_index,
-					scale,
-					scale,
-					&box[0].x,
-					&box[0].y,
-					&box[1].x,
-					&box[1].y,
+			// Copy over icon data
+			for y in 0 ..< src.h {
+				dst_offset := (i32(iy) + y) * i32(font.width) + i32(ix)
+				src_offset := (src.y + y) * mu.DEFAULT_ATLAS_WIDTH + src.x
+				mem.copy_non_overlapping(
+					&font.textureData[dst_offset],
+					&mu.default_atlas_alpha[src_offset],
+					cast(int)src.w,
 				)
-
-				advance_width, left_side_bearing: i32
-				stbtt.GetGlyphHMetrics(&font.info, glyph_index, &advance_width, &left_side_bearing)
-
-				width += f32(left_side_bearing + advance_width) * scale
-
-				if i + 1 < len(str) {
-					char2, _ := utf8.decode_rune(str)
-					glyph_index_2 := stbtt.FindGlyphIndex(&font.info, char2)
-
-					kerning := stbtt.GetGlyphKernAdvance(&font.info, glyph_index, glyph_index_2)
-					width += f32(kerning) * scale
-				}
 			}
+		}
 
-			return cast(i32)math.round(width)
+		// We need to set the texture once before we can update it
+		texture_set(state.ui.font_tex, font.textureData)
+
+		state.ui.ctx.text_width =
+		proc(user_data: mu.Font, opts: mu.Font_Options, str: string) -> i32 {
+			font := cast(^fons.FontContext)user_data
+			fons.SetFont(font, opts.index)
+			fons.SetSpacing(font, cast(f32)opts.spacing)
+			fons.SetSize(font, cast(f32)opts.size)
+			return cast(i32)fons.TextBounds(font, str)
+		}
+
+		state.ui.ctx.text_height = proc(user_data: mu.Font, opts: mu.Font_Options) -> i32 {
+			font := cast(^fons.FontContext)user_data
+			fons.SetFont(font, opts.index)
+			fons.SetSpacing(font, cast(f32)opts.spacing)
+			fons.SetSize(font, cast(f32)opts.size)
+			ascent, descent, _ := fons.VerticalMetrics(font)
+			return i32(ascent - descent)
 		}
 	}
 
@@ -268,9 +154,8 @@ mu_init_ui :: proc(state: ^State) {
 }
 
 mu_destroy_ui :: proc(state: ^State) {
-	delete(state.ui.font.glyphs)
-	delete(state.ui.font.data)
-	destroy_texture(&state.ui.font.tex)
+	fons.Destroy(&state.ui.font_ctx)
+	destroy_texture(&state.ui.font_tex)
 	destroy_shader(&state.ui.shader)
 	destroy_buffer(&state.ui.vbo)
 	destroy_buffer(&state.ui.ebo)
@@ -279,17 +164,19 @@ mu_destroy_ui :: proc(state: ^State) {
 }
 
 mu_update_ui :: proc(state: ^State, dt: f64) {
+	fons.BeginState(&state.ui.font_ctx)
+
 	wnd := &state.window
 	ctx := state.ui.ctx
 
 	if .UI in wnd.flags {
-		buttons_map := [mu.Mouse]Mouse_Button {
+		@(static) buttons_map := [mu.Mouse]Mouse_Button {
 			.LEFT   = .Left,
 			.RIGHT  = .Right,
 			.MIDDLE = .Middle,
 		}
 
-		key_map := [mu.Key][2]Key {
+		@(static) key_map := [mu.Key][2]Key {
 			.SHIFT     = {.Left_Shift, .Right_Shift},
 			.CTRL      = {.Left_Control, .Right_Control},
 			.ALT       = {.Left_Alt, .Right_Alt},
@@ -362,13 +249,19 @@ mu_update_ui :: proc(state: ^State, dt: f64) {
 	mu.begin(ctx)
 	defer mu.end(ctx)
 
-	if mu.window(ctx, "Minceraft", {10, 10, 400, 260}, {.NO_CLOSE, .NO_RESIZE}) {
+	if mu.window(
+		ctx,
+		"Minceraft",
+		{10, 10, 400, 260},
+		{.NO_CLOSE, .NO_RESIZE},
+		{index = 1, size = 18},
+	) {
 		LABEL_WIDTH :: 160
 
 		mu.layout_row(ctx, {LABEL_WIDTH, -1})
 
 		mu.label(ctx, "Frame Time:")
-		mu.text(ctx, fmt.tprintf("{:.3f}", dt))
+		mu.text(ctx, fmt.tprintf("{:.1f}ms", dt * 1000))
 
 		mu.label(ctx, "Coords:")
 		mu.text(
@@ -428,6 +321,8 @@ mu_update_ui :: proc(state: ^State, dt: f64) {
 				temp_frozen_frustum ? (state.camera.projection_matrix * state.camera.view_matrix) : nil
 		}
 	}
+
+	fons.EndState(&state.ui.font_ctx)
 }
 
 mu_render_ui :: proc(state: ^State) {
@@ -448,7 +343,7 @@ mu_render_ui :: proc(state: ^State) {
 		bind_vertex_array(state.ui.vao)
 
 		use_shader(state.ui.shader)
-		bind_texture(state.ui.font.tex)
+		bind_texture(state.ui.font_tex)
 		gl.UniformMatrix4fv(
 			gl.GetUniformLocation(state.ui.shader.handle, "u_mvp"),
 			1,
@@ -463,28 +358,27 @@ mu_render_ui :: proc(state: ^State) {
 
 		gl.DrawElements(gl.TRIANGLES, cast(i32)buf_idx * 6, gl.UNSIGNED_INT, nil)
 
+		unbind_texture()
 		unbind_buffer(.Array)
 		unbind_vertex_array()
 
 		buf_idx = 0
 	}
 
-	RectF :: struct {
-		x, y, w, h: f32,
-	}
-
 	push_quad :: proc(state: ^State, dst: RectF, src: RectF, colour: mu.Color) {
 		if buf_idx == BUF_SZ {flush(state)}
+
+		font := &state.ui.font_ctx
 
 		tex_idx := buf_idx * 4
 		element_idx := buf_idx * 4
 		index_idx := buf_idx * 6
 		buf_idx += 1
 
-		x := src.x / FONT_ATLAS_WIDTH
-		y := src.y / FONT_ATLAS_HEIGHT
-		w := src.w / FONT_ATLAS_WIDTH
-		h := src.h / FONT_ATLAS_HEIGHT
+		x := src.x / f32(font.width)
+		y := src.y / f32(font.height)
+		w := src.w / f32(font.width)
+		h := src.h / f32(font.height)
 
 		vbo_buf[tex_idx + 0] = {{dst.x, dst.y}, {x, y}, colour}
 		vbo_buf[tex_idx + 1] = {{dst.x + dst.w, dst.y}, {x + w, y}, colour}
@@ -503,32 +397,35 @@ mu_render_ui :: proc(state: ^State) {
 	FLUSH_ALL :: true
 
 	draw_rect :: proc(state: ^State, rect: mu.Rect, colour: mu.Color) {
-		x, y := state.ui.font.pixel.x, state.ui.font.pixel.y
 		dst := RectF{f32(rect.x), f32(rect.y), f32(rect.w), f32(rect.h)}
-		push_quad(state, dst, {f32(x), f32(y), 1, 1}, colour)
+		push_quad(state, dst, {0, 0, 1, 1}, colour) // NOTE: fontstash always has a 2x2 rect @ 0,0
 		when FLUSH_ALL do flush(state)
 	}
 
-	draw_text :: proc(state: ^State, text: string, pos: mu.Vec2, colour: mu.Color) {
-		font := &state.ui.font
+	draw_text :: proc(
+		state: ^State,
+		text: string,
+		pos: mu.Vec2,
+		colour: mu.Color,
+		opts: mu.Font_Options,
+	) {
+		font := &state.ui.font_ctx
+		x := f32(pos.x)
+		y := f32(pos.y)
 
-		scale := stbtt.ScaleForMappingEmToPixels(&font.info, FONT_HEIGHT * POINTS_TO_PIXELS)
-		x, y := f32(pos.x), f32(pos.y)
-		quad: stbtt.aligned_quad
+		fons.SetFont(font, opts.index)
+		fons.SetSpacing(font, cast(f32)opts.spacing)
+		fons.SetSize(font, cast(f32)opts.size)
 
-		y += FONT_HEIGHT
+		{
+			asc, _, _ := fons.VerticalMetrics(font)
+			y += asc
+		}
 
-		text := text
-		for len(text) > 0 {
-			// FIXME: non-ascii codepoints
-			char, char_sz := utf8.decode_rune(text)
-			text = text[char_sz:]
-			char_index := i32(char - ' ')
-			assert(char_index >= 0 && char_index < 96)
+		quad: fons.Quad
+		iter := fons.TextIterInit(font, x, y, text)
 
-			// NOTE: 1 for width/height is passed here so no uv scaling is performed
-			stbtt.GetPackedQuad(raw_data(font.glyphs), 1, 1, char_index, &x, &y, &quad, false)
-
+		for fons.TextIterNext(font, &iter, &quad) {
 			src := RectF {
 				x = quad.s0,
 				y = quad.t0,
@@ -541,22 +438,23 @@ mu_render_ui :: proc(state: ^State) {
 				w = quad.x1 - quad.x0,
 				h = quad.y1 - quad.y0,
 			}
+			// Unscale
+			src.x *= f32(font.width)
+			src.w *= f32(font.width)
+			src.y *= f32(font.height)
+			src.h *= f32(font.height)
 
 			push_quad(state, dst, src, colour)
-
-			if len(text) > 0 {
-				char2, _ := utf8.decode_rune(text)
-				kerning := stbtt.GetCodepointKernAdvance(&font.info, char, char2)
-				x += f32(kerning) * scale
-			}
 		}
+
+		when FLUSH_ALL do flush(state)
 	}
 
 	draw_icon :: proc(state: ^State, id: mu.Icon, rect: mu.Rect, colour: mu.Color) {
-		src_i := state.ui.font.icons[id]
-		src := RectF{f32(src_i.x), f32(src_i.y), f32(src_i.w), f32(src_i.h)}
-		x := cast(f32)(rect.x + (rect.w - src_i.w) / 2)
-		y := cast(f32)(rect.y + (rect.h - src_i.h) / 2)
+		icon := state.ui.icons[id]
+		src := RectF{f32(icon.x), f32(icon.y), f32(icon.w), f32(icon.h)}
+		x := cast(f32)(rect.x + (rect.w - icon.w) / 2)
+		y := cast(f32)(rect.y + (rect.h - icon.h) / 2)
 		dst := RectF{x, y, src.w, src.h}
 		push_quad(state, dst, src, colour)
 		when FLUSH_ALL do flush(state)
@@ -573,7 +471,7 @@ mu_render_ui :: proc(state: ^State) {
 	for variant in mu.next_command_iterator(state.ui.ctx, &command_backing) {
 		switch cmd in variant {
 		case ^mu.Command_Text:
-			draw_text(state, cmd.str, cmd.pos, cmd.color)
+			draw_text(state, cmd.str, cmd.pos, cmd.color, cmd.opts)
 
 		case ^mu.Command_Rect:
 			draw_rect(state, cmd.rect, cmd.color)
@@ -613,3 +511,8 @@ vbo_buf: [BUF_SZ * 4]Vert
 ebo_buf: [BUF_SZ * 6]u32
 @(private = "file")
 buf_idx: u32 = 0
+
+@(private = "file")
+RectF :: struct {
+	x, y, w, h: f32,
+}

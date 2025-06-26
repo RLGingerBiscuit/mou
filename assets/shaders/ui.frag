@@ -5,8 +5,8 @@ in vec4 vertex_colour;
 
 out vec4 frag_colour;
 
-uniform sampler2D font;
+uniform sampler2D font_tex;
 
 void main() {
-    frag_colour = vec4(texture(font, tex_coord).x) * vertex_colour;
+    frag_colour = vec4(texture(font_tex, tex_coord).x) * vertex_colour;
 }
