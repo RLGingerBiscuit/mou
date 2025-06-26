@@ -207,6 +207,7 @@ Container :: struct {
 
 Style :: struct {
 	font:           Font,
+	font_opts:      Font_Options,
 	size:           Vec2,
 	padding:        i32,
 	spacing:        i32,
@@ -277,7 +278,7 @@ pop  :: #force_inline proc(stk: ^$T/Stack($V,$N)) {
 unclipped_rect := Rect{0, 0, 0x1000000, 0x1000000}
 
 default_style := Style{
-	font = nil, size = { 68, 10 },
+	font = nil, font_opts = { size = 18 }, size = { 68, 10 },
 	padding = 5, spacing = 4, indent = 24,
 	title_height = 24, footer_height = 20,
 	scrollbar_size = 12, thumb_size = 8,
@@ -299,8 +300,6 @@ default_style := Style{
 		.SCROLL_THUMB = {30,  30,  30,  255},
 	},
 }
-
-DEFAULT_FONT_OPTIONS :: Font_Options{size = 18}
 
 expand_rect :: proc(rect: Rect, n: i32) -> Rect {
 	return Rect{rect.x - n, rect.y - n, rect.w + n * 2, rect.h + n * 2}
@@ -690,7 +689,8 @@ draw_box :: proc(ctx: ^Context, rect: Rect, color: Color) {
 	draw_rect(ctx, Rect{rect.x+rect.w-1, rect.y,          1,        rect.h}, color)
 }
 
-draw_text :: proc(ctx: ^Context, font: Font, str: string, pos: Vec2, color: Color, font_opts := DEFAULT_FONT_OPTIONS) {
+draw_text :: proc(ctx: ^Context, font: Font, str: string, pos: Vec2, color: Color, font_opts : Maybe(Font_Options) = nil) {
+	font_opts := font_opts.? or_else ctx.style.font_opts
 	rect := Rect{pos.x, pos.y, ctx.text_width(font, font_opts, str), ctx.text_height(font, font_opts)}
 	clipped := check_clip(ctx, rect)
 	switch clipped {
@@ -870,7 +870,8 @@ draw_control_frame :: proc(ctx: ^Context, id: Id, rect: Rect, colorid: Color_Typ
 	ctx.draw_frame(ctx, rect, colorid)
 }
 
-draw_control_text :: proc(ctx: ^Context, str: string, rect: Rect, colorid: Color_Type, opt := Options{}, font_opts := DEFAULT_FONT_OPTIONS) {
+draw_control_text :: proc(ctx: ^Context, str: string, rect: Rect, colorid: Color_Type, opt := Options{}, font_opts : Maybe(Font_Options) = nil) {
+	font_opts := font_opts.? or_else ctx.style.font_opts
 	pos: Vec2
 	font := ctx.style.font
 	tw := ctx.text_width(font, font_opts, str)
@@ -924,7 +925,8 @@ update_control :: proc(ctx: ^Context, id: Id, rect: Rect, opt := Options{}) {
 	}
 }
 
-text :: proc(ctx: ^Context, text: string, font_opts := DEFAULT_FONT_OPTIONS) {
+text :: proc(ctx: ^Context, text: string, font_opts : Maybe(Font_Options) = nil) {
+	font_opts := font_opts.? or_else ctx.style.font_opts
 	text  := text
 	font  := ctx.style.font
 	color := ctx.style.colors[.TEXT]
@@ -957,11 +959,11 @@ text :: proc(ctx: ^Context, text: string, font_opts := DEFAULT_FONT_OPTIONS) {
 	layout_end_column(ctx)
 }
 
-label :: proc(ctx: ^Context, text: string, font_opts := DEFAULT_FONT_OPTIONS) {
+label :: proc(ctx: ^Context, text: string, font_opts : Maybe(Font_Options) = nil) {
 	draw_control_text(ctx, text, layout_next(ctx), .TEXT, font_opts = font_opts)
 }
 
-button :: proc(ctx: ^Context, label: string, icon: Icon = .NONE, opt: Options = {.ALIGN_CENTER}, font_opts := DEFAULT_FONT_OPTIONS) -> (res: Result_Set) {
+button :: proc(ctx: ^Context, label: string, icon: Icon = .NONE, opt: Options = {.ALIGN_CENTER}, font_opts : Maybe(Font_Options) = nil) -> (res: Result_Set) {
 	id := len(label) > 0 ? get_id(ctx, label) : get_id(ctx, uintptr(icon))
 	r := layout_next(ctx)
 	update_control(ctx, id, r, opt)
@@ -980,7 +982,7 @@ button :: proc(ctx: ^Context, label: string, icon: Icon = .NONE, opt: Options = 
 	return
 }
 
-checkbox :: proc(ctx: ^Context, label: string, state: ^bool, font_opts := DEFAULT_FONT_OPTIONS) -> (res: Result_Set) {
+checkbox :: proc(ctx: ^Context, label: string, state: ^bool, font_opts : Maybe(Font_Options) = nil) -> (res: Result_Set) {
 	id := get_id(ctx, uintptr(state))
 	r := layout_next(ctx)
 	box := Rect{r.x, r.y, r.h, r.h}
@@ -1000,7 +1002,8 @@ checkbox :: proc(ctx: ^Context, label: string, state: ^bool, font_opts := DEFAUL
 	return
 }
 
-textbox_raw :: proc(ctx: ^Context, textbuf: []u8, textlen: ^int, id: Id, r: Rect, opt := Options{}, font_opts := DEFAULT_FONT_OPTIONS) -> (res: Result_Set) {
+textbox_raw :: proc(ctx: ^Context, textbuf: []u8, textlen: ^int, id: Id, r: Rect, opt := Options{}, font_opts : Maybe(Font_Options) = nil) -> (res: Result_Set) {
+	font_opts := font_opts.? or_else ctx.style.font_opts
 	update_control(ctx, id, r, opt | {.HOLD_FOCUS})
 
 	font := ctx.style.font
@@ -1154,7 +1157,7 @@ parse_real :: #force_inline proc(s: string) -> (Real, bool) {
 	return Real(f), ok
 }
  
-number_textbox :: proc(ctx: ^Context, value: ^Real, r: Rect, id: Id, fmt_string: string, font_opts := DEFAULT_FONT_OPTIONS) -> bool {
+number_textbox :: proc(ctx: ^Context, value: ^Real, r: Rect, id: Id, fmt_string: string, font_opts : Maybe(Font_Options) = nil) -> bool {
 	if ctx.mouse_pressed_bits == {.LEFT} && .SHIFT in ctx.key_down_bits && ctx.hover_id == id {
 		ctx.number_edit_id = id
 		nstr := fmt.bprintf(ctx.number_edit_buf[:], fmt_string, value^)
@@ -1172,13 +1175,13 @@ number_textbox :: proc(ctx: ^Context, value: ^Real, r: Rect, id: Id, fmt_string:
 	return false
 }
 
-textbox :: proc(ctx: ^Context, buf: []u8, textlen: ^int, opt := Options{}, font_opts := DEFAULT_FONT_OPTIONS) -> Result_Set {
+textbox :: proc(ctx: ^Context, buf: []u8, textlen: ^int, opt := Options{}, font_opts : Maybe(Font_Options) = nil) -> Result_Set {
 	id := get_id(ctx, uintptr(&buf[0]))
 	r := layout_next(ctx)
 	return textbox_raw(ctx, buf, textlen, id, r, opt, font_opts)
 }
 
-slider :: proc(ctx: ^Context, value: ^Real, low, high: Real, step: Real = 0.0, fmt_string: string = SLIDER_FMT, opt: Options = {.ALIGN_CENTER}, font_opts := DEFAULT_FONT_OPTIONS) -> (res: Result_Set) {
+slider :: proc(ctx: ^Context, value: ^Real, low, high: Real, step: Real = 0.0, fmt_string: string = SLIDER_FMT, opt: Options = {.ALIGN_CENTER}, font_opts : Maybe(Font_Options) = nil) -> (res: Result_Set) {
 	last := value^
 	v := last
 	id := get_id(ctx, uintptr(value))
@@ -1219,7 +1222,7 @@ slider :: proc(ctx: ^Context, value: ^Real, low, high: Real, step: Real = 0.0, f
 	return
 }
 
-number :: proc(ctx: ^Context, value: ^Real, step: Real, fmt_string: string = SLIDER_FMT, opt: Options = {.ALIGN_CENTER}, font_opts := DEFAULT_FONT_OPTIONS) -> (res: Result_Set) {
+number :: proc(ctx: ^Context, value: ^Real, step: Real, fmt_string: string = SLIDER_FMT, opt: Options = {.ALIGN_CENTER}, font_opts : Maybe(Font_Options) = nil) -> (res: Result_Set) {
 	id := get_id(ctx, uintptr(value))
 	base := layout_next(ctx)
 	last := value^
@@ -1251,7 +1254,7 @@ number :: proc(ctx: ^Context, value: ^Real, step: Real, fmt_string: string = SLI
 }
 
 @private 
-_header :: proc(ctx: ^Context, label: string, is_treenode: bool, opt := Options{}, font_opts := DEFAULT_FONT_OPTIONS) -> Result_Set {
+_header :: proc(ctx: ^Context, label: string, is_treenode: bool, opt := Options{}, font_opts : Maybe(Font_Options) = nil) -> Result_Set {
 	id := get_id(ctx, label)
 	idx, active := pool_get(ctx, ctx.treenode_pool[:], id)
 	expanded := .EXPANDED in opt ? !active : active
@@ -1287,11 +1290,11 @@ _header :: proc(ctx: ^Context, label: string, is_treenode: bool, opt := Options{
 	return expanded ? {.ACTIVE} : {}
 }
 
-header :: proc(ctx: ^Context, label: string, opt := Options{}, font_opts := DEFAULT_FONT_OPTIONS) -> Result_Set {
+header :: proc(ctx: ^Context, label: string, opt := Options{}, font_opts : Maybe(Font_Options) = nil) -> Result_Set {
 	return _header(ctx, label, false, opt, font_opts)
 }
 
-begin_treenode :: proc(ctx: ^Context, label: string, opt := Options{}, font_opts := DEFAULT_FONT_OPTIONS) -> Result_Set {
+begin_treenode :: proc(ctx: ^Context, label: string, opt := Options{}, font_opts : Maybe(Font_Options) = nil) -> Result_Set {
 	res := _header(ctx, label, true, opt, font_opts)
 	if .ACTIVE in res {
 		get_layout(ctx).indent += ctx.style.indent
@@ -1307,7 +1310,7 @@ end_treenode :: proc(ctx: ^Context) {
 
 
 
-scoped_end_treenode :: proc(ctx: ^Context, _: string, _: Options, _: Font_Options, result_set: Result_Set) {
+scoped_end_treenode :: proc(ctx: ^Context, _: string, _: Options, _: Maybe(Font_Options), result_set: Result_Set) {
 	if result_set != nil {
 		end_treenode(ctx)
 	}
@@ -1315,7 +1318,7 @@ scoped_end_treenode :: proc(ctx: ^Context, _: string, _: Options, _: Font_Option
 
 /* This is scoped and is intended to be use in the condition of a if-statement */
 @(deferred_in_out=scoped_end_treenode)
-treenode :: proc(ctx: ^Context, label: string, opt := Options{}, font_opts := DEFAULT_FONT_OPTIONS) -> Result_Set {
+treenode :: proc(ctx: ^Context, label: string, opt := Options{}, font_opts : Maybe(Font_Options) = nil) -> Result_Set {
 	return begin_treenode(ctx, label, opt, font_opts)
 }
 
@@ -1418,7 +1421,7 @@ end_root_container :: proc(ctx: ^Context) {
 	pop_container(ctx)
 }
 
-begin_window :: proc(ctx: ^Context, title: string, rect: Rect, opt := Options{}, font_opts := DEFAULT_FONT_OPTIONS) -> bool {
+begin_window :: proc(ctx: ^Context, title: string, rect: Rect, opt := Options{}, font_opts : Maybe(Font_Options) = nil) -> bool {
 	assert(title != "", "missing window title")
 	id := get_id(ctx, title)
 	cnt := internal_get_container(ctx, id, opt)
@@ -1512,11 +1515,11 @@ end_window :: proc(ctx: ^Context) {
 
 /* This is scoped and is intended to be use in the condition of a if-statement */
 @(deferred_in_out=scoped_end_window)
-window :: proc(ctx: ^Context, title: string, rect: Rect, opt := Options{}, font_opts := DEFAULT_FONT_OPTIONS) -> bool {
+window :: proc(ctx: ^Context, title: string, rect: Rect, opt := Options{}, font_opts : Maybe(Font_Options) = nil) -> bool {
 	return begin_window(ctx, title, rect, opt, font_opts)
 }
 
-scoped_end_window :: proc(ctx: ^Context, _: string, _: Rect, _: Options, _: Font_Options, ok: bool) {
+scoped_end_window :: proc(ctx: ^Context, _: string, _: Rect, _: Options, _: Maybe(Font_Options), ok: bool) {
 	if ok {
 		end_window(ctx)	
 	}
@@ -1533,7 +1536,7 @@ open_popup :: proc(ctx: ^Context, name: string) {
 	bring_to_front(ctx, cnt)
 }
 
-begin_popup :: proc(ctx: ^Context, name: string, font_opts := DEFAULT_FONT_OPTIONS) -> bool {
+begin_popup :: proc(ctx: ^Context, name: string, font_opts : Maybe(Font_Options) = nil) -> bool {
 	opt := Options{.POPUP, .AUTO_SIZE, .NO_RESIZE, .NO_SCROLL, .NO_TITLE, .CLOSED}
 	return begin_window(ctx, name, Rect{}, opt, font_opts)
 }
@@ -1545,11 +1548,11 @@ end_popup :: proc(ctx: ^Context) {
 
 /* This is scoped and is intended to be use in the condition of a if-statement */
 @(deferred_in_out=scoped_end_popup)
-popup :: proc(ctx: ^Context, name: string, font_opts := DEFAULT_FONT_OPTIONS) -> bool {
+popup :: proc(ctx: ^Context, name: string, font_opts : Maybe(Font_Options) = nil) -> bool {
 	return begin_popup(ctx, name, font_opts)
 }
 
-scoped_end_popup :: proc(ctx: ^Context, _: string, _: Font_Options, ok: bool) {
+scoped_end_popup :: proc(ctx: ^Context, _: string, _: Maybe(Font_Options), ok: bool) {
 	if ok {
 		end_popup(ctx)
 	}

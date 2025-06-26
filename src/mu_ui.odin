@@ -11,18 +11,16 @@ import fons "vendor:fontstash"
 
 _ :: stbi
 
+FONT_HEIGHT :: 18
 FONT_ATLAS_WIDTH :: 512
 FONT_ATLAS_HEIGHT :: 512
-FONT_FIRST_CODEPOINT :: 32
-FONT_LAST_CODEPOINT :: 255
-POINTS_TO_PIXELS :: f32(96) / f32(72)
 
 @(private = "file")
 ICONS :: [?]mu.Icon{.CLOSE, .CHECK, .COLLAPSED, .EXPANDED, .RESIZE}
 
 UI_State :: struct {
 	ctx:      ^mu.Context, // Microui context
-	font_ctx:     fons.FontContext, // Fontstash context
+	font_ctx: fons.FontContext, // Fontstash context
 	font_tex: Texture,
 	icons:    [mu.Icon]mu.Rect,
 	// Rendering
@@ -35,6 +33,11 @@ mu_init_ui :: proc(state: ^State) {
 	state.ui.ctx = new(mu.Context)
 	mu.init(state.ui.ctx)
 	state.ui.ctx.style.font = cast(mu.Font)&state.ui.font_ctx
+	state.ui.ctx.style.font_opts = {
+		index = 0,
+		size  = FONT_HEIGHT,
+	}
+	state.ui.ctx.style.title_height = FONT_HEIGHT + 6
 
 	{
 		font := &state.ui.font_ctx
@@ -254,7 +257,7 @@ mu_update_ui :: proc(state: ^State, dt: f64) {
 		"Minceraft",
 		{10, 10, 400, 260},
 		{.NO_CLOSE, .NO_RESIZE},
-		{index = 1, size = 18},
+		mu.Font_Options{index = 1, size = FONT_HEIGHT},
 	) {
 		LABEL_WIDTH :: 160
 
