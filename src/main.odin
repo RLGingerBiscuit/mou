@@ -21,7 +21,7 @@ WINDOW_TITLE :: "Goofin Minecraft Clone"
 DEFAULT_RENDER_DISTANCE :: 8
 MAX_RENDER_DISTANCE :: 16
 DEFAULT_FOV :: 45
-NEAR_PLANE :: 0.1
+NEAR_PLANE :: 0.001
 
 when ODIN_DEBUG {
 	tracking_allocator: mem.Tracking_Allocator
@@ -79,7 +79,7 @@ main :: proc() {
 
 	rdoc_lib, rdoc_api, rdoc_ok := rdoc.load_api()
 	if rdoc_ok {
-		log.infof("loaded renderdoc %v", rdoc_api)
+		log.debugf("loaded renderdoc {}", rdoc_api)
 	}
 	defer if rdoc_ok {
 		rdoc.unload_api(rdoc_lib)

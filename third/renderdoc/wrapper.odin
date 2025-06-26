@@ -70,7 +70,7 @@ unload_api :: proc(lib: dynlib.Library) {
 		return
 	}
 
-	log.info("unloaded renderdoc")
+	log.debug("unloaded renderdoc")
 }
 
 // Sets an option that controls how RenderDoc behaves on capture.
