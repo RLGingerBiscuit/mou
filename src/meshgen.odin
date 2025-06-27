@@ -3,14 +3,10 @@ package mou
 import "core:log"
 import glm "core:math/linalg/glsl"
 import vmem "core:mem/virtual"
-import "core:sync"
 import "core:sync/chan"
 import "core:thread"
 
-// FIXME: Is this massive number to avoid a deadlock when generating then meshing chunks
-//        Could separate out the two stages? Maybe a world-side queue that's sent once per frame?
-//        Would allow for sorting closest to player?
-MESHGEN_CHAN_CAP :: MAX_RENDER_DISTANCE * MAX_RENDER_DISTANCE * MAX_RENDER_DISTANCE
+MESHGEN_CHAN_CAP :: 16
 
 Meshgen_Msg_Remesh :: struct {
 	pos: glm.ivec3,
@@ -18,45 +14,65 @@ Meshgen_Msg_Remesh :: struct {
 Meshgen_Msg_Demesh :: struct {
 	pos: glm.ivec3,
 }
+Meshgen_Msg_Terminate :: struct {}
 
 Meshgen_Msg :: union {
 	Meshgen_Msg_Remesh,
 	Meshgen_Msg_Demesh,
+	Meshgen_Msg_Terminate,
 }
 
 Meshgen_Thread :: struct {
-	world: ^World,
-	th:    ^thread.Thread,
-	rx:    chan.Chan(Meshgen_Msg, chan.Direction.Recv),
-	_chan: chan.Chan(Meshgen_Msg),
-	arena: vmem.Arena,
+	world:       ^World,
+	th:          ^thread.Thread,
+	rx:          chan.Chan(Meshgen_Msg, chan.Direction.Recv),
+	world_tx:    chan.Chan(World_Msg, chan.Direction.Send),
+	_mg_chan:    chan.Chan(Meshgen_Msg),
+	_world_chan: chan.Chan(World_Msg),
+	arena:       vmem.Arena,
 }
 
 // Initialises the mesh generation thread.
 //
-// Returns the tx end of the channel.
+// Returns the tx end of the meshgen channel, and rx end of the world channel.
 init_meshgen_thread :: proc(
 	mg: ^Meshgen_Thread,
 	world: ^World,
 	allocator := context.allocator,
-) -> chan.Chan(Meshgen_Msg, chan.Direction.Send) {
-	// FIXME: handle error
-	mg._chan, _ = chan.create(type_of(mg._chan), MESHGEN_CHAN_CAP, allocator)
-	rx := chan.as_recv(mg._chan)
-	tx := chan.as_send(mg._chan)
+) -> (
+	chan.Chan(Meshgen_Msg, chan.Direction.Send),
+	chan.Chan(World_Msg, chan.Direction.Recv),
+) {
+	// FIXME: handle errors
+	mg._mg_chan, _ = chan.create(type_of(mg._mg_chan), 16, allocator)
+	rx := chan.as_recv(mg._mg_chan)
+	tx := chan.as_send(mg._mg_chan)
+
+	mg._world_chan, _ = chan.create(type_of(mg._world_chan), 16, allocator)
+	world_rx := chan.as_recv(mg._world_chan)
+	world_tx := chan.as_send(mg._world_chan)
 
 	mg.rx = rx
+	mg.world_tx = world_tx
 	mg.th = thread.create_and_start_with_poly_data(mg, _meshgen_thread_proc)
 	mg.world = world
 
 	ensure(vmem.arena_init_growing(&mg.arena) == nil)
 
-	return tx
+	return tx, world_rx
 }
 
 destroy_meshgen_thread :: proc(mg: ^Meshgen_Thread) {
-	chan.close(mg._chan)
-	chan.destroy(mg._chan)
+	chan.send(mg._mg_chan, Meshgen_Msg_Terminate{})
+	// FIXME: Hacky little way to ensure terminate message is sent
+	for chan.can_recv(mg._mg_chan) {}
+
+	chan.close(mg._mg_chan)
+	chan.destroy(mg._mg_chan)
+	chan.close(mg._world_chan)
+	chan.destroy(mg._world_chan)
+
+	thread.destroy(mg.th)
 
 	vmem.arena_destroy(&mg.arena)
 
@@ -85,23 +101,20 @@ _meshgen_thread_proc :: proc(mg: ^Meshgen_Thread) {
 		case Meshgen_Msg_Remesh:
 			chunk, exists := &world.chunks[v.pos]
 			ensure(exists, "Chunk sent for meshing doesn't exist")
-			// FIXME: Tombstoned chunks need to ge split out so they can be reused
+			// FIXME: Tombstoned chunks need to get split out so they can be reused
 			mesh := chunk_is_tombstone(chunk) ? chunk.mesh : new_chunk_mesh(mg, world, chunk)
 			ensure(mesh != nil)
 			mesh_chunk(world, chunk, mesh)
-			if sync.guard(&world.lock) {
-				chunk.mesh = mesh
-				// FIXME: These shouldn't need to be atomic, right?
-				sync.atomic_store(&chunk.tombstone, false)
-			}
+			chan.send(mg.world_tx, World_Msg_Meshed{v.pos, mesh})
 
 		case Meshgen_Msg_Demesh:
-			chunk, exists := &world.chunks[v.pos]
-			ensure(exists, "Chunk sent for demeshing doesn't exist")
-			if sync.guard(&world.lock) {
-				chunk.mesh = nil
-				sync.atomic_store(&chunk.tombstone, true)
-			}
+			// TODO: Add mesh to tombstone pile
+			// chunk, exists := &world.chunks[v.pos]
+			// ensure(exists, "Chunk sent for demeshing doesn't exist")
+			chan.send(mg.world_tx, World_Msg_Demeshed{v.pos})
+
+		case Meshgen_Msg_Terminate:
+			return
 		}
 	}
 }
@@ -109,7 +122,7 @@ _meshgen_thread_proc :: proc(mg: ^Meshgen_Thread) {
 new_chunk_mesh :: proc(mg: ^Meshgen_Thread, world: ^World, chunk: ^Chunk) -> ^Chunk_Mesh {
 	mesh, _ := vmem.new(&mg.arena, Chunk_Mesh)
 
-	// TODO: This is most certainly too high (or needed at all). Check perf sometime
+	// TODO: This is most certainly too high (or not needed at all). Check perf sometime
 	mesh.opaque = make([dynamic]f32, 0, (CHUNK_SIZE / 2 * VERTEX_COUNT) / 4)
 	mesh.transparent = make([dynamic]f32, 0, (CHUNK_SIZE / 2 * VERTEX_COUNT) / 4)
 
@@ -190,8 +203,6 @@ mesh_chunk :: proc(world: ^World, chunk: ^Chunk, mesh: ^Chunk_Mesh) {
 			}
 		}
 	}
-
-	sync.atomic_store(&chunk.needs_remeshing, false)
 }
 
 @(private = "file")

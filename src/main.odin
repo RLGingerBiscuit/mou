@@ -271,6 +271,8 @@ main :: proc() {
 				}
 				clear(chunks_to_demesh)
 			}
+
+			world_update(&state.world)
 		}
 
 		if capture_frame {
@@ -365,8 +367,8 @@ main :: proc() {
 			opaque_chunks := &state.frame.opaque_chunks
 			transparent_chunks := &state.frame.transparent_chunks
 
-			defer clear(&state.frame.opaque_chunks)
-			defer clear(&state.frame.transparent_chunks)
+			clear(opaque_chunks)
+			clear(transparent_chunks)
 
 			for _, &chunk in state.world.chunks {
 				if chunk.mesh == nil {
