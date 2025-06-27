@@ -22,7 +22,7 @@ State :: struct {
 
 Frame_State :: struct {
 	// Frame state
-	// NOTE: Pointers are fine here because they are always locked
+	// NOTE: Pointers are fine here because world is always locked
 	chunks_to_demesh:   [dynamic]^Chunk,
 	opaque_chunks:      [dynamic]^Chunk,
 	transparent_chunks: [dynamic]^Chunk,

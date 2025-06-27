@@ -143,11 +143,12 @@ main :: proc() {
 	init_world(&state.world, &atlas)
 	defer destroy_world(&state.world)
 
-	if sync.guard(&state.world.lock) {
+	{
 		N := state.render_distance
 		for y in i32(0) ..= 1 {
 			for z in i32(-N) ..= N {
 				for x in i32(-N) ..= N {
+					sync.guard(&state.world.lock)
 					world_generate_chunk(&state.world, {x, y, z})
 				}
 			}
@@ -236,11 +237,8 @@ main :: proc() {
 			update_camera(&state, delta_time)
 			update_window(&state.window)
 
-			// TODO: Don't forget to turn this back on nerd
-			// if false {
-			if sync.guard(&state.world.lock) {
+			{
 				N := i32(1.2 * f32(state.render_distance))
-
 				global_pos := glm.ivec3 {
 					i32(state.camera.pos.x),
 					i32(state.camera.pos.y),
@@ -248,10 +246,12 @@ main :: proc() {
 				}
 				cam_chunk_pos := global_pos_to_chunk_pos(global_pos)
 				cam_chunk_pos.y = 0
+
 				for y in i32(0) ..= 1 {
 					for z in i32(-N) ..= N {
 						for x in i32(-N) ..= N {
 							chunk_pos := cam_chunk_pos + {x, y, z}
+							sync.guard(&state.world.lock)
 							world_generate_chunk(&state.world, chunk_pos)
 						}
 					}
@@ -260,17 +260,14 @@ main :: proc() {
 				chunks_to_demesh := &state.frame.chunks_to_demesh
 
 				for _, &chunk in &state.world.chunks {
-					if len(chunk.opaque_mesh) > 0 && glm.abs(cam_chunk_pos.x - chunk.pos.x) > N ||
+					if chunk.mesh != nil && glm.abs(cam_chunk_pos.x - chunk.pos.x) > N ||
 					   glm.abs(cam_chunk_pos.z - chunk.pos.z) > N {
 						append(chunks_to_demesh, &chunk)
 					}
 				}
 
 				for chunk in chunks_to_demesh {
-					// TODO: separate chunks from mesh so mesh can be fully deleted
-					// TODO: ensure chunks are also removed from remesh queue if they're in there for some reason
-					clear(&chunk.opaque_mesh)
-					clear(&chunk.transparent_mesh)
+					world_mark_chunk_demesh(&state.world, chunk)
 				}
 				clear(chunks_to_demesh)
 			}
@@ -372,14 +369,18 @@ main :: proc() {
 			defer clear(&state.frame.transparent_chunks)
 
 			for _, &chunk in state.world.chunks {
+				if chunk.mesh == nil {
+					continue
+				}
+
 				if !frustum_contains_chunk(frustum, chunk.pos) {
 					continue
 				}
 
-				if len(chunk.opaque_mesh) > 0 {
+				if len(chunk.mesh.opaque) > 0 {
 					append(opaque_chunks, &chunk)
 				}
-				if len(chunk.transparent_mesh) > 0 {
+				if len(chunk.mesh.transparent) > 0 {
 					append(transparent_chunks, &chunk)
 				}
 			}
@@ -397,8 +398,8 @@ main :: proc() {
 			vertex_attrib_pointer(0, 3, .Float, false, 5 * size_of(f32), 0)
 			vertex_attrib_pointer(1, 2, .Float, false, 5 * size_of(f32), 3 * size_of(f32))
 			for &chunk in opaque_chunks {
-				buffer_sub_data(vbo, 0, chunk.opaque_mesh[:])
-				gl.DrawArrays(gl.TRIANGLES, 0, cast(i32)len(chunk.opaque_mesh) / 3)
+				buffer_sub_data(vbo, 0, chunk.mesh.opaque[:])
+				gl.DrawArrays(gl.TRIANGLES, 0, cast(i32)len(chunk.mesh.opaque) / 3)
 			}
 
 			bind_buffer(transparent_vbo)
@@ -406,8 +407,8 @@ main :: proc() {
 			vertex_attrib_pointer(0, 3, .Float, false, 5 * size_of(f32), 0)
 			vertex_attrib_pointer(1, 2, .Float, false, 5 * size_of(f32), 3 * size_of(f32))
 			for chunk in transparent_chunks {
-				buffer_sub_data(vbo, 0, chunk.transparent_mesh[:])
-				gl.DrawArrays(gl.TRIANGLES, 0, cast(i32)len(chunk.transparent_mesh) / 3)
+				buffer_sub_data(vbo, 0, chunk.mesh.transparent[:])
+				gl.DrawArrays(gl.TRIANGLES, 0, cast(i32)len(chunk.mesh.transparent) / 3)
 			}
 
 			unbind_buffer(.Array)

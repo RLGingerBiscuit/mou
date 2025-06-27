@@ -1,62 +1,40 @@
 package mou
 
+import "core:log"
+_ :: log
+
 import "core:math"
 import glm "core:math/linalg/glsl"
-import "core:mem"
+import vmem "core:mem/virtual"
 import "core:slice"
 import "core:sync"
-import "core:thread"
+import "core:sync/chan"
 import "noise"
 
 World :: struct {
-	chunks:          map[glm.ivec3]Chunk,
-	remesh_queue:    [dynamic]glm.ivec3,
-	meshgen_thread:  ^thread.Thread,
-	meshgen_sema:    sync.Sema,
-	lock:            sync.RW_Mutex,
-	atlas:           ^Atlas,
-	allocator:       mem.Allocator,
+	chunks:         map[glm.ivec3]Chunk,
+	meshgen_thread: Meshgen_Thread,
+	meshgen_tx:     chan.Chan(Meshgen_Msg, chan.Direction.Send),
+	lock:           sync.RW_Mutex,
+	atlas:          ^Atlas, // FIXME: This doesn't belong here
+	arena:          vmem.Arena,
 }
 
-init_world :: proc(world: ^World, atlas: ^Atlas, allocator := context.allocator) {
-	context.allocator = allocator
-	world.allocator = allocator
-	world.chunks = make(map[glm.ivec3]Chunk)
+init_world :: proc(world: ^World, atlas: ^Atlas) {
 	world.atlas = atlas
-	world.meshgen_thread = thread.create_and_start_with_data(world, _meshgen_thread_proc)
-}
+	world.meshgen_tx = init_meshgen_thread(&world.meshgen_thread, world)
 
-_meshgen_thread_proc :: proc(ptr: rawptr) {
-	world := cast(^World)ptr
+	ensure(vmem.arena_init_growing(&world.arena) == nil)
 
-	for {
-		sync.wait(&world.meshgen_sema)
-		if sync.guard(&world.lock) {
-			chunk_pos, ok := pop_front_safe(&world.remesh_queue)
-			if !ok {break} 	// HACK: for stopping thread
-
-			// Should:tm: never happen, but you never know
-			chunk, exists := &world.chunks[chunk_pos]
-			assert(exists, "Chunk sent for meshing doesn't exist")
-			mesh_chunk(world, chunk)
-		}
-	}
+	context.allocator = vmem.arena_allocator(&world.arena)
+	world.chunks = make(map[glm.ivec3]Chunk)
 }
 
 destroy_world :: proc(world: ^World) {
-	context.allocator = world.allocator
+	destroy_meshgen_thread(&world.meshgen_thread)
 
-	if sync.guard(&world.lock) {
-		clear(&world.remesh_queue)
-		sync.post(&world.meshgen_sema)
-	}
-	thread.destroy(world.meshgen_thread)
-
-	for _, &chunk in world.chunks {
-		destroy_chunk(&chunk)
-	}
-	delete(world.chunks)
-	delete(world.remesh_queue)
+	// God I love arenas
+	vmem.arena_destroy(&world.arena)
 
 	world^ = {}
 }
@@ -64,10 +42,12 @@ destroy_world :: proc(world: ^World) {
 // Generates a chunk if it is not already generated.
 //
 // Returns true if a chunk was generated, false if it was already generated.
-// 
-// NOTE: caller needs to have the lock on the world
-world_generate_chunk :: proc(world: ^World, chunk_pos: glm.ivec3) -> bool {
-	context.allocator = world.allocator
+//
+// NOTE: Caller needs to have the lock on the world.
+//
+// NOTE: Chunks need to manaully be sent for remesh if send_for_mesh is false.
+world_generate_chunk :: proc(world: ^World, chunk_pos: glm.ivec3, send_for_mesh := true) -> bool {
+	context.allocator = vmem.arena_allocator(&world.arena)
 
 	if _, found := world.chunks[chunk_pos]; found {
 		return false
@@ -126,15 +106,16 @@ world_generate_chunk :: proc(world: ^World, chunk_pos: glm.ivec3) -> bool {
 		}
 	}
 
-	world_mark_chunk_remesh(world, chunk)
-	world_remesh_surrounding_chunks(world, chunk_pos)
+	if send_for_mesh {
+		world_remesh_surrounding_chunks(world, chunk_pos)
+	}
 
 	return true
 }
 
 // NOTE: caller needs to have the lock on the world
 world_fill_chunk :: proc(world: ^World, chunk_pos: glm.ivec3, block: Block) {
-	context.allocator = world.allocator
+	context.allocator = vmem.arena_allocator(&world.arena)
 
 	chunk: ^Chunk
 	found: bool
@@ -160,13 +141,17 @@ world_remesh_surrounding_chunks :: proc(world: ^World, chunk_pos: glm.ivec3) {
 }
 
 // Marks a chunk as in need of remeshing and signals to the meshgen thread to do so.
-// 
-// NOTE: caller needs to have the lock on the world
 world_mark_chunk_remesh :: proc(world: ^World, chunk: ^Chunk) {
-	sync.atomic_store(&chunk.needs_remeshing, true)
-	// FIXME: Don't append chunks already marked for remesh
-	append(&world.remesh_queue, chunk.pos)
-	sync.post(&world.meshgen_sema)
+	if queued := sync.atomic_compare_exchange_strong(&chunk.needs_remeshing, false, true);
+	   !queued {
+		chan.send(world.meshgen_tx, Meshgen_Msg_Remesh{chunk.pos})
+	}
+}
+
+// Marks a chunk as in need of demeshing and signals to the meshgen thread to do so.
+world_mark_chunk_demesh :: proc(world: ^World, chunk: ^Chunk) {
+	sync.atomic_store(&chunk.needs_remeshing, false)
+	chan.send(world.meshgen_tx, Meshgen_Msg_Demesh{chunk.pos})
 }
 
 global_pos_to_chunk_pos :: proc(global_pos: glm.ivec3) -> glm.ivec3 {
