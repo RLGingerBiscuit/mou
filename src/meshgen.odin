@@ -69,16 +69,13 @@ init_meshgen_thread :: proc(
 }
 
 destroy_meshgen_thread :: proc(mg: ^Meshgen_Thread) {
-	chan.send(mg._mg_chan, Meshgen_Msg_Terminate{})
-	// FIXME: Hacky little way to ensure terminate message is sent
-	for chan.can_recv(mg._mg_chan) {}
-
 	chan.close(mg._mg_chan)
-	chan.destroy(mg._mg_chan)
 	chan.close(mg._world_chan)
-	chan.destroy(mg._world_chan)
 
 	thread.destroy(mg.th)
+
+	chan.destroy(mg._mg_chan)
+	chan.destroy(mg._world_chan)
 
 	vmem.arena_destroy(&mg.arena)
 
