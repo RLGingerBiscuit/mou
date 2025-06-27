@@ -419,7 +419,7 @@ main :: proc() {
 				return i_dist > j_dist
 			})
 
-			setup_attrib_ptrs :: #force_inline proc() {
+			setup_vertex_attribs :: #force_inline proc() {
 				vertex_attrib_pointer(
 					0,
 					3,
@@ -436,11 +436,18 @@ main :: proc() {
 					size_of(Mesh_Vert),
 					offset_of(Mesh_Vert, tex_coord),
 				)
+				vertex_attrib_i_pointer(
+					2,
+					1,
+					.Unsigned_Int,
+					size_of(Mesh_Vert),
+					offset_of(Mesh_Vert, colour),
+				)
 			}
 
 			bind_buffer(vbo)
 			gl.Enable(gl.CULL_FACE)
-			setup_attrib_ptrs()
+			setup_vertex_attribs()
 			for &chunk in opaque_chunks {
 				buffer_sub_data(vbo, 0, chunk.mesh.opaque[:])
 				gl.DrawArrays(gl.TRIANGLES, 0, cast(i32)len(chunk.mesh.opaque))
@@ -448,7 +455,7 @@ main :: proc() {
 
 			bind_buffer(transparent_vbo)
 			gl.Disable(gl.CULL_FACE)
-			setup_attrib_ptrs()
+			setup_vertex_attribs()
 			for chunk in transparent_chunks {
 				buffer_sub_data(vbo, 0, chunk.mesh.transparent[:])
 				gl.DrawArrays(gl.TRIANGLES, 0, cast(i32)len(chunk.mesh.transparent))

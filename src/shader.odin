@@ -76,7 +76,14 @@ make_shader :: proc(vert_path, frag_path: string) -> (shader: Shader) {
 	shader.handle, ok = gl.load_shaders_source(vert, frag)
 	if !ok {
 		msg, type := gl.get_last_error_message()
-		log.error(type, msg)
+		#partial switch type {
+		case .VERTEX_SHADER:
+			log.error(vert_path, type, msg)
+		case .FRAGMENT_SHADER:
+			log.error(frag_path, type, msg)
+		case:
+			log.error(type, msg)
+		}
 	}
 	assert(ok)
 

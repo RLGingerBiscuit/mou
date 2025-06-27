@@ -3,6 +3,7 @@
 #include <include/fog.glsl>
 
 in vec2 tex_coord;
+in vec4 vertex_colour;
 in float vertex_distance;
 
 out vec4 frag_colour;
@@ -13,6 +14,6 @@ uniform float fog_end;
 uniform vec4 fog_colour;
 
 void main() {
-    vec4 colour = texture(atlas, tex_coord);
+    vec4 colour = texture(atlas, tex_coord) * vertex_colour;
     frag_colour = linear_fog(colour, vertex_distance, fog_start, fog_end, fog_colour);
 }

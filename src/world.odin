@@ -11,6 +11,8 @@ import "core:sync"
 import "core:sync/chan"
 import "noise"
 
+WATER_LEVEL :: 12
+
 World_Msg_Meshed :: struct {
 	chunk_pos: glm.ivec3,
 	mesh:      ^Chunk_Mesh,
@@ -191,10 +193,12 @@ world_generate_chunk :: proc(world: ^World, chunk_pos: glm.ivec3) -> bool {
 				switch {
 				case cy == height:
 					chunk.blocks[local_coords_to_block_index(x, y, z)] = Block{.Grass}
-				case cy + 3 < height:
+				case cy < height - 3:
 					chunk.blocks[local_coords_to_block_index(x, y, z)] = Block{.Stone}
 				case cy < height:
 					chunk.blocks[local_coords_to_block_index(x, y, z)] = Block{.Dirt}
+				case cy <= WATER_LEVEL:
+					chunk.blocks[local_coords_to_block_index(x, y, z)] = Block{.Water}
 				case:
 				// Air
 				}
