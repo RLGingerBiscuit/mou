@@ -160,11 +160,11 @@ mu_init_ui :: proc(state: ^State) {
 	buffer_data(state.ui.vbo, vbo_buf[:])
 
 	// position [x,y]
-	vertex_attrib_pointer(0, 2, .Float, false, size_of(Vert), offset_of(Vert, pos))
+	vertex_attrib_pointer(0, 2, .Float, false, size_of(UI_Vert), offset_of(UI_Vert, pos))
 	// tex_coord [x,y]
-	vertex_attrib_pointer(1, 2, .Float, false, size_of(Vert), offset_of(Vert, tex_coord))
+	vertex_attrib_pointer(1, 2, .Float, false, size_of(UI_Vert), offset_of(UI_Vert, tex_coord))
 	// colour [rgba]
-	vertex_attrib_i_pointer(2, 1, .Unsigned_Int, size_of(Vert), offset_of(Vert, colour))
+	vertex_attrib_i_pointer(2, 1, .Unsigned_Int, size_of(UI_Vert), offset_of(UI_Vert, colour))
 
 	// unbind_buffer(.Element_Array)
 	unbind_buffer(.Array)
@@ -570,13 +570,13 @@ mu_render_ui :: proc(state: ^State) {
 @(private = "file")
 BUF_SZ :: 16384
 @(private = "file")
-Vert :: struct #packed {
+UI_Vert :: struct #packed {
 	pos:       glm.vec2,
 	tex_coord: glm.vec2,
 	colour:    mu.Color,
 }
 @(private = "file")
-vbo_buf: [BUF_SZ * 4]Vert
+vbo_buf: [BUF_SZ * 4]UI_Vert
 @(private = "file")
 ebo_buf: [BUF_SZ * 6]u32
 @(private = "file")

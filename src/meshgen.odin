@@ -135,8 +135,8 @@ new_chunk_mesh :: proc(mg: ^Meshgen_Thread, world: ^World) -> ^Chunk_Mesh {
 	mesh, _ := new(Chunk_Mesh)
 
 	// From some *very* basic tests these numbers seem to be alright for now
-	mesh.opaque = make([dynamic]f32, 0, (CHUNK_SIZE / 2 * VERTEX_COUNT) / 4)
-	mesh.transparent = make([dynamic]f32)
+	mesh.opaque = make([dynamic]Mesh_Vert, 0, CHUNK_SIZE / 8)
+	mesh.transparent = make([dynamic]Mesh_Vert)
 
 	return mesh
 }
@@ -185,7 +185,6 @@ mesh_chunk :: proc(world: ^World, chunk: ^Chunk, mesh: ^Chunk_Mesh) {
 				}
 
 				mesh := block_is_opaque(block) ? &mesh.opaque : &mesh.transparent
-
 				block_pos := glm.ivec3{x, y, z}
 
 				if .Neg_X in mask {
@@ -224,59 +223,31 @@ position_face :: #force_inline proc(
 	chunk_pos: glm.ivec3,
 	block: Block,
 	atlas: ^Atlas,
-) -> [VERTEX_INPUT_COUNT]f32 {
+) -> [VERTEX_COUNT]Mesh_Vert {
 	face_data := FACE_PLANES[face]
 
-	x := f32(chunk_pos.x * CHUNK_WIDTH + block_pos.x)
-	y := f32(chunk_pos.y * CHUNK_HEIGHT + block_pos.y)
-	z := f32(chunk_pos.z * CHUNK_DEPTH + block_pos.z)
-
-	face_data[0] += x
-	face_data[5] += x
-	face_data[10] += x
-	face_data[15] += x
-	face_data[20] += x
-	face_data[25] += x
-
-	face_data[1] += y
-	face_data[6] += y
-	face_data[11] += y
-	face_data[16] += y
-	face_data[21] += y
-	face_data[26] += y
-
-	face_data[2] += z
-	face_data[7] += z
-	face_data[12] += z
-	face_data[17] += z
-	face_data[22] += z
-	face_data[27] += z
-
-	// Setting UVs
+	pos_i := chunk_pos * CHUNK_MULTIPLIER + block_pos
+	pos := glm.vec3{f32(pos_i.x), f32(pos_i.y), f32(pos_i.z)}
 	uvs := atlas.uvs[block_asset_name(block, face)]
-	// tr
-	face_data[3] = uvs[1].x
-	face_data[4] = uvs[0].y
 
+	// tr
+	face_data[0].pos += pos
+	face_data[0].tex_coord = {uvs[1].x, uvs[0].y}
 	// tl
-	face_data[8] = uvs[0].x
-	face_data[9] = uvs[0].y
-
+	face_data[1].pos += pos
+	face_data[1].tex_coord = {uvs[0].x, uvs[0].y}
 	// bl
-	face_data[13] = uvs[1].x
-	face_data[14] = uvs[1].y
-
+	face_data[2].pos += pos
+	face_data[2].tex_coord = {uvs[1].x, uvs[1].y}
 	// bl
-	face_data[18] = uvs[0].x
-	face_data[19] = uvs[1].y
-
+	face_data[3].pos += pos
+	face_data[3].tex_coord = {uvs[0].x, uvs[1].y}
 	// br
-	face_data[23] = uvs[1].x
-	face_data[24] = uvs[1].y
-
+	face_data[4].pos += pos
+	face_data[4].tex_coord = {uvs[1].x, uvs[1].y}
 	// tr
-	face_data[28] = uvs[0].x
-	face_data[29] = uvs[0].y
+	face_data[5].pos += pos
+	face_data[5].tex_coord = {uvs[0].x, uvs[0].y}
 
 	return face_data
 }
@@ -285,54 +256,51 @@ position_face :: #force_inline proc(
 @(private = "file")
 VERTEX_COUNT :: 6
 @(private = "file")
-COORD_COUNT :: VERTEX_COUNT * 3
+VERTEX_INPUT_COUNT :: VERTEX_COUNT * size_of(Mesh_Vert)
+// odinfmt:disable
 @(private = "file")
-TEX_COORD_COUNT :: VERTEX_COUNT * 2
-@(private = "file")
-VERTEX_INPUT_COUNT :: COORD_COUNT+TEX_COORD_COUNT
-@(private = "file")
-FACE_PLANES :: [Block_Face_Bit][VERTEX_INPUT_COUNT]f32{
+FACE_PLANES :: [Block_Face_Bit][6]Mesh_Vert {
 	.Neg_X={// Left
-	-0.5,  0.5, -0.5,  1, 0,
-	-0.5,  0.5,  0.5,  0, 0,
-	-0.5, -0.5, -0.5,  1, 1,
-	-0.5, -0.5,  0.5,  0, 1,
-	-0.5, -0.5, -0.5,  1, 1,
-	-0.5,  0.5,  0.5,  0, 0,},
+	{{-0.5,  0.5, -0.5},  {1, 0}},
+	{{-0.5,  0.5,  0.5},  {0, 0}},
+	{{-0.5, -0.5, -0.5},  {1, 1}},
+	{{-0.5, -0.5,  0.5},  {0, 1}},
+	{{-0.5, -0.5, -0.5},  {1, 1}},
+	{{-0.5,  0.5,  0.5},  {0, 0}},},
 	.Pos_X={// Right
-	 0.5,  0.5,  0.5,  1, 0,
-	 0.5,  0.5, -0.5,  0, 0,
-	 0.5, -0.5,  0.5,  1, 1,
-	 0.5, -0.5, -0.5,  0, 1,
-	 0.5, -0.5,  0.5,  1, 1,
-	 0.5,  0.5, -0.5,  0, 0,},
+	{{ 0.5,  0.5,  0.5},  {1, 0}},
+	{{ 0.5,  0.5, -0.5},  {0, 0}},
+	{{ 0.5, -0.5,  0.5},  {1, 1}},
+	{{ 0.5, -0.5, -0.5},  {0, 1}},
+	{{ 0.5, -0.5,  0.5},  {1, 1}},
+	{{ 0.5,  0.5, -0.5},  {0, 0}},},
 	.Neg_Y={// Bottom
-	 0.5, -0.5, -0.5,  1, 0,
-	-0.5, -0.5, -0.5,  0, 0,
-	 0.5, -0.5,  0.5,  1, 1,
-	-0.5, -0.5,  0.5,  0, 1,
-	 0.5, -0.5,  0.5,  1, 1,
-	-0.5, -0.5, -0.5,  0, 0,},
+	{{ 0.5, -0.5, -0.5},  {1, 0}},
+	{{-0.5, -0.5, -0.5},  {0, 0}},
+	{{ 0.5, -0.5,  0.5},  {1, 1}},
+	{{-0.5, -0.5,  0.5},  {0, 1}},
+	{{ 0.5, -0.5,  0.5},  {1, 1}},
+	{{-0.5, -0.5, -0.5},  {0, 0}},},
 	.Pos_Y={// Top
-	 0.5,  0.5,  0.5,  1, 0,
-	-0.5,  0.5,  0.5,  0, 0,
-	 0.5,  0.5, -0.5,  1, 1,
-	-0.5,  0.5, -0.5,  0, 1,
-	 0.5,  0.5, -0.5,  1, 1,
-	-0.5,  0.5,  0.5,  0, 0,},
+	{{ 0.5,  0.5,  0.5},  {1, 0}},
+	{{-0.5,  0.5,  0.5},  {0, 0}},
+	{{ 0.5,  0.5, -0.5},  {1, 1}},
+	{{-0.5,  0.5, -0.5},  {0, 1}},
+	{{ 0.5,  0.5, -0.5},  {1, 1}},
+	{{-0.5,  0.5,  0.5},  {0, 0}},},
 	.Neg_Z={// Front
-	 0.5,  0.5, -0.5,  1, 0,
-	-0.5,  0.5, -0.5,  0, 0,
-	 0.5, -0.5, -0.5,  1, 1,
-	-0.5, -0.5, -0.5,  0, 1,
-	 0.5, -0.5, -0.5,  1, 1,
-	-0.5,  0.5, -0.5,  0, 0,},
+	{{ 0.5,  0.5, -0.5},  {1, 0}},
+	{{-0.5,  0.5, -0.5},  {0, 0}},
+	{{ 0.5, -0.5, -0.5},  {1, 1}},
+	{{-0.5, -0.5, -0.5},  {0, 1}},
+	{{ 0.5, -0.5, -0.5},  {1, 1}},
+	{{-0.5,  0.5, -0.5},  {0, 0}},},
 	.Pos_Z={// Back
-	-0.5,  0.5,  0.5,  1, 0,
-	 0.5,  0.5,  0.5,  0, 0,
-	-0.5, -0.5,  0.5,  1, 1,
-	 0.5, -0.5,  0.5,  0, 1,
-	-0.5, -0.5,  0.5,  1, 1,
-	 0.5,  0.5,  0.5,  0, 0,},
+	{{-0.5,  0.5,  0.5},  {1, 0}},
+	{{ 0.5,  0.5,  0.5},  {0, 0}},
+	{{-0.5, -0.5,  0.5},  {1, 1}},
+	{{ 0.5, -0.5,  0.5},  {0, 1}},
+	{{-0.5, -0.5,  0.5},  {1, 1}},
+	{{ 0.5,  0.5,  0.5},  {0, 0}},},
 }
 // odinfmt:enable

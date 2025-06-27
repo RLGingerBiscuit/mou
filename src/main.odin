@@ -419,22 +419,39 @@ main :: proc() {
 				return i_dist > j_dist
 			})
 
+			setup_attrib_ptrs :: #force_inline proc() {
+				vertex_attrib_pointer(
+					0,
+					3,
+					.Float,
+					false,
+					size_of(Mesh_Vert),
+					offset_of(Mesh_Vert, pos),
+				)
+				vertex_attrib_pointer(
+					1,
+					2,
+					.Float,
+					false,
+					size_of(Mesh_Vert),
+					offset_of(Mesh_Vert, tex_coord),
+				)
+			}
+
 			bind_buffer(vbo)
 			gl.Enable(gl.CULL_FACE)
-			vertex_attrib_pointer(0, 3, .Float, false, 5 * size_of(f32), 0)
-			vertex_attrib_pointer(1, 2, .Float, false, 5 * size_of(f32), 3 * size_of(f32))
+			setup_attrib_ptrs()
 			for &chunk in opaque_chunks {
 				buffer_sub_data(vbo, 0, chunk.mesh.opaque[:])
-				gl.DrawArrays(gl.TRIANGLES, 0, cast(i32)len(chunk.mesh.opaque) / 5)
+				gl.DrawArrays(gl.TRIANGLES, 0, cast(i32)len(chunk.mesh.opaque))
 			}
 
 			bind_buffer(transparent_vbo)
 			gl.Disable(gl.CULL_FACE)
-			vertex_attrib_pointer(0, 3, .Float, false, 5 * size_of(f32), 0)
-			vertex_attrib_pointer(1, 2, .Float, false, 5 * size_of(f32), 3 * size_of(f32))
+			setup_attrib_ptrs()
 			for chunk in transparent_chunks {
 				buffer_sub_data(vbo, 0, chunk.mesh.transparent[:])
-				gl.DrawArrays(gl.TRIANGLES, 0, cast(i32)len(chunk.mesh.transparent) / 5)
+				gl.DrawArrays(gl.TRIANGLES, 0, cast(i32)len(chunk.mesh.transparent))
 			}
 
 			unbind_buffer(.Array)
