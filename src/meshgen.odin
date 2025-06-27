@@ -129,11 +129,11 @@ _meshgen_thread_proc :: proc(mg: ^Meshgen_Thread) {
 }
 
 new_chunk_mesh :: proc(mg: ^Meshgen_Thread, world: ^World) -> ^Chunk_Mesh {
-	mesh, _ := vmem.new(&mg.arena, Chunk_Mesh)
+	mesh, _ := new(Chunk_Mesh)
 
-	// TODO: This is most certainly too high (or not needed at all). Check perf sometime
+	// From some *very* basic tests these numbers seem to be alright for now
 	mesh.opaque = make([dynamic]f32, 0, (CHUNK_SIZE / 2 * VERTEX_COUNT) / 4)
-	mesh.transparent = make([dynamic]f32, 0, (CHUNK_SIZE / 2 * VERTEX_COUNT) / 4)
+	mesh.transparent = make([dynamic]f32)
 
 	return mesh
 }
