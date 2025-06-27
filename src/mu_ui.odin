@@ -267,7 +267,7 @@ mu_update_ui :: proc(state: ^State, dt: f64) {
 	mu.begin(ctx)
 	defer mu.end(ctx)
 
-	if mu.window(ctx, "Minceraft", {10, 10, 400, 260}, {.NO_CLOSE, .NO_RESIZE}, FONT_BOUNCY) {
+	if mu.window(ctx, "Minceraft", {10, 10, 420, 320}, {.NO_CLOSE}, FONT_BOUNCY) {
 		LABEL_WIDTH :: 160
 
 		mu.layout_row(ctx, {LABEL_WIDTH, -1})
@@ -333,6 +333,59 @@ mu_update_ui :: proc(state: ^State, dt: f64) {
 		if .CHANGE in checkbox_no_label(ctx, "frozen_frustum", &temp_frozen_frustum) {
 			state.frozen_frustum =
 				temp_frozen_frustum ? (state.camera.projection_matrix * state.camera.view_matrix) : nil
+		}
+
+		temp_mem_usage: [4]int
+		for usage in state.frame.mesh_memory_usage {
+			temp_mem_usage += usage
+		}
+
+		mu.label(ctx, "Opaque Mem Usage:")
+		if temp_mem_usage[0] != 0 {
+			mu.text(
+				ctx,
+				fmt.tprintf(
+					"{:.2f} MiB ({:.2f} MiB, {:.2f}x)",
+					f32(temp_mem_usage[0]) / mem.Megabyte,
+					f32(temp_mem_usage[1]) / mem.Megabyte,
+					(f32(temp_mem_usage[1]) / (f32(temp_mem_usage[0]))),
+				),
+				FONT_MONO,
+			)
+		} else {
+			mu.text(
+				ctx,
+				fmt.tprintf(
+					"{:.2f} MiB ({:.2f} MiB)",
+					f32(temp_mem_usage[0]) / mem.Megabyte,
+					f32(temp_mem_usage[1]) / mem.Megabyte,
+				),
+				FONT_MONO,
+			)
+		}
+
+		mu.label(ctx, "Trans. Mem Usage:")
+		if temp_mem_usage[2] != 0 {
+			mu.text(
+				ctx,
+				fmt.tprintf(
+					"{:.2f} MiB ({:.2f} MiB, {:.2f}x)",
+					f32(temp_mem_usage[2]) / mem.Megabyte,
+					f32(temp_mem_usage[3]) / mem.Megabyte,
+					(f32(temp_mem_usage[3]) / (f32(temp_mem_usage[2]))),
+				),
+				FONT_MONO,
+			)
+		} else {
+			mu.text(
+				ctx,
+				fmt.tprintf(
+					"{:.2f} MiB ({:.2f} MiB)",
+					f32(temp_mem_usage[2]) / mem.Megabyte,
+					f32(temp_mem_usage[3]) / mem.Megabyte,
+				),
+				FONT_MONO,
+			)
 		}
 	}
 

@@ -282,6 +282,24 @@ main :: proc() {
 			world_update(&state.world)
 		}
 
+		{
+			clear(&state.frame.mesh_memory_usage)
+			for _, chunk in state.world.chunks {
+				mesh := chunk.mesh
+				if mesh == nil {continue}
+				append(
+					&state.frame.mesh_memory_usage,
+					[4]int {
+						len(mesh.opaque),
+						cap(mesh.opaque),
+						len(mesh.transparent),
+						cap(mesh.transparent),
+					} *
+					size_of(f32),
+				)
+			}
+		}
+
 		if capture_frame {
 			log.debug("capturing frame")
 			rdoc.StartFrameCapture(rdoc_api, nil, nil)
