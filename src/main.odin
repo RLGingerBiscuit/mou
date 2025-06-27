@@ -279,7 +279,7 @@ main :: proc() {
 				}
 			}
 
-			world_update(&state.world)
+			world_update(&state.world, state.camera.pos)
 		}
 
 		{

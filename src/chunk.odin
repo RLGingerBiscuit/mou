@@ -62,6 +62,10 @@ get_chunk_centre :: proc(chunk: ^Chunk) -> glm.vec3 {
 	return chunk_pos_to_global_pos(chunk.pos) + ({CHUNK_WIDTH, CHUNK_HEIGHT, CHUNK_DEPTH} / 2)
 }
 
+chunk_pos_centre :: proc(chunk_pos: glm.ivec3) -> glm.vec3 {
+	return chunk_pos_to_global_pos(chunk_pos) + ({CHUNK_WIDTH, CHUNK_HEIGHT, CHUNK_DEPTH} / 2)
+}
+
 chunk_pos_to_global_pos :: proc(chunk_pos: glm.ivec3) -> glm.vec3 {
 	return {f32(chunk_pos.x << 4), f32(chunk_pos.y << 4), f32(chunk_pos.z << 4)}
 }
