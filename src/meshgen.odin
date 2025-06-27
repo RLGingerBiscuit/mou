@@ -2,6 +2,7 @@ package mou
 
 import "core:log"
 import glm "core:math/linalg/glsl"
+import "core:mem"
 import vmem "core:mem/virtual"
 import "core:sync/chan"
 import "core:thread"
@@ -48,18 +49,20 @@ init_meshgen_thread :: proc(
 	chan.Chan(Meshgen_Msg, chan.Direction.Send),
 	chan.Chan(World_Msg, chan.Direction.Recv),
 ) {
-	// FIXME: handle errors
-	mg._mg_chan, _ = chan.create(type_of(mg._mg_chan), 16, allocator)
+	chan_err: mem.Allocator_Error
+	mg._mg_chan, chan_err = chan.create(type_of(mg._mg_chan), 16, allocator)
 	rx := chan.as_recv(mg._mg_chan)
 	tx := chan.as_send(mg._mg_chan)
 
-	mg._world_chan, _ = chan.create(type_of(mg._world_chan), 16, allocator)
+	mg._world_chan, chan_err = chan.create(type_of(mg._world_chan), 16, allocator)
+	ensure(chan_err == nil)
 	world_rx := chan.as_recv(mg._world_chan)
 	world_tx := chan.as_send(mg._world_chan)
 
 	mg.rx = rx
 	mg.world_tx = world_tx
 	mg.th = thread.create_and_start_with_poly_data(mg, _meshgen_thread_proc)
+	ensure(mg.th != nil)
 	mg.world = world
 
 	ensure(vmem.arena_init_growing(&mg.arena) == nil)
