@@ -3,6 +3,7 @@ package mou
 import "core:log"
 import glm "core:math/linalg/glsl"
 import vmem "core:mem/virtual"
+import "core:sync"
 import "core:sync/chan"
 import "core:thread"
 
@@ -29,6 +30,7 @@ Meshgen_Thread :: struct {
 	world_tx:    chan.Chan(World_Msg, chan.Direction.Send),
 	_mg_chan:    chan.Chan(Meshgen_Msg),
 	_world_chan: chan.Chan(World_Msg),
+	tombstones:  [dynamic]^Chunk_Mesh,
 	arena:       vmem.Arena,
 }
 
@@ -101,16 +103,28 @@ _meshgen_thread_proc :: proc(mg: ^Meshgen_Thread) {
 		case Meshgen_Msg_Remesh:
 			chunk, exists := &world.chunks[v.pos]
 			ensure(exists, "Chunk sent for meshing doesn't exist")
-			// FIXME: Tombstoned chunks need to get split out so they can be reused
-			mesh := chunk_is_tombstone(chunk) ? chunk.mesh : new_chunk_mesh(mg, world, chunk)
-			ensure(mesh != nil)
+			mesh: ^Chunk_Mesh
+			if !chunk_is_tombstone(chunk) {
+				mesh = chunk.mesh
+			}
+			if mesh == nil {
+				mesh =
+					len(mg.tombstones) > 0 ? pop(&mg.tombstones) : new_chunk_mesh(mg, world, chunk)
+			}
+			// TODO: need to swap mesh rather than take current one to avoid flashing
+			assert(mesh != nil)
 			mesh_chunk(world, chunk, mesh)
 			chan.send(mg.world_tx, World_Msg_Meshed{v.pos, mesh})
 
 		case Meshgen_Msg_Demesh:
-			// TODO: Add mesh to tombstone pile
-			// chunk, exists := &world.chunks[v.pos]
-			// ensure(exists, "Chunk sent for demeshing doesn't exist")
+			chunk, exists := &world.chunks[v.pos]
+			ensure(exists, "Chunk sent for demeshing doesn't exist")
+			if chunk.mesh == nil {
+				continue
+			}
+			// FIXME: This is here to avoid using a tombstoned mesh on the main thread. Look into further
+			sync.atomic_store(&chunk.tombstone, true)
+			append(&mg.tombstones, chunk.mesh)
 			chan.send(mg.world_tx, World_Msg_Demeshed{v.pos})
 
 		case Meshgen_Msg_Terminate:

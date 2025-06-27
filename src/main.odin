@@ -18,7 +18,7 @@ WINDOW_HEIGHT :: 720
 WINDOW_SIZE :: [2]i32{WINDOW_WIDTH, WINDOW_HEIGHT}
 WINDOW_TITLE :: "Goofin Minecraft Clone"
 
-DEFAULT_RENDER_DISTANCE :: 8
+DEFAULT_RENDER_DISTANCE :: 2
 MAX_RENDER_DISTANCE :: 16
 DEFAULT_FOV :: 45
 NEAR_PLANE :: 0.001
@@ -103,8 +103,8 @@ main :: proc() {
 
 	state: State
 	state.render_distance = DEFAULT_RENDER_DISTANCE
-	state.fog_enabled = true
-	state.far_plane = true
+	// state.fog_enabled = true
+	// state.far_plane = true
 	init_state(&state)
 	defer destroy_state(&state)
 
@@ -266,9 +266,9 @@ main :: proc() {
 					}
 				}
 
-				for chunk in chunks_to_demesh {
-					world_mark_chunk_demesh(&state.world, chunk)
-				}
+				// for chunk in chunks_to_demesh {
+				// 	world_mark_chunk_demesh(&state.world, chunk)
+				// }
 				clear(chunks_to_demesh)
 			}
 
@@ -371,7 +371,7 @@ main :: proc() {
 			clear(transparent_chunks)
 
 			for _, &chunk in state.world.chunks {
-				if chunk.mesh == nil {
+				if chunk.mesh == nil || chunk_is_tombstone(&chunk) {
 					continue
 				}
 
