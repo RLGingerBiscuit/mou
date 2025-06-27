@@ -283,19 +283,19 @@ main :: proc() {
 		}
 
 		{
-			clear(&state.frame.mesh_memory_usage)
+			clear(&state.frame.memory_usage)
 			for _, chunk in state.world.chunks {
 				mesh := chunk.mesh
 				if mesh == nil {continue}
 				append(
-					&state.frame.mesh_memory_usage,
-					[4]int {
-						len(mesh.opaque),
-						cap(mesh.opaque),
-						len(mesh.transparent),
-						cap(mesh.transparent),
-					} *
-					size_of(f32),
+					&state.frame.memory_usage,
+					[5]int {
+						len(mesh.opaque) * size_of(f32),
+						cap(mesh.opaque) * size_of(f32),
+						len(mesh.transparent) * size_of(f32),
+						cap(mesh.transparent) * size_of(f32),
+						len(chunk.blocks) * size_of(Block),
+					},
 				)
 			}
 		}
