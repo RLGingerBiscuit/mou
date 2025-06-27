@@ -103,8 +103,8 @@ main :: proc() {
 
 	state: State
 	state.render_distance = DEFAULT_RENDER_DISTANCE
-	// state.fog_enabled = true
-	// state.far_plane = true
+	state.fog_enabled = true
+	state.far_plane = true
 	init_state(&state)
 	defer destroy_state(&state)
 
