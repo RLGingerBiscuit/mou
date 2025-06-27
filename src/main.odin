@@ -371,7 +371,7 @@ main :: proc() {
 			clear(transparent_chunks)
 
 			for _, &chunk in state.world.chunks {
-				if chunk.mesh == nil || chunk_is_tombstone(&chunk) {
+				if chunk.mesh == nil {
 					continue
 				}
 

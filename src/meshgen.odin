@@ -15,11 +15,15 @@ Meshgen_Msg_Remesh :: struct {
 Meshgen_Msg_Demesh :: struct {
 	pos: glm.ivec3,
 }
+Meshgen_Msg_Tombstone :: struct {
+	mesh: ^Chunk_Mesh,
+}
 Meshgen_Msg_Terminate :: struct {}
 
 Meshgen_Msg :: union {
 	Meshgen_Msg_Remesh,
 	Meshgen_Msg_Demesh,
+	Meshgen_Msg_Tombstone,
 	Meshgen_Msg_Terminate,
 }
 
@@ -101,19 +105,21 @@ _meshgen_thread_proc :: proc(mg: ^Meshgen_Thread) {
 
 		switch v in msg {
 		case Meshgen_Msg_Remesh:
+			// Make a new mesh here to avoid flashes as meshes are updated
+			mesh := len(mg.tombstones) > 0 ? pop(&mg.tombstones) : new_chunk_mesh(mg, world)
+			assert(mesh != nil)
+
 			chunk, exists := &world.chunks[v.pos]
 			ensure(exists, "Chunk sent for meshing doesn't exist")
-			mesh: ^Chunk_Mesh
-			if !chunk_is_tombstone(chunk) {
-				mesh = chunk.mesh
-			}
-			if mesh == nil {
-				mesh =
-					len(mg.tombstones) > 0 ? pop(&mg.tombstones) : new_chunk_mesh(mg, world, chunk)
-			}
-			// TODO: need to swap mesh rather than take current one to avoid flashing
-			assert(mesh != nil)
 			mesh_chunk(world, chunk, mesh)
+
+			// Add old chunk mesh to tombstones
+			// TODO: Try do this here at some point
+			// if chunk.mesh != nil {
+			// 	sync.atomic_store(&chunk.tombstone, true)
+			// 	append(&mg.tombstones, chunk.mesh)
+			// }
+
 			chan.send(mg.world_tx, World_Msg_Meshed{v.pos, mesh})
 
 		case Meshgen_Msg_Demesh:
@@ -122,10 +128,13 @@ _meshgen_thread_proc :: proc(mg: ^Meshgen_Thread) {
 			if chunk.mesh == nil {
 				continue
 			}
-			// FIXME: This is here to avoid using a tombstoned mesh on the main thread. Look into further
+			// TODO: This is here to avoid using a tombstoned mesh on the main thread. Look into further
 			sync.atomic_store(&chunk.tombstone, true)
 			append(&mg.tombstones, chunk.mesh)
 			chan.send(mg.world_tx, World_Msg_Demeshed{v.pos})
+
+		case Meshgen_Msg_Tombstone:
+			append(&mg.tombstones, v.mesh)
 
 		case Meshgen_Msg_Terminate:
 			return
@@ -133,7 +142,7 @@ _meshgen_thread_proc :: proc(mg: ^Meshgen_Thread) {
 	}
 }
 
-new_chunk_mesh :: proc(mg: ^Meshgen_Thread, world: ^World, chunk: ^Chunk) -> ^Chunk_Mesh {
+new_chunk_mesh :: proc(mg: ^Meshgen_Thread, world: ^World) -> ^Chunk_Mesh {
 	mesh, _ := vmem.new(&mg.arena, Chunk_Mesh)
 
 	// TODO: This is most certainly too high (or not needed at all). Check perf sometime
