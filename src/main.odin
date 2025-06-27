@@ -401,7 +401,7 @@ main :: proc() {
 			vertex_attrib_pointer(1, 2, .Float, false, 5 * size_of(f32), 3 * size_of(f32))
 			for &chunk in opaque_chunks {
 				buffer_sub_data(vbo, 0, chunk.mesh.opaque[:])
-				gl.DrawArrays(gl.TRIANGLES, 0, cast(i32)len(chunk.mesh.opaque) / 3)
+				gl.DrawArrays(gl.TRIANGLES, 0, cast(i32)len(chunk.mesh.opaque) / 5)
 			}
 
 			bind_buffer(transparent_vbo)
@@ -410,7 +410,7 @@ main :: proc() {
 			vertex_attrib_pointer(1, 2, .Float, false, 5 * size_of(f32), 3 * size_of(f32))
 			for chunk in transparent_chunks {
 				buffer_sub_data(vbo, 0, chunk.mesh.transparent[:])
-				gl.DrawArrays(gl.TRIANGLES, 0, cast(i32)len(chunk.mesh.transparent) / 3)
+				gl.DrawArrays(gl.TRIANGLES, 0, cast(i32)len(chunk.mesh.transparent) / 5)
 			}
 
 			unbind_buffer(.Array)
