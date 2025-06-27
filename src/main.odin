@@ -18,7 +18,7 @@ WINDOW_HEIGHT :: 720
 WINDOW_SIZE :: [2]i32{WINDOW_WIDTH, WINDOW_HEIGHT}
 WINDOW_TITLE :: "Goofin Minecraft Clone"
 
-DEFAULT_RENDER_DISTANCE :: 2
+DEFAULT_RENDER_DISTANCE :: 4
 MAX_RENDER_DISTANCE :: 16
 DEFAULT_FOV :: 45
 NEAR_PLANE :: 0.001
@@ -252,24 +252,31 @@ main :: proc() {
 						for x in i32(-N) ..= N {
 							chunk_pos := cam_chunk_pos + {x, y, z}
 							sync.guard(&state.world.lock)
-							world_generate_chunk(&state.world, chunk_pos)
+							if !world_generate_chunk(&state.world, chunk_pos) {
+								chunk := &state.world.chunks[chunk_pos]
+								// Chunk is generated, but needs to be sent for meshing
+								if chunk.mesh == nil {
+									world_mark_chunk_remesh(&state.world, chunk)
+								}
+							}
 						}
 					}
 				}
 
 				chunks_to_demesh := &state.frame.chunks_to_demesh
+				defer clear(chunks_to_demesh)
 
 				for _, &chunk in &state.world.chunks {
-					if chunk.mesh != nil && glm.abs(cam_chunk_pos.x - chunk.pos.x) > N ||
-					   glm.abs(cam_chunk_pos.z - chunk.pos.z) > N {
+					if chunk.mesh != nil &&
+					   (glm.abs(cam_chunk_pos.x - chunk.pos.x) > N ||
+							   glm.abs(cam_chunk_pos.z - chunk.pos.z) > N) {
 						append(chunks_to_demesh, &chunk)
 					}
 				}
 
-				// for chunk in chunks_to_demesh {
-				// 	world_mark_chunk_demesh(&state.world, chunk)
-				// }
-				clear(chunks_to_demesh)
+				for chunk in chunks_to_demesh {
+					world_mark_chunk_demesh(&state.world, chunk)
+				}
 			}
 
 			world_update(&state.world)
@@ -366,9 +373,8 @@ main :: proc() {
 
 			opaque_chunks := &state.frame.opaque_chunks
 			transparent_chunks := &state.frame.transparent_chunks
-
-			clear(opaque_chunks)
-			clear(transparent_chunks)
+			defer clear(opaque_chunks)
+			defer clear(transparent_chunks)
 
 			for _, &chunk in state.world.chunks {
 				if chunk.mesh == nil {

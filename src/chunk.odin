@@ -16,7 +16,7 @@ Chunk :: struct {
 	needs_remeshing: bool,
 }
 
-generate_chunk :: proc(pos: glm.ivec3, allocator := context.allocator) -> Chunk {
+make_chunk :: proc(pos: glm.ivec3, allocator := context.allocator) -> Chunk {
 	context.allocator = allocator
 	chunk: Chunk
 	chunk.pos = pos

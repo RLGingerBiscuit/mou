@@ -108,7 +108,7 @@ world_generate_chunk :: proc(world: ^World, chunk_pos: glm.ivec3) -> bool {
 		return false
 	}
 
-	world.chunks[chunk_pos] = generate_chunk(chunk_pos)
+	world.chunks[chunk_pos] = make_chunk(chunk_pos)
 	chunk := &world.chunks[chunk_pos]
 
 	chunk_noise: [CHUNK_WIDTH * CHUNK_DEPTH]i32
@@ -173,7 +173,7 @@ world_fill_chunk :: proc(world: ^World, chunk_pos: glm.ivec3, block: Block) {
 	chunk: ^Chunk
 	found: bool
 	if chunk, found = &world.chunks[chunk_pos]; !found {
-		world.chunks[chunk_pos] = generate_chunk(chunk_pos)
+		world.chunks[chunk_pos] = make_chunk(chunk_pos)
 		chunk = &world.chunks[chunk_pos]
 	}
 	slice.fill(chunk.blocks, block)
@@ -197,6 +197,7 @@ world_remesh_surrounding_chunks :: proc(world: ^World, chunk_pos: glm.ivec3) {
 world_mark_chunk_remesh :: proc(world: ^World, chunk: ^Chunk) {
 	if queued := sync.atomic_compare_exchange_strong(&chunk.needs_remeshing, false, true);
 	   !queued {
+		sync.atomic_store(&chunk.needs_remeshing, true)
 		append(&world.chunk_msg_queue, Meshgen_Msg_Remesh{chunk.pos})
 	}
 }
