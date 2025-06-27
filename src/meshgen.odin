@@ -3,7 +3,6 @@ package mou
 import "core:log"
 import glm "core:math/linalg/glsl"
 import vmem "core:mem/virtual"
-import "core:sync"
 import "core:sync/chan"
 import "core:thread"
 
@@ -110,13 +109,6 @@ _meshgen_thread_proc :: proc(mg: ^Meshgen_Thread) {
 			ensure(exists, "Chunk sent for meshing doesn't exist")
 			mesh_chunk(world, chunk, mesh)
 
-			// Add old chunk mesh to tombstones
-			// TODO: Try do this here at some point
-			// if chunk.mesh != nil {
-			// 	sync.atomic_store(&chunk.tombstone, true)
-			// 	append(&mg.tombstones, chunk.mesh)
-			// }
-
 			chan.send(mg.world_tx, World_Msg_Meshed{v.pos, mesh})
 
 		case Meshgen_Msg_Demesh:
@@ -125,9 +117,6 @@ _meshgen_thread_proc :: proc(mg: ^Meshgen_Thread) {
 			if chunk.mesh == nil {
 				continue
 			}
-			// TODO: This is here to avoid using a tombstoned mesh on the main thread. Look into further
-			sync.atomic_store(&chunk.tombstone, true)
-			append(&mg.tombstones, chunk.mesh)
 			chan.send(mg.world_tx, World_Msg_Demeshed{v.pos})
 
 		case Meshgen_Msg_Tombstone:

@@ -14,7 +14,6 @@ Chunk :: struct {
 	blocks:          []Block `fmt:"-"`,
 	mesh:            ^Chunk_Mesh,
 	needs_remeshing: bool,
-	tombstone:       bool,
 }
 
 generate_chunk :: proc(pos: glm.ivec3, allocator := context.allocator) -> Chunk {
@@ -30,10 +29,6 @@ destroy_chunk :: proc(chunk: ^Chunk, allocator := context.allocator) {
 	context.allocator = allocator
 	delete(chunk.blocks)
 	chunk^ = {}
-}
-
-chunk_is_tombstone :: proc(chunk: ^Chunk) -> bool {
-	return sync.atomic_load(&chunk.tombstone)
 }
 
 chunk_needs_remeshing :: proc(chunk: ^Chunk) -> bool {

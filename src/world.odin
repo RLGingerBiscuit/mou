@@ -81,15 +81,17 @@ world_update :: proc(world: ^World) {
 				append(&world.chunk_msg_queue, Meshgen_Msg_Tombstone{old_mesh})
 			}
 			sync.atomic_store(&chunk.needs_remeshing, false)
-			sync.atomic_store(&chunk.tombstone, false)
 
 		case World_Msg_Demeshed:
 			sync.guard(&world.lock)
 			chunk, exists := &world.chunks[v.chunk_pos]
 			ensure(exists, "Demeshed chunk doesn't exist")
+			old_mesh := chunk.mesh
+			if old_mesh != nil {
+				append(&world.chunk_msg_queue, Meshgen_Msg_Tombstone{old_mesh})
+			}
 			chunk.mesh = nil
 			sync.atomic_store(&chunk.needs_remeshing, false)
-			sync.atomic_store(&chunk.tombstone, true)
 		}
 	}
 }
