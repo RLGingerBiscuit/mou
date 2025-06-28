@@ -14,4 +14,5 @@ Mesh_Vert :: struct #packed {
 Chunk_Mesh :: struct {
 	opaque:      [dynamic]Mesh_Vert `fmt:"-"`,
 	transparent: [dynamic]Mesh_Vert `fmt:"-"`,
+	water:       [dynamic]Mesh_Vert `fmt:"-"`,
 }

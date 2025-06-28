@@ -26,19 +26,22 @@ Frame_State :: struct {
 	chunks_to_demesh:   [dynamic]^Chunk,
 	opaque_chunks:      [dynamic]^Chunk,
 	transparent_chunks: [dynamic]^Chunk,
-	memory_usage:  [dynamic][5]int,
+	water_chunks:       [dynamic]^Chunk,
+	memory_usage:       [dynamic][7]int,
 }
 
 init_state :: proc(state: ^State) {
 	state.frame.chunks_to_demesh = make([dynamic]^Chunk, 0, MAX_RENDER_DISTANCE * 16)
 	state.frame.opaque_chunks = make([dynamic]^Chunk, 0, MAX_RENDER_DISTANCE * 16)
 	state.frame.transparent_chunks = make([dynamic]^Chunk, 0, MAX_RENDER_DISTANCE * 16)
-	state.frame.memory_usage = make([dynamic][5]int, 0, MAX_RENDER_DISTANCE * 16)
+	state.frame.water_chunks = make([dynamic]^Chunk, 0, MAX_RENDER_DISTANCE * 16)
+	state.frame.memory_usage = make([dynamic][7]int, 0, MAX_RENDER_DISTANCE * 16)
 }
 
 destroy_state :: proc(state: ^State) {
-	delete(state.frame.memory_usage)
 	delete(state.frame.chunks_to_demesh)
 	delete(state.frame.opaque_chunks)
 	delete(state.frame.transparent_chunks)
+	delete(state.frame.water_chunks)
+	delete(state.frame.memory_usage)
 }

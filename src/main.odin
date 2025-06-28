@@ -161,6 +161,8 @@ main :: proc() {
 	defer destroy_buffer(&vbo)
 	transparent_vbo := make_buffer(.Array, .Dynamic)
 	defer destroy_buffer(&transparent_vbo)
+	water_vbo := make_buffer(.Array, .Dynamic)
+	defer destroy_buffer(&water_vbo)
 
 	{
 		MAX_VERTEX_SIZE :: (CHUNK_SIZE * 6 * 6) * 5
@@ -174,6 +176,9 @@ main :: proc() {
 
 		bind_buffer(transparent_vbo)
 		buffer_data(transparent_vbo, temp)
+
+		bind_buffer(water_vbo)
+		buffer_data(water_vbo, temp)
 
 		unbind_buffer(.Array)
 		unbind_vertex_array()
@@ -289,12 +294,14 @@ main :: proc() {
 				if mesh == nil {continue}
 				append(
 					&state.frame.memory_usage,
-					[5]int {
+					[7]int {
 						len(mesh.opaque) * size_of(f32),
 						cap(mesh.opaque) * size_of(f32),
 						len(mesh.transparent) * size_of(f32),
 						cap(mesh.transparent) * size_of(f32),
 						len(chunk.blocks) * size_of(Block),
+						len(mesh.water) * size_of(f32),
+						cap(mesh.water) * size_of(f32),
 					},
 				)
 			}
@@ -391,8 +398,10 @@ main :: proc() {
 
 			opaque_chunks := &state.frame.opaque_chunks
 			transparent_chunks := &state.frame.transparent_chunks
+			water_chunks := &state.frame.water_chunks
 			defer clear(opaque_chunks)
 			defer clear(transparent_chunks)
+			defer clear(water_chunks)
 
 			for _, &chunk in state.world.chunks {
 				if chunk.mesh == nil {
@@ -409,10 +418,19 @@ main :: proc() {
 				if len(chunk.mesh.transparent) > 0 {
 					append(transparent_chunks, &chunk)
 				}
+				if len(chunk.mesh.water) > 0 {
+					append(water_chunks, &chunk)
+				}
 			}
 
 			context.user_ptr = &state
 			slice.sort_by(transparent_chunks[:], proc(i, j: ^Chunk) -> bool {
+				state := cast(^State)context.user_ptr
+				i_dist := glm.length(state.camera.pos - get_chunk_centre(i))
+				j_dist := glm.length(state.camera.pos - get_chunk_centre(j))
+				return i_dist > j_dist
+			})
+			slice.sort_by(water_chunks[:], proc(i, j: ^Chunk) -> bool {
 				state := cast(^State)context.user_ptr
 				i_dist := glm.length(state.camera.pos - get_chunk_centre(i))
 				j_dist := glm.length(state.camera.pos - get_chunk_centre(j))
@@ -457,6 +475,13 @@ main :: proc() {
 			for chunk in transparent_chunks {
 				buffer_sub_data(vbo, 0, chunk.mesh.transparent[:])
 				gl.DrawArrays(gl.TRIANGLES, 0, cast(i32)len(chunk.mesh.transparent))
+			}
+
+			bind_buffer(water_vbo)
+			setup_vertex_attribs()
+			for chunk in water_chunks {
+				buffer_sub_data(vbo, 0, chunk.mesh.water[:])
+				gl.DrawArrays(gl.TRIANGLES, 0, cast(i32)len(chunk.mesh.water))
 			}
 
 			unbind_buffer(.Array)

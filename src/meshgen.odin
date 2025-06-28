@@ -137,6 +137,7 @@ new_chunk_mesh :: proc(mg: ^Meshgen_Thread, world: ^World) -> ^Chunk_Mesh {
 	// From some *very* basic tests these numbers seem to be alright for now
 	mesh.opaque = make([dynamic]Mesh_Vert, 0, CHUNK_SIZE / 8)
 	mesh.transparent = make([dynamic]Mesh_Vert)
+	mesh.water = make([dynamic]Mesh_Vert)
 
 	return mesh
 }
@@ -148,6 +149,7 @@ mesh_chunk :: proc(world: ^World, chunk: ^Chunk, mesh: ^Chunk_Mesh) {
 
 	clear(&mesh.opaque)
 	clear(&mesh.transparent)
+	clear(&mesh.water)
 
 	for y in i32(0) ..< CHUNK_HEIGHT {
 		for z in i32(0) ..< CHUNK_DEPTH {
@@ -184,7 +186,8 @@ mesh_chunk :: proc(world: ^World, chunk: ^Chunk, mesh: ^Chunk_Mesh) {
 					continue
 				}
 
-				mesh := block_is_opaque(block) ? &mesh.opaque : &mesh.transparent
+				mesh :=
+					block_is_opaque(block) ? &mesh.opaque : block.id == .Water ? &mesh.water : &mesh.transparent
 				block_pos := glm.ivec3{x, y, z}
 				face: [VERTEX_COUNT]Mesh_Vert
 
@@ -194,49 +197,109 @@ mesh_chunk :: proc(world: ^World, chunk: ^Chunk, mesh: ^Chunk_Mesh) {
 				}
 				if .Pos_Y in mask {
 					face = position_face(.Pos_Y, block_pos, chunk.pos, block, world.atlas)
-					if block.id == .Water && bpyok && bpy.id != .Water {
-						face[0].pos.y -= 0.1
-						face[1].pos.y -= 0.1
-						face[2].pos.y -= 0.1
-						face[3].pos.y -= 0.1
-						face[4].pos.y -= 0.1
-						face[5].pos.y -= 0.1
+					if block.id == .Water {
+						if bpyok && bpy.id != .Water {
+							face[0].pos.y -= 0.1
+							face[1].pos.y -= 0.1
+							face[2].pos.y -= 0.1
+							face[3].pos.y -= 0.1
+							face[4].pos.y -= 0.1
+							face[5].pos.y -= 0.1
+						}
 					}
 					append(mesh, ..face[:])
 				}
 				if .Neg_Z in mask {
 					face = position_face(.Neg_Z, block_pos, chunk.pos, block, world.atlas)
-					if block.id == .Water && bpyok && bpy.id != .Water {
-						face[0].pos.y -= 0.1
-						face[4].pos.y -= 0.1
-						face[5].pos.y -= 0.1
-					}
+					if block.id == .Water {
+						if bpyok && bpy.id != .Water {
+							face[0].pos.y -= 0.1
+							face[4].pos.y -= 0.1
+							face[5].pos.y -= 0.1
+						}
+						append(mesh, ..face[:])
+						face = position_face(
+							.Pos_Z,
+							block_pos + {0, 0, -1},
+							chunk.pos,
+							block,
+							world.atlas,
+						)
+						if bpyok && bpy.id != .Water {
+							face[0].pos.y -= 0.1
+							face[4].pos.y -= 0.1
+							face[5].pos.y -= 0.1
+						}}
 					append(mesh, ..face[:])
 				}
 				if .Pos_Z in mask {
 					face = position_face(.Pos_Z, block_pos, chunk.pos, block, world.atlas)
-					if block.id == .Water && bpyok && bpy.id != .Water {
-						face[0].pos.y -= 0.1
-						face[4].pos.y -= 0.1
-						face[5].pos.y -= 0.1
+					if block.id == .Water {
+						if bpyok && bpy.id != .Water {
+							face[0].pos.y -= 0.1
+							face[4].pos.y -= 0.1
+							face[5].pos.y -= 0.1
+						}
+						append(mesh, ..face[:])
+						face = position_face(
+							.Neg_Z,
+							block_pos + {0, 0, 1},
+							chunk.pos,
+							block,
+							world.atlas,
+						)
+						if bpyok && bpy.id != .Water {
+							face[0].pos.y -= 0.1
+							face[4].pos.y -= 0.1
+							face[5].pos.y -= 0.1
+						}
 					}
 					append(mesh, ..face[:])
 				}
 				if .Neg_X in mask {
 					face = position_face(.Neg_X, block_pos, chunk.pos, block, world.atlas)
-					if block.id == .Water && bpyok && bpy.id != .Water {
-						face[0].pos.y -= 0.1
-						face[4].pos.y -= 0.1
-						face[5].pos.y -= 0.1
-					}
+					if block.id == .Water {
+						if bpyok && bpy.id != .Water {
+							face[0].pos.y -= 0.1
+							face[4].pos.y -= 0.1
+							face[5].pos.y -= 0.1
+						}
+						append(mesh, ..face[:])
+						face = position_face(
+							.Pos_X,
+							block_pos + {-1, 0, 0},
+							chunk.pos,
+							block,
+							world.atlas,
+						)
+						if bpyok && bpy.id != .Water {
+							face[0].pos.y -= 0.1
+							face[4].pos.y -= 0.1
+							face[5].pos.y -= 0.1
+						}}
 					append(mesh, ..face[:])
 				}
 				if .Pos_X in mask {
 					face = position_face(.Pos_X, block_pos, chunk.pos, block, world.atlas)
-					if block.id == .Water && bpyok && bpy.id != .Water {
-						face[0].pos.y -= 0.1
-						face[4].pos.y -= 0.1
-						face[5].pos.y -= 0.1
+					if block.id == .Water {
+						if bpyok && bpy.id != .Water {
+							face[0].pos.y -= 0.1
+							face[4].pos.y -= 0.1
+							face[5].pos.y -= 0.1
+						}
+						append(mesh, ..face[:])
+						face = position_face(
+							.Neg_X,
+							block_pos + {1, 0, 0},
+							chunk.pos,
+							block,
+							world.atlas,
+						)
+						if bpyok && bpy.id != .Water {
+							face[0].pos.y -= 0.1
+							face[4].pos.y -= 0.1
+							face[5].pos.y -= 0.1
+						}
 					}
 					append(mesh, ..face[:])
 				}

@@ -267,7 +267,7 @@ mu_update_ui :: proc(state: ^State, dt: f64) {
 	mu.begin(ctx)
 	defer mu.end(ctx)
 
-	if mu.window(ctx, "Minceraft", {10, 10, 420, 340}, {.NO_CLOSE}, FONT_BOUNCY) {
+	if mu.window(ctx, "Minceraft", {10, 10, 420, 370}, {.NO_CLOSE}, FONT_BOUNCY) {
 		LABEL_WIDTH :: 160
 
 		mu.layout_row(ctx, {LABEL_WIDTH, -1})
@@ -335,7 +335,7 @@ mu_update_ui :: proc(state: ^State, dt: f64) {
 				temp_frozen_frustum ? (state.camera.projection_matrix * state.camera.view_matrix) : nil
 		}
 
-		temp_mem_usage: [5]int
+		temp_mem_usage: [7]int
 		for usage in state.frame.memory_usage {
 			temp_mem_usage += usage
 		}
@@ -383,6 +383,30 @@ mu_update_ui :: proc(state: ^State, dt: f64) {
 					"{:.2f} MiB ({:.2f} MiB)",
 					f32(temp_mem_usage[2]) / mem.Megabyte,
 					f32(temp_mem_usage[3]) / mem.Megabyte,
+				),
+				FONT_MONO,
+			)
+		}
+
+		mu.label(ctx, "Water Mem Usage:")
+		if temp_mem_usage[2] != 0 {
+			mu.text(
+				ctx,
+				fmt.tprintf(
+					"{:.2f} MiB ({:.2f} MiB, {:.2f}x)",
+					f32(temp_mem_usage[5]) / mem.Megabyte,
+					f32(temp_mem_usage[6]) / mem.Megabyte,
+					(f32(temp_mem_usage[6]) / (f32(temp_mem_usage[5]))),
+				),
+				FONT_MONO,
+			)
+		} else {
+			mu.text(
+				ctx,
+				fmt.tprintf(
+					"{:.2f} MiB ({:.2f} MiB)",
+					f32(temp_mem_usage[5]) / mem.Megabyte,
+					f32(temp_mem_usage[6]) / mem.Megabyte,
 				),
 				FONT_MONO,
 			)
