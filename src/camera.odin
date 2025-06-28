@@ -77,7 +77,7 @@ update_camera :: proc(state: ^State, dt: f64) {
 
 	x := wnd.cursor.x
 	y := wnd.cursor.y
-	x = x - centre.x
+	x = centre.x - x
 	y = centre.y - y
 	glfw.SetCursorPos(wnd.handle, centre.x, centre.y)
 	wnd.cursor = centre
@@ -114,13 +114,13 @@ update_camera :: proc(state: ^State, dt: f64) {
 		cam.pos += cam.front * velocity
 	}
 	if window_get_key(wnd^, .A) == .Press {
-		cam.pos += cam.right * velocity
+		cam.pos -= cam.right * velocity
 	}
 	if window_get_key(wnd^, .S) == .Press {
 		cam.pos -= cam.front * velocity
 	}
 	if window_get_key(wnd^, .D) == .Press {
-		cam.pos -= cam.right * velocity
+		cam.pos += cam.right * velocity
 	}
 	if window_get_key(wnd^, .Space) == .Press {
 		cam.pos += cam.global_up * velocity
@@ -130,10 +130,10 @@ update_camera :: proc(state: ^State, dt: f64) {
 	}
 
 	if window_get_key(wnd^, .Left) == .Press {
-		cam.yaw += cam.sensitivity * 10
+		cam.yaw -= cam.sensitivity * 10
 	}
 	if window_get_key(wnd^, .Right) == .Press {
-		cam.yaw -= cam.sensitivity * 10
+		cam.yaw += cam.sensitivity * 10
 	}
 	if window_get_key(wnd^, .Up) == .Press {
 		cam.pitch += cam.sensitivity * 10

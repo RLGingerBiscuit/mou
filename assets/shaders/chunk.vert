@@ -12,7 +12,7 @@ out vec4 vertex_colour;
 out float vertex_distance;
 
 void main() {
-    gl_Position = u_mvp * vec4(position0, 1.0) * vec4(-1.0, 1.0, 1.0, 1.0);
+    gl_Position = u_mvp * vec4(position0, 1.0);
     tex_coord = tex_coord0;
     vertex_colour.x = (float((vertex_colour0 & uint(0x000000ff)) >> 0)) / 255;
     vertex_colour.y = (float((vertex_colour0 & uint(0x0000ff00)) >> 8)) / 255;

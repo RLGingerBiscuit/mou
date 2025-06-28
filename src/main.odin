@@ -111,7 +111,7 @@ main :: proc() {
 	init_camera(
 		&state,
 		pos = {0, 17, 0},
-		yaw = 90,
+		yaw = -90,
 		pitch = 0,
 		speed = 5,
 		sensitivity = 0.1,
@@ -446,7 +446,6 @@ main :: proc() {
 			}
 
 			bind_buffer(vbo)
-			gl.Enable(gl.CULL_FACE)
 			setup_vertex_attribs()
 			for &chunk in opaque_chunks {
 				buffer_sub_data(vbo, 0, chunk.mesh.opaque[:])
@@ -454,7 +453,6 @@ main :: proc() {
 			}
 
 			bind_buffer(transparent_vbo)
-			gl.Disable(gl.CULL_FACE)
 			setup_vertex_attribs()
 			for chunk in transparent_chunks {
 				buffer_sub_data(vbo, 0, chunk.mesh.transparent[:])
