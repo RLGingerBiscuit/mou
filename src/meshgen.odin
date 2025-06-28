@@ -193,11 +193,37 @@ mesh_chunk :: proc(world: ^World, chunk: ^Chunk, mesh: ^Chunk_Mesh) {
 
 				if .Neg_Y in mask {
 					face = position_face(.Neg_Y, block_pos, chunk.pos, block, world.atlas)
+					if block.id == .Water {
+						append(mesh, face)
+						face = position_face(
+							.Pos_Y,
+							block_pos + {0, -1, 0},
+							chunk.pos,
+							block,
+							world.atlas,
+						)
+					}
 					append(mesh, face)
 				}
 				if .Pos_Y in mask {
 					face = position_face(.Pos_Y, block_pos, chunk.pos, block, world.atlas)
 					if block.id == .Water {
+						if bpyok && bpy.id != .Water {
+							face[0].pos.y -= 0.1
+							face[1].pos.y -= 0.1
+							face[2].pos.y -= 0.1
+							face[3].pos.y -= 0.1
+							face[4].pos.y -= 0.1
+							face[5].pos.y -= 0.1
+						}
+						append(mesh, face)
+						face = position_face(
+							.Neg_Y,
+							block_pos + {0, 1, 0},
+							chunk.pos,
+							block,
+							world.atlas,
+						)
 						if bpyok && bpy.id != .Water {
 							face[0].pos.y -= 0.1
 							face[1].pos.y -= 0.1
