@@ -399,15 +399,16 @@ main :: proc() {
 			opaque_chunks := &state.frame.opaque_chunks
 			transparent_chunks := &state.frame.transparent_chunks
 			water_chunks := &state.frame.water_chunks
-			defer clear(opaque_chunks)
-			defer clear(transparent_chunks)
-			defer clear(water_chunks)
+			clear(opaque_chunks)
+			clear(transparent_chunks)
+			clear(water_chunks)
 
 			for _, &chunk in state.world.chunks {
 				if chunk.mesh == nil {
 					continue
 				}
 
+				// TODO: impl. regions & frustum cull them too
 				if !frustum_contains_chunk(frustum, chunk.pos) {
 					continue
 				}

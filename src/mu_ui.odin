@@ -267,7 +267,7 @@ mu_update_ui :: proc(state: ^State, dt: f64) {
 	mu.begin(ctx)
 	defer mu.end(ctx)
 
-	if mu.window(ctx, "Minceraft", {10, 10, 420, 370}, {.NO_CLOSE}, FONT_BOUNCY) {
+	if mu.window(ctx, "Minceraft", {10, 10, 580, 390}, {.NO_CLOSE}, FONT_BOUNCY) {
 		LABEL_WIDTH :: 160
 
 		mu.layout_row(ctx, {LABEL_WIDTH, -1})
@@ -334,6 +334,19 @@ mu_update_ui :: proc(state: ^State, dt: f64) {
 			state.frozen_frustum =
 				temp_frozen_frustum ? (state.camera.projection_matrix * state.camera.view_matrix) : nil
 		}
+
+		mu.label(ctx, "Chunks:")
+		mu.text(
+			ctx,
+			fmt.tprintf(
+				"Total={}, Opaque={}, Transparent={}, Water={}",
+				len(state.world.chunks),
+				len(state.frame.opaque_chunks),
+				len(state.frame.transparent_chunks),
+				len(state.frame.water_chunks),
+			),
+			FONT_MONO,
+		)
 
 		temp_mem_usage: [7]int
 		for usage in state.frame.memory_usage {
