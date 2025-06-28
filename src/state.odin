@@ -28,6 +28,7 @@ Frame_State :: struct {
 	transparent_chunks: [dynamic]^Chunk,
 	water_chunks:       [dynamic]^Chunk,
 	memory_usage:       [dynamic][7]int,
+	line_vertices:      [dynamic]Line_Vert,
 }
 
 init_state :: proc(state: ^State) {
@@ -36,6 +37,7 @@ init_state :: proc(state: ^State) {
 	state.frame.transparent_chunks = make([dynamic]^Chunk, 0, MAX_RENDER_DISTANCE * 16)
 	state.frame.water_chunks = make([dynamic]^Chunk, 0, MAX_RENDER_DISTANCE * 16)
 	state.frame.memory_usage = make([dynamic][7]int, 0, MAX_RENDER_DISTANCE * 16)
+	state.frame.line_vertices = make([dynamic]Line_Vert, 0, MAX_RENDER_DISTANCE * 16)
 }
 
 destroy_state :: proc(state: ^State) {
@@ -44,4 +46,5 @@ destroy_state :: proc(state: ^State) {
 	delete(state.frame.transparent_chunks)
 	delete(state.frame.water_chunks)
 	delete(state.frame.memory_usage)
+	delete(state.frame.line_vertices)
 }

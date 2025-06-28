@@ -188,22 +188,20 @@ main :: proc() {
 	defer destroy_vertex_array(&line_vao)
 	line_vbo := make_buffer(.Array, .Dynamic)
 	defer destroy_buffer(&line_vbo)
-	line_ebo := make_buffer(.Element_Array, .Static)
-	defer destroy_buffer(&line_ebo)
 
 	{
-		@(static, rodata)
-		VERTICES_TEMP := [8]glm.vec3{}
-
 		bind_vertex_array(line_vao)
 
 		bind_buffer(line_vbo)
-		buffer_data(line_vbo, VERTICES_TEMP[:])
 
-		bind_buffer(line_ebo)
-		buffer_data(line_ebo, get_frustum_indices())
-
-		vertex_attrib_pointer(0, 3, .Float, false, size_of(glm.vec3), 0)
+		vertex_attrib_pointer(0, 3, .Float, false, size_of(Line_Vert), offset_of(Line_Vert, pos))
+		vertex_attrib_i_pointer(
+			1,
+			1,
+			.Unsigned_Int,
+			size_of(Line_Vert),
+			offset_of(Line_Vert, colour),
+		)
 
 		// unbind_buffer(.Array)
 		unbind_vertex_array()
@@ -339,9 +337,7 @@ main :: proc() {
 							log.infof("launched RenderDoc (pid={})", pid)
 						}
 					}
-
 				}
-
 			}
 		}
 
@@ -358,176 +354,194 @@ main :: proc() {
 			frustum_matrix := state.frozen_frustum.? or_else u_mvp
 			frustum := create_frustum(frustum_matrix)
 
-			bind_vertex_array(vao)
-			defer unbind_vertex_array()
+			{ 	// Blocks
+				bind_vertex_array(vao)
+				defer unbind_vertex_array()
 
-			use_shader(chunk_shader)
-			bind_texture(atlas.texture)
-			gl.UniformMatrix4fv(
-				gl.GetUniformLocation(chunk_shader.handle, "u_mvp"),
-				1,
-				false,
-				&u_mvp[0, 0],
-			)
-			gl.Uniform3fv(
-				gl.GetUniformLocation(chunk_shader.handle, "u_campos"),
-				1,
-				&state.camera.pos[0],
-			)
-
-			if state.fog_enabled {
-				gl.Uniform1f(
-					gl.GetUniformLocation(chunk_shader.handle, "u_fog_start"),
-					f32(state.render_distance) * CHUNK_WIDTH - CHUNK_WIDTH / 4,
-				)
-				gl.Uniform1f(
-					gl.GetUniformLocation(chunk_shader.handle, "u_fog_end"),
-					f32(state.render_distance) * CHUNK_WIDTH,
-				)
-				gl.Uniform4fv(
-					gl.GetUniformLocation(chunk_shader.handle, "u_fog_colour"),
+				use_shader(chunk_shader)
+				bind_texture(atlas.texture)
+				gl.UniformMatrix4fv(
+					gl.GetUniformLocation(chunk_shader.handle, "u_mvp"),
 					1,
-					&SKY_COLOUR[0],
+					false,
+					&u_mvp[0, 0],
 				)
-			} else {
-				gl.Uniform1f(gl.GetUniformLocation(chunk_shader.handle, "u_fog_start"), max(f32))
-				gl.Uniform1f(gl.GetUniformLocation(chunk_shader.handle, "u_fog_end"), max(f32))
-			}
+				gl.Uniform3fv(
+					gl.GetUniformLocation(chunk_shader.handle, "u_campos"),
+					1,
+					&state.camera.pos[0],
+				)
 
-			sync.shared_guard(&state.world.lock)
-
-			opaque_chunks := &state.frame.opaque_chunks
-			transparent_chunks := &state.frame.transparent_chunks
-			water_chunks := &state.frame.water_chunks
-			clear(opaque_chunks)
-			clear(transparent_chunks)
-			clear(water_chunks)
-
-			for _, &chunk in state.world.chunks {
-				if chunk.mesh == nil {
-					continue
+				if state.fog_enabled {
+					gl.Uniform1f(
+						gl.GetUniformLocation(chunk_shader.handle, "u_fog_start"),
+						f32(state.render_distance) * CHUNK_WIDTH - CHUNK_WIDTH / 4,
+					)
+					gl.Uniform1f(
+						gl.GetUniformLocation(chunk_shader.handle, "u_fog_end"),
+						f32(state.render_distance) * CHUNK_WIDTH,
+					)
+					gl.Uniform4fv(
+						gl.GetUniformLocation(chunk_shader.handle, "u_fog_colour"),
+						1,
+						&SKY_COLOUR[0],
+					)
+				} else {
+					gl.Uniform1f(
+						gl.GetUniformLocation(chunk_shader.handle, "u_fog_start"),
+						max(f32),
+					)
+					gl.Uniform1f(gl.GetUniformLocation(chunk_shader.handle, "u_fog_end"), max(f32))
 				}
 
-				// TODO: impl. regions & frustum cull them too
-				if !frustum_contains_chunk(frustum, chunk.pos) {
-					continue
-				}
+				sync.shared_guard(&state.world.lock)
 
-				if len(chunk.mesh.opaque) > 0 {
-					append(opaque_chunks, &chunk)
-				}
-				if len(chunk.mesh.transparent) > 0 {
-					append(transparent_chunks, &chunk)
-				}
-				if len(chunk.mesh.water) > 0 {
-					append(water_chunks, &chunk)
-				}
-			}
+				opaque_chunks := &state.frame.opaque_chunks
+				transparent_chunks := &state.frame.transparent_chunks
+				water_chunks := &state.frame.water_chunks
+				clear(opaque_chunks)
+				clear(transparent_chunks)
+				clear(water_chunks)
 
-			context.user_ptr = &state
-			slice.sort_by(transparent_chunks[:], proc(i, j: ^Chunk) -> bool {
-				state := cast(^State)context.user_ptr
-				i_dist := glm.length(state.camera.pos - get_chunk_centre(i))
-				j_dist := glm.length(state.camera.pos - get_chunk_centre(j))
-				return i_dist > j_dist
-			})
-
-			slice.sort_by(water_chunks[:], proc(i, j: ^Chunk) -> bool {
-				state := cast(^State)context.user_ptr
-				i_dist := glm.length(state.camera.pos - get_chunk_centre(i))
-				j_dist := glm.length(state.camera.pos - get_chunk_centre(j))
-				return i_dist > j_dist
-			})
-
-			for chunk in water_chunks {
-				mesh := chunk.mesh
-
-				slice.sort_by(mesh.water[:], proc(i, j: Mesh_Face) -> bool {
-					state := cast(^State)context.user_ptr
-
-					get_face_centre :: proc(f: Mesh_Face) -> glm.vec3 {
-						a := f[0].pos
-						b := f[2].pos
-						t := (a + b) / 2
-						if a.x == b.x {
-							return {a.x, t.y, t.z}
-						} else if a.y == b.y {
-							return {t.x, a.y, t.z}
-						} else if a.z == b.z {
-							return {t.x, t.y, a.z}
-						}
-						unreachable()
+				for _, &chunk in state.world.chunks {
+					if chunk.mesh == nil {
+						continue
 					}
 
-					i_c := get_face_centre(i)
-					j_c := get_face_centre(j)
+					// TODO: impl. regions & frustum cull them too
+					if !frustum_contains_chunk(frustum, chunk.pos) {
+						continue
+					}
 
-					i_dist := glm.length(state.camera.pos - i_c)
-					j_dist := glm.length(state.camera.pos - j_c)
+					if len(chunk.mesh.opaque) > 0 {
+						append(opaque_chunks, &chunk)
+					}
+					if len(chunk.mesh.transparent) > 0 {
+						append(transparent_chunks, &chunk)
+					}
+					if len(chunk.mesh.water) > 0 {
+						append(water_chunks, &chunk)
+					}
+				}
 
+				context.user_ptr = &state
+				slice.sort_by(transparent_chunks[:], proc(i, j: ^Chunk) -> bool {
+					state := cast(^State)context.user_ptr
+					i_dist := glm.length(state.camera.pos - get_chunk_centre(i))
+					j_dist := glm.length(state.camera.pos - get_chunk_centre(j))
 					return i_dist > j_dist
 				})
+
+				slice.sort_by(water_chunks[:], proc(i, j: ^Chunk) -> bool {
+					state := cast(^State)context.user_ptr
+					i_dist := glm.length(state.camera.pos - get_chunk_centre(i))
+					j_dist := glm.length(state.camera.pos - get_chunk_centre(j))
+					return i_dist > j_dist
+				})
+
+				for chunk in water_chunks {
+					mesh := chunk.mesh
+
+					slice.sort_by(mesh.water[:], proc(i, j: Mesh_Face) -> bool {
+						state := cast(^State)context.user_ptr
+
+						get_face_centre :: proc(f: Mesh_Face) -> glm.vec3 {
+							a := f[0].pos
+							b := f[2].pos
+							t := (a + b) / 2
+							if a.x == b.x {
+								return {a.x, t.y, t.z}
+							} else if a.y == b.y {
+								return {t.x, a.y, t.z}
+							} else if a.z == b.z {
+								return {t.x, t.y, a.z}
+							}
+							unreachable()
+						}
+
+						i_c := get_face_centre(i)
+						j_c := get_face_centre(j)
+
+						i_dist := glm.length(state.camera.pos - i_c)
+						j_dist := glm.length(state.camera.pos - j_c)
+
+						return i_dist > j_dist
+					})
+				}
+
+				setup_vertex_attribs :: #force_inline proc() {
+					vertex_attrib_pointer(
+						0,
+						3,
+						.Float,
+						false,
+						size_of(Mesh_Vert),
+						offset_of(Mesh_Vert, pos),
+					)
+					vertex_attrib_pointer(
+						1,
+						2,
+						.Float,
+						false,
+						size_of(Mesh_Vert),
+						offset_of(Mesh_Vert, tex_coord),
+					)
+					vertex_attrib_i_pointer(
+						2,
+						1,
+						.Unsigned_Int,
+						size_of(Mesh_Vert),
+						offset_of(Mesh_Vert, colour),
+					)
+				}
+
+				bind_buffer(vbo)
+				setup_vertex_attribs()
+				gl.Disable(gl.BLEND) // Disable blending for opaque meshes; slight performance boost
+				for &chunk in opaque_chunks {
+					buffer_sub_data(vbo, 0, chunk.mesh.opaque[:])
+					gl.DrawArrays(
+						gl.TRIANGLES,
+						0,
+						FACE_VERT_COUNT * cast(i32)len(chunk.mesh.opaque),
+					)
+				}
+
+				gl.Enable(gl.BLEND)
+				bind_buffer(transparent_vbo)
+				setup_vertex_attribs()
+				for chunk in transparent_chunks {
+					buffer_sub_data(vbo, 0, chunk.mesh.transparent[:])
+					gl.DrawArrays(
+						gl.TRIANGLES,
+						0,
+						FACE_VERT_COUNT * cast(i32)len(chunk.mesh.transparent),
+					)
+				}
+
+				bind_buffer(water_vbo)
+				setup_vertex_attribs()
+				for chunk in water_chunks {
+					buffer_sub_data(vbo, 0, chunk.mesh.water[:])
+					gl.DrawArrays(
+						gl.TRIANGLES,
+						0,
+						FACE_VERT_COUNT * cast(i32)len(chunk.mesh.water),
+					)
+				}
+
+				unbind_buffer(.Array)
+				unbind_vertex_array()
 			}
 
-			setup_vertex_attribs :: #force_inline proc() {
-				vertex_attrib_pointer(
-					0,
-					3,
-					.Float,
-					false,
-					size_of(Mesh_Vert),
-					offset_of(Mesh_Vert, pos),
-				)
-				vertex_attrib_pointer(
-					1,
-					2,
-					.Float,
-					false,
-					size_of(Mesh_Vert),
-					offset_of(Mesh_Vert, tex_coord),
-				)
-				vertex_attrib_i_pointer(
-					2,
-					1,
-					.Unsigned_Int,
-					size_of(Mesh_Vert),
-					offset_of(Mesh_Vert, colour),
-				)
-			}
+			defer clear(&state.frame.line_vertices)
+			{ 	// Debug lines
+				if state.render_frustum {
+					frustum_vertices := get_frustum_vertices(frustum)
+					append(&state.frame.line_vertices, ..frustum_vertices[:])
+				}
 
-			bind_buffer(vbo)
-			setup_vertex_attribs()
-			gl.Disable(gl.BLEND) // Disable blending for opaque meshes; slight performance boost
-			for &chunk in opaque_chunks {
-				buffer_sub_data(vbo, 0, chunk.mesh.opaque[:])
-				gl.DrawArrays(gl.TRIANGLES, 0, FACE_VERT_COUNT * cast(i32)len(chunk.mesh.opaque))
-			}
-
-			gl.Enable(gl.BLEND)
-			bind_buffer(transparent_vbo)
-			setup_vertex_attribs()
-			for chunk in transparent_chunks {
-				buffer_sub_data(vbo, 0, chunk.mesh.transparent[:])
-				gl.DrawArrays(
-					gl.TRIANGLES,
-					0,
-					FACE_VERT_COUNT * cast(i32)len(chunk.mesh.transparent),
-				)
-			}
-
-			bind_buffer(water_vbo)
-			setup_vertex_attribs()
-			for chunk in water_chunks {
-				buffer_sub_data(vbo, 0, chunk.mesh.water[:])
-				gl.DrawArrays(gl.TRIANGLES, 0, FACE_VERT_COUNT * cast(i32)len(chunk.mesh.water))
-			}
-
-			unbind_buffer(.Array)
-			unbind_vertex_array()
-
-			if state.render_frustum {
-				frustum_vertices := get_frustum_vertices(frustum)
-
+				// Remove far plane temporarily
 				old_far_plane := state.far_plane
 				state.far_plane = false
 				defer state.far_plane = old_far_plane
@@ -536,36 +550,26 @@ main :: proc() {
 				view_matrix = state.camera.view_matrix
 				u_mvp = projection_matrix * view_matrix
 
+				// Disable depth testing temporarily
 				gl.Disable(gl.DEPTH_TEST)
 				defer gl.Enable(gl.DEPTH_TEST)
 
-				LINE_COLOUR := glm.vec3{1, 1, 1}
-
+				use_shader(line_shader)
 				bind_vertex_array(line_vao)
 				defer unbind_vertex_array()
 				bind_buffer(line_vbo)
+				defer unbind_buffer(.Array)
 
-				use_shader(line_shader)
 				gl.UniformMatrix4fv(
 					gl.GetUniformLocation(line_shader.handle, "u_mvp"),
 					1,
 					false,
 					&u_mvp[0, 0],
 				)
-				gl.Uniform3fv(
-					gl.GetUniformLocation(line_shader.handle, "u_line_colour"),
-					1,
-					&LINE_COLOUR[0],
-				)
 
-				buffer_sub_data(line_vbo, 0, frustum_vertices[:])
+				buffer_data(line_vbo, state.frame.line_vertices[:])
 
-				gl.DrawElements(
-					gl.LINES,
-					cast(i32)len(get_frustum_indices()),
-					gl.UNSIGNED_INT,
-					nil,
-				)
+				gl.DrawArrays(gl.LINES, 0, cast(i32)len(state.frame.line_vertices))
 			}
 
 			{ 	// UI

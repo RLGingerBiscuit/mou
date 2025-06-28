@@ -1,6 +1,13 @@
 package mou
 
+import sa "core:container/small_array"
 import glm "core:math/linalg/glsl"
+
+// FIXME: this doesn't belong here
+Line_Vert :: struct #packed {
+	pos:    glm.vec3,
+	colour: RGBA,
+}
 
 Frustum_Plane :: distinct glm.vec4
 
@@ -35,8 +42,12 @@ create_frustum :: proc(mat: glm.mat4) -> (f: Frustum) {
 	return
 }
 
+FRUSTUM_COLOUR :: RGBA{0xff, 0xff, 0xff, 0xff}
+FRUSTUM_VERT_COUNT :: 4 * 6
 
-get_frustum_vertices :: proc(f: Frustum) -> (verts: [8]glm.vec3) {
+get_frustum_vertices :: proc(f: Frustum) -> [FRUSTUM_VERT_COUNT]Line_Vert {
+	verts: sa.Small_Array(FRUSTUM_VERT_COUNT, Line_Vert)
+
 	intersect :: #force_inline proc(p0, p1, p2: Frustum_Plane) -> glm.vec3 {
 		a := glm.cross(p2.xyz, p0.xyz)
 		b := glm.cross(p0.xyz, p1.xyz)
@@ -50,17 +61,51 @@ get_frustum_vertices :: proc(f: Frustum) -> (verts: [8]glm.vec3) {
 		return {x, y, z}
 	}
 
-	verts[0] = intersect(f.near, f.left, f.bottom)
-	verts[1] = intersect(f.near, f.right, f.bottom)
-	verts[2] = intersect(f.near, f.right, f.top)
-	verts[3] = intersect(f.near, f.left, f.top)
+	nlb := intersect(f.near, f.left, f.bottom)
+	nrb := intersect(f.near, f.right, f.bottom)
+	nrt := intersect(f.near, f.right, f.top)
+	nlt := intersect(f.near, f.left, f.top)
 
-	verts[4] = intersect(f.far, f.left, f.bottom)
-	verts[5] = intersect(f.far, f.right, f.bottom)
-	verts[6] = intersect(f.far, f.right, f.top)
-	verts[7] = intersect(f.far, f.left, f.top)
+	flb := intersect(f.far, f.left, f.bottom)
+	frb := intersect(f.far, f.right, f.bottom)
+	frt := intersect(f.far, f.right, f.top)
+	flt := intersect(f.far, f.left, f.top)
 
-	return
+	// Near face
+	assert(sa.append(&verts, Line_Vert{nlb, FRUSTUM_COLOUR}))
+	assert(sa.append(&verts, Line_Vert{nrb, FRUSTUM_COLOUR}))
+	assert(sa.append(&verts, Line_Vert{nrb, FRUSTUM_COLOUR}))
+	assert(sa.append(&verts, Line_Vert{nrt, FRUSTUM_COLOUR}))
+	assert(sa.append(&verts, Line_Vert{nrt, FRUSTUM_COLOUR}))
+	assert(sa.append(&verts, Line_Vert{nlt, FRUSTUM_COLOUR}))
+	assert(sa.append(&verts, Line_Vert{nlt, FRUSTUM_COLOUR}))
+	assert(sa.append(&verts, Line_Vert{nlb, FRUSTUM_COLOUR}))
+
+	// Far face
+	assert(sa.append(&verts, Line_Vert{flb, FRUSTUM_COLOUR}))
+	assert(sa.append(&verts, Line_Vert{frb, FRUSTUM_COLOUR}))
+	assert(sa.append(&verts, Line_Vert{frb, FRUSTUM_COLOUR}))
+	assert(sa.append(&verts, Line_Vert{frt, FRUSTUM_COLOUR}))
+	assert(sa.append(&verts, Line_Vert{frt, FRUSTUM_COLOUR}))
+	assert(sa.append(&verts, Line_Vert{flt, FRUSTUM_COLOUR}))
+	assert(sa.append(&verts, Line_Vert{flt, FRUSTUM_COLOUR}))
+	assert(sa.append(&verts, Line_Vert{flb, FRUSTUM_COLOUR}))
+
+	// Left face
+	assert(sa.append(&verts, Line_Vert{nlb, FRUSTUM_COLOUR}))
+	assert(sa.append(&verts, Line_Vert{flb, FRUSTUM_COLOUR}))
+	assert(sa.append(&verts, Line_Vert{nlt, FRUSTUM_COLOUR}))
+	assert(sa.append(&verts, Line_Vert{flt, FRUSTUM_COLOUR}))
+
+	// Right face
+	assert(sa.append(&verts, Line_Vert{nrb, FRUSTUM_COLOUR}))
+	assert(sa.append(&verts, Line_Vert{frb, FRUSTUM_COLOUR}))
+	assert(sa.append(&verts, Line_Vert{nrt, FRUSTUM_COLOUR}))
+	assert(sa.append(&verts, Line_Vert{frt, FRUSTUM_COLOUR}))
+
+	assert(sa.space(verts) == 0)
+
+	return verts.data
 }
 
 frustum_contains_chunk :: proc(f: Frustum, ipos: glm.ivec3) -> bool {
