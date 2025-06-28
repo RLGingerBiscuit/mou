@@ -135,9 +135,9 @@ new_chunk_mesh :: proc(mg: ^Meshgen_Thread, world: ^World) -> ^Chunk_Mesh {
 	mesh, _ := new(Chunk_Mesh)
 
 	// From some *very* basic tests these numbers seem to be alright for now
-	mesh.opaque = make([dynamic]Mesh_Vert, 0, CHUNK_SIZE / 8)
-	mesh.transparent = make([dynamic]Mesh_Vert)
-	mesh.water = make([dynamic]Mesh_Vert)
+	mesh.opaque = make([dynamic]Mesh_Face, 0, CHUNK_SIZE / 48)
+	mesh.transparent = make([dynamic]Mesh_Face)
+	mesh.water = make([dynamic]Mesh_Face)
 
 	return mesh
 }
@@ -189,11 +189,11 @@ mesh_chunk :: proc(world: ^World, chunk: ^Chunk, mesh: ^Chunk_Mesh) {
 				mesh :=
 					block_is_opaque(block) ? &mesh.opaque : block.id == .Water ? &mesh.water : &mesh.transparent
 				block_pos := glm.ivec3{x, y, z}
-				face: [VERTEX_COUNT]Mesh_Vert
+				face: Mesh_Face
 
 				if .Neg_Y in mask {
 					face = position_face(.Neg_Y, block_pos, chunk.pos, block, world.atlas)
-					append(mesh, ..face[:])
+					append(mesh, face)
 				}
 				if .Pos_Y in mask {
 					face = position_face(.Pos_Y, block_pos, chunk.pos, block, world.atlas)
@@ -207,7 +207,7 @@ mesh_chunk :: proc(world: ^World, chunk: ^Chunk, mesh: ^Chunk_Mesh) {
 							face[5].pos.y -= 0.1
 						}
 					}
-					append(mesh, ..face[:])
+					append(mesh, face)
 				}
 				if .Neg_Z in mask {
 					face = position_face(.Neg_Z, block_pos, chunk.pos, block, world.atlas)
@@ -217,7 +217,7 @@ mesh_chunk :: proc(world: ^World, chunk: ^Chunk, mesh: ^Chunk_Mesh) {
 							face[4].pos.y -= 0.1
 							face[5].pos.y -= 0.1
 						}
-						append(mesh, ..face[:])
+						append(mesh, face)
 						face = position_face(
 							.Pos_Z,
 							block_pos + {0, 0, -1},
@@ -229,8 +229,9 @@ mesh_chunk :: proc(world: ^World, chunk: ^Chunk, mesh: ^Chunk_Mesh) {
 							face[0].pos.y -= 0.1
 							face[4].pos.y -= 0.1
 							face[5].pos.y -= 0.1
-						}}
-					append(mesh, ..face[:])
+						}
+					}
+					append(mesh, face)
 				}
 				if .Pos_Z in mask {
 					face = position_face(.Pos_Z, block_pos, chunk.pos, block, world.atlas)
@@ -240,7 +241,7 @@ mesh_chunk :: proc(world: ^World, chunk: ^Chunk, mesh: ^Chunk_Mesh) {
 							face[4].pos.y -= 0.1
 							face[5].pos.y -= 0.1
 						}
-						append(mesh, ..face[:])
+						append(mesh, face)
 						face = position_face(
 							.Neg_Z,
 							block_pos + {0, 0, 1},
@@ -254,7 +255,7 @@ mesh_chunk :: proc(world: ^World, chunk: ^Chunk, mesh: ^Chunk_Mesh) {
 							face[5].pos.y -= 0.1
 						}
 					}
-					append(mesh, ..face[:])
+					append(mesh, face)
 				}
 				if .Neg_X in mask {
 					face = position_face(.Neg_X, block_pos, chunk.pos, block, world.atlas)
@@ -264,7 +265,7 @@ mesh_chunk :: proc(world: ^World, chunk: ^Chunk, mesh: ^Chunk_Mesh) {
 							face[4].pos.y -= 0.1
 							face[5].pos.y -= 0.1
 						}
-						append(mesh, ..face[:])
+						append(mesh, face)
 						face = position_face(
 							.Pos_X,
 							block_pos + {-1, 0, 0},
@@ -276,8 +277,9 @@ mesh_chunk :: proc(world: ^World, chunk: ^Chunk, mesh: ^Chunk_Mesh) {
 							face[0].pos.y -= 0.1
 							face[4].pos.y -= 0.1
 							face[5].pos.y -= 0.1
-						}}
-					append(mesh, ..face[:])
+						}
+					}
+					append(mesh, face)
 				}
 				if .Pos_X in mask {
 					face = position_face(.Pos_X, block_pos, chunk.pos, block, world.atlas)
@@ -287,7 +289,7 @@ mesh_chunk :: proc(world: ^World, chunk: ^Chunk, mesh: ^Chunk_Mesh) {
 							face[4].pos.y -= 0.1
 							face[5].pos.y -= 0.1
 						}
-						append(mesh, ..face[:])
+						append(mesh, face)
 						face = position_face(
 							.Neg_X,
 							block_pos + {1, 0, 0},
@@ -301,7 +303,7 @@ mesh_chunk :: proc(world: ^World, chunk: ^Chunk, mesh: ^Chunk_Mesh) {
 							face[5].pos.y -= 0.1
 						}
 					}
-					append(mesh, ..face[:])
+					append(mesh, face)
 				}
 			}
 		}
@@ -315,7 +317,7 @@ position_face :: #force_inline proc(
 	chunk_pos: glm.ivec3,
 	block: Block,
 	atlas: ^Atlas,
-) -> [VERTEX_COUNT]Mesh_Vert {
+) -> Mesh_Face {
 	face_data := FACE_PLANES[face]
 
 	pos_i := chunk_pos * CHUNK_MULTIPLIER + block_pos
@@ -381,12 +383,10 @@ position_face :: #force_inline proc(
 
 // odinfmt:disable
 @(private = "file")
-VERTEX_COUNT :: 6
-@(private = "file")
-VERTEX_INPUT_COUNT :: VERTEX_COUNT * size_of(Mesh_Vert)
+VERTEX_INPUT_COUNT :: size_of(Mesh_Face)
 // odinfmt:disable
 @(private = "file")
-FACE_PLANES :: [Block_Face_Bit][6]Mesh_Vert {
+FACE_PLANES :: [Block_Face_Bit]Mesh_Face {
 	.Neg_X={// Left
 	{{-0.5,  0.5, -0.5},  {0, 0},  {255, 255, 255, 255}},
 	{{-0.5, -0.5, -0.5},  {0, 1},  {255, 255, 255, 255}},

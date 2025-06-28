@@ -295,13 +295,13 @@ main :: proc() {
 				append(
 					&state.frame.memory_usage,
 					[7]int {
-						len(mesh.opaque) * size_of(f32),
-						cap(mesh.opaque) * size_of(f32),
-						len(mesh.transparent) * size_of(f32),
-						cap(mesh.transparent) * size_of(f32),
+						len(mesh.opaque) * size_of(Mesh_Face),
+						cap(mesh.opaque) * size_of(Mesh_Face),
+						len(mesh.transparent) * size_of(Mesh_Face),
+						cap(mesh.transparent) * size_of(Mesh_Face),
 						len(chunk.blocks) * size_of(Block),
-						len(mesh.water) * size_of(f32),
-						cap(mesh.water) * size_of(f32),
+						len(mesh.water) * size_of(Mesh_Face),
+						cap(mesh.water) * size_of(Mesh_Face),
 					},
 				)
 			}
@@ -430,6 +430,7 @@ main :: proc() {
 				j_dist := glm.length(state.camera.pos - get_chunk_centre(j))
 				return i_dist > j_dist
 			})
+
 			slice.sort_by(water_chunks[:], proc(i, j: ^Chunk) -> bool {
 				state := cast(^State)context.user_ptr
 				i_dist := glm.length(state.camera.pos - get_chunk_centre(i))
@@ -467,21 +468,25 @@ main :: proc() {
 			setup_vertex_attribs()
 			for &chunk in opaque_chunks {
 				buffer_sub_data(vbo, 0, chunk.mesh.opaque[:])
-				gl.DrawArrays(gl.TRIANGLES, 0, cast(i32)len(chunk.mesh.opaque))
+				gl.DrawArrays(gl.TRIANGLES, 0, FACE_VERT_COUNT * cast(i32)len(chunk.mesh.opaque))
 			}
 
 			bind_buffer(transparent_vbo)
 			setup_vertex_attribs()
 			for chunk in transparent_chunks {
 				buffer_sub_data(vbo, 0, chunk.mesh.transparent[:])
-				gl.DrawArrays(gl.TRIANGLES, 0, cast(i32)len(chunk.mesh.transparent))
+				gl.DrawArrays(
+					gl.TRIANGLES,
+					0,
+					FACE_VERT_COUNT * cast(i32)len(chunk.mesh.transparent),
+				)
 			}
 
 			bind_buffer(water_vbo)
 			setup_vertex_attribs()
 			for chunk in water_chunks {
 				buffer_sub_data(vbo, 0, chunk.mesh.water[:])
-				gl.DrawArrays(gl.TRIANGLES, 0, cast(i32)len(chunk.mesh.water))
+				gl.DrawArrays(gl.TRIANGLES, 0, FACE_VERT_COUNT * cast(i32)len(chunk.mesh.water))
 			}
 
 			unbind_buffer(.Array)

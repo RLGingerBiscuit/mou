@@ -11,8 +11,11 @@ Mesh_Vert :: struct #packed {
 	colour:    RGBA,
 }
 
+FACE_VERT_COUNT :: 6
+Mesh_Face :: [FACE_VERT_COUNT]Mesh_Vert
+
 Chunk_Mesh :: struct {
-	opaque:      [dynamic]Mesh_Vert `fmt:"-"`,
-	transparent: [dynamic]Mesh_Vert `fmt:"-"`,
-	water:       [dynamic]Mesh_Vert `fmt:"-"`,
+	opaque:      [dynamic]Mesh_Face `fmt:"-"`,
+	transparent: [dynamic]Mesh_Face `fmt:"-"`,
+	water:       [dynamic]Mesh_Face `fmt:"-"`,
 }
