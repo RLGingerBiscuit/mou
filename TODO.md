@@ -8,6 +8,8 @@
 - [ ] Animated water texture (requires separate 'liquid' mesh to animate? Also probably a *.meta file?)
   - Make atlas generate separate face data (w/ colours n all that)?
 - [ ] Better transparency; glass/water still has cutoffs
+  - [ ] Probably needs different winding
+  - [ ] MC also has 4 tris per face for water, both cw & ccw (excl. bottom)
 - [ ] Move worldgen onto a separate thread
 - [ ] Add 'regions', containing 32^2 chunks each
 
