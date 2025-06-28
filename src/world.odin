@@ -206,15 +206,6 @@ world_generate_chunk :: proc(world: ^World, chunk_pos: glm.ivec3) -> bool {
 		}
 	}
 
-	chunk.blocks[local_coords_to_block_index(0, 14, 0)] = Block{.Glass}
-	chunk.blocks[local_coords_to_block_index(0, 14, 1)] = Block{.Glass}
-	chunk.blocks[local_coords_to_block_index(1, 14, 0)] = Block{.Glass}
-	chunk.blocks[local_coords_to_block_index(1, 14, 1)] = Block{.Glass}
-	chunk.blocks[local_coords_to_block_index(0, 15, 0)] = Block{.Water}
-	chunk.blocks[local_coords_to_block_index(0, 15, 1)] = Block{.Water}
-	chunk.blocks[local_coords_to_block_index(1, 15, 0)] = Block{.Water}
-	chunk.blocks[local_coords_to_block_index(1, 15, 1)] = Block{.Water}
-
 	world_remesh_surrounding_chunks(world, chunk_pos)
 
 	return true
