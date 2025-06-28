@@ -12,50 +12,47 @@ odin_args := '-vet -vet-cast -vet-tabs -strict-style -collection:third=third/ -k
 # Default recipe which runs `just build-release`
 default: build-release
 
-init:
+_init:
 	@just _init-{{os_family()}}
 
 _init-windows:
 	-mkdir bin >nul 2>nul
 
 _init-unix:
-	-mkdir -p bin
+	-mkdir -p bin >/dev/null 2>&1
 
-# Cleans the build directory
+# Cleans all output files (build directory, packaged outputs, etc.)
 clean:
 	@just _clean-{{os_family()}}
 
 _clean-windows:
-	-del /F /Q {{out_dir}}\{{name}}{{ext}} >nul 2>nul
-	-del /F /Q {{out_dir}}\{{name}}_debug{{ext}} >nul 2>nul
-	-rmdir /S /Q {{pkg_dir}} >nul 2>nul
-	-del /F /Q atlas.bmp font.bmp packaged.zip >nul 2>nul
+	-rmdir /S /Q {{out_dir}} {{pkg_dir}} >nul 2>nul
+	-del /F /Q *.bmp *.zip *.tar* >nul 2>nul
 
 _clean-unix:
-	-rm -rf {{out_dir}}/*
-	-rm -rf {{pkg_dir}}
-	-rm -f *.bmp packaged.zip
+	-rm -fr {{out_dir}} {{pkg_dir}} >/dev/null 2>&1
+	-rm -f *.bmp *.zip *.tar* >/dev/null 2>&1
 
 # Compiles with debug profile
-build-debug *args: init
+build-debug *args: _init
 	{{odin_exe}} build {{src}} -debug -out:{{out_dir}}/{{name}}_debug{{ext}} {{odin_args}} {{args}}
 
 # Compiles with release profile
-build-release *args: init
+build-release *args: _init
 	{{odin_exe}} build {{src}} -out:{{out_dir}}/{{name}}{{ext}} {{odin_args}} {{args}}
 alias build := build-release
 
 # Runs `odin check`
-check: init
+check: _init
 	{{odin_exe}} check {{src}} {{odin_args}}
 
 # Runs the application with debug profile
-run-debug *args: init
+run-debug *args: _init
 	{{odin_exe}} run {{src}} -debug -out:{{out_dir}}/{{name}}_debug{{ext}} {{odin_args}} {{args}}
 alias debug := run-debug
 
 # Runs the application with release profile
-run-release *args: init
+run-release *args: _init
 	{{odin_exe}} run {{src}} -out:{{out_dir}}/{{name}}{{ext}} {{odin_args}} {{args}}
 alias run := run-release
 
@@ -65,14 +62,14 @@ package: build-release
 
 _package-windows:
 	-rmdir /S /Q {{pkg_dir}} >nul 2>nul
-	-del /S /Q {{pkg_dir}}.zip >nul 2>nul
+	-del /S /Q {{pkg_dir}}-{{os()}}.zip >nul 2>nul
 	-mkdir {{pkg_dir}} >nul 2>nul
 	xcopy /Q /Y {{out_dir}}\{{name}}{{ext}} {{pkg_dir}}
 	xcopy /Q /Y /S /I assets\ {{pkg_dir}}\assets
-	7z a -y {{pkg_dir}}.zip .\{{pkg_dir}}\*
+	7z a -y {{pkg_dir}}-{{os()}}.zip .\{{pkg_dir}}\*
 
 _package-unix:
-	-rm -rf {{pkg_dir}}
-	-mkdir -p {{pkg_dir}}
-	cp -fr {{out_dir}}/{{name}}{{ext}} assets {{pkg_dir}}/
-	7z a -y {{pkg_dir}}.zip ./{{pkg_dir}}/*
+	-rm -fr {{pkg_dir}} {{pkg_dir}}-{{os()}}.tar.gz >/dev/null 2>&1
+	-mkdir -p {{pkg_dir}} >/dev/null 2>&1
+	cp -r {{out_dir}}/{{name}}{{ext}} assets {{pkg_dir}}/
+	tar cf {{pkg_dir}}-{{os()}}.tar.gz -C {{pkg_dir}} .
