@@ -15,5 +15,8 @@ uniform vec4 fog_colour;
 
 void main() {
     vec4 colour = texture(atlas, tex_coord) * vertex_colour;
+    if (colour.a < 0.1) {
+        discard;
+    }
     frag_colour = linear_fog(colour, vertex_distance, fog_start, fog_end, fog_colour);
 }

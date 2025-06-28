@@ -165,7 +165,7 @@ main :: proc() {
 	defer destroy_buffer(&water_vbo)
 
 	{
-		MAX_VERTEX_SIZE :: (CHUNK_SIZE * 6 * 6) * 5
+		MAX_VERTEX_SIZE :: CHUNK_SIZE * size_of(Mesh_Face) * 3
 		temp := make([]f32, MAX_VERTEX_SIZE, context.temp_allocator)
 		defer delete(temp, context.temp_allocator)
 
@@ -496,11 +496,13 @@ main :: proc() {
 
 			bind_buffer(vbo)
 			setup_vertex_attribs()
+			gl.Disable(gl.BLEND) // Disable blending for opaque meshes; slight performance boost
 			for &chunk in opaque_chunks {
 				buffer_sub_data(vbo, 0, chunk.mesh.opaque[:])
 				gl.DrawArrays(gl.TRIANGLES, 0, FACE_VERT_COUNT * cast(i32)len(chunk.mesh.opaque))
 			}
 
+			gl.Enable(gl.BLEND)
 			bind_buffer(transparent_vbo)
 			setup_vertex_attribs()
 			for chunk in transparent_chunks {
