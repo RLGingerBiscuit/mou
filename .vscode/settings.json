@@ -1,4 +1,7 @@
 {
 	"editor.insertSpaces": false,
-	"prettier.useTabs": true
+	"prettier.useTabs": true,
+	"[glsl]": {
+		"editor.insertSpaces": true
+	}
 }

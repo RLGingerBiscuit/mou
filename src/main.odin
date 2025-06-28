@@ -377,21 +377,21 @@ main :: proc() {
 
 			if state.fog_enabled {
 				gl.Uniform1f(
-					gl.GetUniformLocation(chunk_shader.handle, "fog_start"),
+					gl.GetUniformLocation(chunk_shader.handle, "u_fog_start"),
 					f32(state.render_distance) * CHUNK_WIDTH - CHUNK_WIDTH / 4,
 				)
 				gl.Uniform1f(
-					gl.GetUniformLocation(chunk_shader.handle, "fog_end"),
+					gl.GetUniformLocation(chunk_shader.handle, "u_fog_end"),
 					f32(state.render_distance) * CHUNK_WIDTH,
 				)
 				gl.Uniform4fv(
-					gl.GetUniformLocation(chunk_shader.handle, "fog_colour"),
+					gl.GetUniformLocation(chunk_shader.handle, "u_fog_colour"),
 					1,
 					&SKY_COLOUR[0],
 				)
 			} else {
-				gl.Uniform1f(gl.GetUniformLocation(chunk_shader.handle, "fog_start"), max(f32))
-				gl.Uniform1f(gl.GetUniformLocation(chunk_shader.handle, "fog_end"), max(f32))
+				gl.Uniform1f(gl.GetUniformLocation(chunk_shader.handle, "u_fog_start"), max(f32))
+				gl.Uniform1f(gl.GetUniformLocation(chunk_shader.handle, "u_fog_end"), max(f32))
 			}
 
 			sync.shared_guard(&state.world.lock)
