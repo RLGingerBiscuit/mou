@@ -7,11 +7,11 @@
 - [ ] There's some issue ONLY in debug mode where a chunk is empty (& sometimes a floating block is there too)
 - [ ] Animated water texture (requires separate 'liquid' mesh to animate? Also probably a *.meta file?)
   - Make atlas generate separate face data (w/ colours n all that)?
-- [ ] Better transparency; glass/water still has cutoffs
+- [X] Better transparency; glass/water still has cutoffs
   - [X] Probably needs different winding (it was just culling being disabled ofc)
-  - [ ] MC also has 4 tris per face for water, both cw & ccw (excl. bottom & connecting faces)
-- [ ] Move worldgen onto a separate thread
+  - [X] MC also has 4 tris per face for water, both cw & ccw (excl. bottom & connecting faces)
 - [ ] Add 'regions', containing 32^2 chunks each
+- [ ] Move worldgen onto a separate thread
 
 ## Backburner
 
