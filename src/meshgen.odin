@@ -186,29 +186,58 @@ mesh_chunk :: proc(world: ^World, chunk: ^Chunk, mesh: ^Chunk_Mesh) {
 
 				mesh := block_is_opaque(block) ? &mesh.opaque : &mesh.transparent
 				block_pos := glm.ivec3{x, y, z}
+				face: [VERTEX_COUNT]Mesh_Vert
 
 				if .Neg_Y in mask {
-					face := position_face(.Neg_Y, block_pos, chunk.pos, block, world.atlas)
+					face = position_face(.Neg_Y, block_pos, chunk.pos, block, world.atlas)
 					append(mesh, ..face[:])
 				}
 				if .Pos_Y in mask {
-					face := position_face(.Pos_Y, block_pos, chunk.pos, block, world.atlas)
+					face = position_face(.Pos_Y, block_pos, chunk.pos, block, world.atlas)
+					if block.id == .Water && bpyok && bpy.id != .Water {
+						face[0].pos.y -= 0.1
+						face[1].pos.y -= 0.1
+						face[2].pos.y -= 0.1
+						face[3].pos.y -= 0.1
+						face[4].pos.y -= 0.1
+						face[5].pos.y -= 0.1
+					}
 					append(mesh, ..face[:])
 				}
 				if .Neg_Z in mask {
-					face := position_face(.Neg_Z, block_pos, chunk.pos, block, world.atlas)
+					face = position_face(.Neg_Z, block_pos, chunk.pos, block, world.atlas)
+					if block.id == .Water && bpyok && bpy.id != .Water {
+						face[0].pos.y -= 0.1
+						face[4].pos.y -= 0.1
+						face[5].pos.y -= 0.1
+					}
 					append(mesh, ..face[:])
 				}
 				if .Pos_Z in mask {
-					face := position_face(.Pos_Z, block_pos, chunk.pos, block, world.atlas)
+					face = position_face(.Pos_Z, block_pos, chunk.pos, block, world.atlas)
+					if block.id == .Water && bpyok && bpy.id != .Water {
+						face[0].pos.y -= 0.1
+						face[4].pos.y -= 0.1
+						face[5].pos.y -= 0.1
+					}
 					append(mesh, ..face[:])
 				}
 				if .Neg_X in mask {
-					face := position_face(.Neg_X, block_pos, chunk.pos, block, world.atlas)
+					face = position_face(.Neg_X, block_pos, chunk.pos, block, world.atlas)
+					if block.id == .Water && bpyok && bpy.id != .Water {
+						face[0].pos.y -= 0.1
+						face[4].pos.y -= 0.1
+						face[5].pos.y -= 0.1
+					}
 					append(mesh, ..face[:])
 				}
 				if .Pos_X in mask {
-					face := position_face(.Pos_X, block_pos, chunk.pos, block, world.atlas)
+					face = position_face(.Pos_X, block_pos, chunk.pos, block, world.atlas)
+					if block.id == .Water && bpyok && bpy.id != .Water {
+						face[0].pos.y -= 0.1
+						face[4].pos.y -= 0.1
+						face[5].pos.y -= 0.1
+					}
 					append(mesh, ..face[:])
 				}
 			}
