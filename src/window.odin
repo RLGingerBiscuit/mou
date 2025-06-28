@@ -161,6 +161,7 @@ _window_key_callback :: proc "c" (
 	handle: glfw.WindowHandle,
 	ikey, _scancode, iaction, _mods: i32,
 ) {
+	if ikey == -1 {return}
 	ptr := glfw.GetWindowUserPointer(handle)
 	state := cast(^State)ptr
 	WND := &state.window
