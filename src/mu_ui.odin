@@ -11,6 +11,9 @@ import stbi "vendor:stb/image"
 
 _ :: stbi
 
+@(private = "file")
+FLUSH_ALL_UI :: #config(FLUSH_ALL_UI, false)
+
 FONT_HEIGHT :: 18
 FONT_NORMAL :: mu.Font_Options {
 	index = 0,
@@ -500,13 +503,10 @@ mu_render_ui :: proc(state: ^State) {
 		ebo_buf[index_idx + 5] = element_idx + 1
 	}
 
-	// For debugging purposes
-	FLUSH_ALL :: true
-
 	draw_rect :: proc(state: ^State, rect: mu.Rect, colour: mu.Color) {
 		dst := RectF{f32(rect.x), f32(rect.y), f32(rect.w), f32(rect.h)}
 		push_quad(state, dst, {0, 0, 1, 1}, colour) // NOTE: fontstash always has a 2x2 rect @ 0,0
-		when FLUSH_ALL do flush(state)
+		when FLUSH_ALL_UI do flush(state)
 	}
 
 	draw_text :: proc(
@@ -554,7 +554,7 @@ mu_render_ui :: proc(state: ^State) {
 			push_quad(state, dst, src, colour)
 		}
 
-		when FLUSH_ALL do flush(state)
+		when FLUSH_ALL_UI do flush(state)
 	}
 
 	draw_icon :: proc(state: ^State, id: mu.Icon, rect: mu.Rect, colour: mu.Color) {
@@ -564,7 +564,7 @@ mu_render_ui :: proc(state: ^State) {
 		y := cast(f32)(rect.y + (rect.h - icon.h) / 2)
 		dst := RectF{x, y, src.w, src.h}
 		push_quad(state, dst, src, colour)
-		when FLUSH_ALL do flush(state)
+		when FLUSH_ALL_UI do flush(state)
 	}
 
 	// FIXME: doesn't update mu viewport unless move mu window to top left
