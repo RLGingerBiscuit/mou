@@ -157,6 +157,8 @@ mesh_chunk :: proc(world: ^World, chunk: ^Chunk, mesh: ^Chunk_Mesh) {
 	clear(&mesh.transparent)
 	clear(&mesh.water)
 
+	WATER_TOP_OFFSET :: (f32(1) / 16)
+
 	for y in i32(0) ..< CHUNK_HEIGHT {
 		for z in i32(0) ..< CHUNK_DEPTH {
 			for x in i32(0) ..< CHUNK_WIDTH {
@@ -215,12 +217,12 @@ mesh_chunk :: proc(world: ^World, chunk: ^Chunk, mesh: ^Chunk_Mesh) {
 					face = position_face(.Pos_Y, block_pos, chunk.pos, block, world.atlas)
 					if block.id == .Water {
 						if bpyok && bpy.id != .Water {
-							face[0].pos.y -= 0.1
-							face[1].pos.y -= 0.1
-							face[2].pos.y -= 0.1
-							face[3].pos.y -= 0.1
-							face[4].pos.y -= 0.1
-							face[5].pos.y -= 0.1
+							face[0].pos.y -= WATER_TOP_OFFSET
+							face[1].pos.y -= WATER_TOP_OFFSET
+							face[2].pos.y -= WATER_TOP_OFFSET
+							face[3].pos.y -= WATER_TOP_OFFSET
+							face[4].pos.y -= WATER_TOP_OFFSET
+							face[5].pos.y -= WATER_TOP_OFFSET
 						}
 						append(mesh, face)
 						face = position_face(
@@ -231,12 +233,12 @@ mesh_chunk :: proc(world: ^World, chunk: ^Chunk, mesh: ^Chunk_Mesh) {
 							world.atlas,
 						)
 						if bpyok && bpy.id != .Water {
-							face[0].pos.y -= 0.1
-							face[1].pos.y -= 0.1
-							face[2].pos.y -= 0.1
-							face[3].pos.y -= 0.1
-							face[4].pos.y -= 0.1
-							face[5].pos.y -= 0.1
+							face[0].pos.y -= WATER_TOP_OFFSET
+							face[1].pos.y -= WATER_TOP_OFFSET
+							face[2].pos.y -= WATER_TOP_OFFSET
+							face[3].pos.y -= WATER_TOP_OFFSET
+							face[4].pos.y -= WATER_TOP_OFFSET
+							face[5].pos.y -= WATER_TOP_OFFSET
 						}
 					}
 					append(mesh, face)
@@ -245,9 +247,9 @@ mesh_chunk :: proc(world: ^World, chunk: ^Chunk, mesh: ^Chunk_Mesh) {
 					face = position_face(.Neg_Z, block_pos, chunk.pos, block, world.atlas)
 					if block.id == .Water {
 						if bpyok && bpy.id != .Water {
-							face[0].pos.y -= 0.1
-							face[4].pos.y -= 0.1
-							face[5].pos.y -= 0.1
+							face[0].pos.y -= WATER_TOP_OFFSET
+							face[4].pos.y -= WATER_TOP_OFFSET
+							face[5].pos.y -= WATER_TOP_OFFSET
 						}
 						append(mesh, face)
 						face = position_face(
@@ -258,9 +260,9 @@ mesh_chunk :: proc(world: ^World, chunk: ^Chunk, mesh: ^Chunk_Mesh) {
 							world.atlas,
 						)
 						if bpyok && bpy.id != .Water {
-							face[0].pos.y -= 0.1
-							face[4].pos.y -= 0.1
-							face[5].pos.y -= 0.1
+							face[0].pos.y -= WATER_TOP_OFFSET
+							face[4].pos.y -= WATER_TOP_OFFSET
+							face[5].pos.y -= WATER_TOP_OFFSET
 						}
 					}
 					append(mesh, face)
@@ -269,9 +271,9 @@ mesh_chunk :: proc(world: ^World, chunk: ^Chunk, mesh: ^Chunk_Mesh) {
 					face = position_face(.Pos_Z, block_pos, chunk.pos, block, world.atlas)
 					if block.id == .Water {
 						if bpyok && bpy.id != .Water {
-							face[0].pos.y -= 0.1
-							face[4].pos.y -= 0.1
-							face[5].pos.y -= 0.1
+							face[0].pos.y -= WATER_TOP_OFFSET
+							face[4].pos.y -= WATER_TOP_OFFSET
+							face[5].pos.y -= WATER_TOP_OFFSET
 						}
 						append(mesh, face)
 						face = position_face(
@@ -282,9 +284,9 @@ mesh_chunk :: proc(world: ^World, chunk: ^Chunk, mesh: ^Chunk_Mesh) {
 							world.atlas,
 						)
 						if bpyok && bpy.id != .Water {
-							face[0].pos.y -= 0.1
-							face[4].pos.y -= 0.1
-							face[5].pos.y -= 0.1
+							face[0].pos.y -= WATER_TOP_OFFSET
+							face[4].pos.y -= WATER_TOP_OFFSET
+							face[5].pos.y -= WATER_TOP_OFFSET
 						}
 					}
 					append(mesh, face)
@@ -293,9 +295,9 @@ mesh_chunk :: proc(world: ^World, chunk: ^Chunk, mesh: ^Chunk_Mesh) {
 					face = position_face(.Neg_X, block_pos, chunk.pos, block, world.atlas)
 					if block.id == .Water {
 						if bpyok && bpy.id != .Water {
-							face[0].pos.y -= 0.1
-							face[4].pos.y -= 0.1
-							face[5].pos.y -= 0.1
+							face[0].pos.y -= WATER_TOP_OFFSET
+							face[4].pos.y -= WATER_TOP_OFFSET
+							face[5].pos.y -= WATER_TOP_OFFSET
 						}
 						append(mesh, face)
 						face = position_face(
@@ -306,9 +308,9 @@ mesh_chunk :: proc(world: ^World, chunk: ^Chunk, mesh: ^Chunk_Mesh) {
 							world.atlas,
 						)
 						if bpyok && bpy.id != .Water {
-							face[0].pos.y -= 0.1
-							face[4].pos.y -= 0.1
-							face[5].pos.y -= 0.1
+							face[0].pos.y -= WATER_TOP_OFFSET
+							face[4].pos.y -= WATER_TOP_OFFSET
+							face[5].pos.y -= WATER_TOP_OFFSET
 						}
 					}
 					append(mesh, face)
@@ -317,9 +319,9 @@ mesh_chunk :: proc(world: ^World, chunk: ^Chunk, mesh: ^Chunk_Mesh) {
 					face = position_face(.Pos_X, block_pos, chunk.pos, block, world.atlas)
 					if block.id == .Water {
 						if bpyok && bpy.id != .Water {
-							face[0].pos.y -= 0.1
-							face[4].pos.y -= 0.1
-							face[5].pos.y -= 0.1
+							face[0].pos.y -= WATER_TOP_OFFSET
+							face[4].pos.y -= WATER_TOP_OFFSET
+							face[5].pos.y -= WATER_TOP_OFFSET
 						}
 						append(mesh, face)
 						face = position_face(
@@ -330,9 +332,9 @@ mesh_chunk :: proc(world: ^World, chunk: ^Chunk, mesh: ^Chunk_Mesh) {
 							world.atlas,
 						)
 						if bpyok && bpy.id != .Water {
-							face[0].pos.y -= 0.1
-							face[4].pos.y -= 0.1
-							face[5].pos.y -= 0.1
+							face[0].pos.y -= WATER_TOP_OFFSET
+							face[4].pos.y -= WATER_TOP_OFFSET
+							face[5].pos.y -= WATER_TOP_OFFSET
 						}
 					}
 					append(mesh, face)
