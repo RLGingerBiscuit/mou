@@ -7,6 +7,8 @@ import vmem "core:mem/virtual"
 import "core:sync/chan"
 import "core:thread"
 
+import "prof"
+
 MESHGEN_CHAN_CAP :: 16
 
 Meshgen_Msg_Remesh :: struct {
@@ -85,6 +87,8 @@ destroy_meshgen_thread :: proc(mg: ^Meshgen_Thread) {
 }
 
 _meshgen_thread_proc :: proc(mg: ^Meshgen_Thread) {
+	prof.init_thread()
+
 	// Arena here means (1) stable pointers and (2) easy clean up
 	context.allocator = vmem.arena_allocator(&mg.arena)
 
@@ -108,9 +112,11 @@ _meshgen_thread_proc :: proc(mg: ^Meshgen_Thread) {
 			mesh := len(mg.tombstones) > 0 ? pop(&mg.tombstones) : new_chunk_mesh(mg, world)
 			assert(mesh != nil)
 
-			chunk, exists := &world.chunks[v.pos]
-			ensure(exists, "Chunk sent for meshing doesn't exist")
-			mesh_chunk(world, chunk, mesh)
+			if prof.event("chunk mesh generation") {
+				chunk, exists := &world.chunks[v.pos]
+				ensure(exists, "Chunk sent for meshing doesn't exist")
+				mesh_chunk(world, chunk, mesh)
+			}
 
 			chan.send(mg.world_tx, World_Msg_Meshed{v.pos, mesh})
 

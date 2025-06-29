@@ -1,3 +1,4 @@
+# Compilation output
 bin/
 
 # Extraenous compilation output
@@ -20,12 +21,16 @@ bin/
 *.sublime-workspace
 
 # Packaged output
-packaged/
+/packaged/
 *.zip
 *.tar*
 
+# Profiling
+/prof/
+*.spall
+
 # RenderDoc captures
-captures/
+/captures/
 
 # Bitmaps for debugging (e.g. font atlas)
 *.bmp

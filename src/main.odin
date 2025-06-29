@@ -13,6 +13,10 @@ import "vendor:glfw"
 
 import rdoc "third:renderdoc"
 
+import "prof"
+
+_ :: mem
+
 WINDOW_WIDTH :: 1280
 WINDOW_HEIGHT :: 720
 WINDOW_SIZE :: [2]i32{WINDOW_WIDTH, WINDOW_HEIGHT}
@@ -26,8 +30,6 @@ NEAR_PLANE :: 0.001
 when ODIN_DEBUG {
 	tracking_allocator: mem.Tracking_Allocator
 }
-
-_ :: mem
 
 when ODIN_DEBUG {
 	MIN_LOG_LEVEL :: log.Level.Debug
@@ -88,6 +90,9 @@ main :: proc() {
 	rdoc.SetCaptureFilePathTemplate(rdoc_api, "captures/cap")
 	rdoc.SetCaptureKeys(rdoc_api, {})
 
+	prof.init()
+	defer prof.deinit()
+
 	log.info("Hellope!")
 
 	log.debug("Initialising GLFW")
@@ -143,7 +148,7 @@ main :: proc() {
 	init_world(&state.world, &atlas)
 	defer destroy_world(&state.world)
 
-	{
+	if prof.event("initial chunk generation") {
 		N := state.render_distance
 		for y in i32(0) ..= 1 {
 			for z in i32(-N) ..= N {
@@ -223,7 +228,7 @@ main :: proc() {
 
 		capture_frame := false
 
-		{ 	// Update
+		if prof.event("update iteration") {
 			if window_get_key(state.window, .Escape) == .Press {
 				log.debugf("Escape pressed, closing window")
 				set_window_should_close(state.window, true)
@@ -235,7 +240,9 @@ main :: proc() {
 				capture_frame = true
 			}
 
-			mu_update_ui(&state, delta_time)
+			if prof.event("update ui") {
+				mu_update_ui(&state, delta_time)
+			}
 
 			update_camera(&state, delta_time)
 			update_window(&state.window)
@@ -250,39 +257,45 @@ main :: proc() {
 				cam_chunk_pos := global_pos_to_chunk_pos(global_pos)
 				cam_chunk_pos.y = 0
 
-				for y in i32(0) ..= 1 {
-					for z in i32(-N) ..= N {
-						for x in i32(-N) ..= N {
-							chunk_pos := cam_chunk_pos + {x, y, z}
-							sync.guard(&state.world.lock)
-							if !world_generate_chunk(&state.world, chunk_pos) {
-								chunk := &state.world.chunks[chunk_pos]
-								// Chunk is generated, but needs to be sent for meshing
-								if chunk.mesh == nil {
-									world_mark_chunk_remesh(&state.world, chunk)
+				if prof.event("generate near chunks") {
+					for y in i32(0) ..= 1 {
+						for z in i32(-N) ..= N {
+							for x in i32(-N) ..= N {
+								chunk_pos := cam_chunk_pos + {x, y, z}
+								sync.guard(&state.world.lock)
+								if !world_generate_chunk(&state.world, chunk_pos) {
+									chunk := &state.world.chunks[chunk_pos]
+									// Chunk is generated, but needs to be sent for meshing
+									if chunk.mesh == nil {
+										world_mark_chunk_remesh(&state.world, chunk)
+									}
 								}
 							}
 						}
 					}
 				}
 
-				chunks_to_demesh := &state.frame.chunks_to_demesh
-				defer clear(chunks_to_demesh)
+				if prof.event("demesh chunks") {
+					chunks_to_demesh := &state.frame.chunks_to_demesh
+					defer clear(chunks_to_demesh)
 
-				for _, &chunk in &state.world.chunks {
-					if chunk.mesh != nil &&
-					   (glm.abs(cam_chunk_pos.x - chunk.pos.x) > N ||
-							   glm.abs(cam_chunk_pos.z - chunk.pos.z) > N) {
-						append(chunks_to_demesh, &chunk)
+					for _, &chunk in &state.world.chunks {
+						if chunk.mesh != nil &&
+						   (glm.abs(cam_chunk_pos.x - chunk.pos.x) > N ||
+								   glm.abs(cam_chunk_pos.z - chunk.pos.z) > N) {
+							append(chunks_to_demesh, &chunk)
+						}
 					}
-				}
 
-				for chunk in chunks_to_demesh {
-					world_mark_chunk_demesh(&state.world, chunk)
+					for chunk in chunks_to_demesh {
+						world_mark_chunk_demesh(&state.world, chunk)
+					}
 				}
 			}
 
-			world_update(&state.world, state.camera.pos)
+			if prof.event("update world") {
+				world_update(&state.world, state.camera.pos)
+			}
 		}
 
 		{
@@ -341,7 +354,7 @@ main :: proc() {
 			}
 		}
 
-		{ 	// Draw
+		if prof.event("render iteration") {
 			SKY_COLOUR := glm.vec4{0.3, 0.6, 0.8, 1}
 
 			gl.ClearColor(SKY_COLOUR[0], SKY_COLOUR[1], SKY_COLOUR[2], SKY_COLOUR[3])
@@ -354,7 +367,7 @@ main :: proc() {
 			frustum_matrix := state.frozen_frustum.? or_else u_mvp
 			frustum := create_frustum(frustum_matrix)
 
-			{ 	// Blocks
+			if prof.event("render chunks") {
 				bind_vertex_array(vao)
 				defer unbind_vertex_array()
 
@@ -399,74 +412,83 @@ main :: proc() {
 				opaque_chunks := &state.frame.opaque_chunks
 				transparent_chunks := &state.frame.transparent_chunks
 				water_chunks := &state.frame.water_chunks
-				clear(opaque_chunks)
-				clear(transparent_chunks)
-				clear(water_chunks)
+				if prof.event("frustum culling/mesh selection") {
+					clear(opaque_chunks)
+					clear(transparent_chunks)
+					clear(water_chunks)
 
-				for _, &chunk in state.world.chunks {
-					if chunk.mesh == nil {
-						continue
-					}
+					for _, &chunk in state.world.chunks {
+						if chunk.mesh == nil {
+							continue
+						}
 
-					// TODO: impl. regions & frustum cull them too
-					if !frustum_contains_chunk(frustum, chunk.pos) {
-						continue
-					}
+						// TODO: impl. regions & frustum cull them too
+						if !frustum_contains_chunk(frustum, chunk.pos) {
+							continue
+						}
 
-					if len(chunk.mesh.opaque) > 0 {
-						append(opaque_chunks, &chunk)
-					}
-					if len(chunk.mesh.transparent) > 0 {
-						append(transparent_chunks, &chunk)
-					}
-					if len(chunk.mesh.water) > 0 {
-						append(water_chunks, &chunk)
+						if len(chunk.mesh.opaque) > 0 {
+							append(opaque_chunks, &chunk)
+						}
+						if len(chunk.mesh.transparent) > 0 {
+							append(transparent_chunks, &chunk)
+						}
+						if len(chunk.mesh.water) > 0 {
+							append(water_chunks, &chunk)
+						}
 					}
 				}
 
 				context.user_ptr = &state
-				slice.sort_by(transparent_chunks[:], proc(i, j: ^Chunk) -> bool {
-					state := cast(^State)context.user_ptr
-					i_dist := glm.length(state.camera.pos - get_chunk_centre(i))
-					j_dist := glm.length(state.camera.pos - get_chunk_centre(j))
-					return i_dist > j_dist
-				})
 
-				slice.sort_by(water_chunks[:], proc(i, j: ^Chunk) -> bool {
-					state := cast(^State)context.user_ptr
-					i_dist := glm.length(state.camera.pos - get_chunk_centre(i))
-					j_dist := glm.length(state.camera.pos - get_chunk_centre(j))
-					return i_dist > j_dist
-				})
-
-				for chunk in water_chunks {
-					mesh := chunk.mesh
-
-					slice.sort_by(mesh.water[:], proc(i, j: Mesh_Face) -> bool {
+				if prof.event("sort transparent chunks") {
+					slice.sort_by(transparent_chunks[:], proc(i, j: ^Chunk) -> bool {
 						state := cast(^State)context.user_ptr
-
-						get_face_centre :: proc(f: Mesh_Face) -> glm.vec3 {
-							a := f[0].pos
-							b := f[2].pos
-							t := (a + b) / 2
-							if a.x == b.x {
-								return {a.x, t.y, t.z}
-							} else if a.y == b.y {
-								return {t.x, a.y, t.z}
-							} else if a.z == b.z {
-								return {t.x, t.y, a.z}
-							}
-							unreachable()
-						}
-
-						i_c := get_face_centre(i)
-						j_c := get_face_centre(j)
-
-						i_dist := glm.length(state.camera.pos - i_c)
-						j_dist := glm.length(state.camera.pos - j_c)
-
+						i_dist := glm.length(state.camera.pos - get_chunk_centre(i))
+						j_dist := glm.length(state.camera.pos - get_chunk_centre(j))
 						return i_dist > j_dist
 					})
+				}
+
+				if prof.event("sort water chunks") {
+					slice.sort_by(water_chunks[:], proc(i, j: ^Chunk) -> bool {
+						state := cast(^State)context.user_ptr
+						i_dist := glm.length(state.camera.pos - get_chunk_centre(i))
+						j_dist := glm.length(state.camera.pos - get_chunk_centre(j))
+						return i_dist > j_dist
+					})
+				}
+
+				if prof.event("sort water vertices") {
+					for chunk in water_chunks {
+						mesh := chunk.mesh
+
+						slice.sort_by(mesh.water[:], proc(i, j: Mesh_Face) -> bool {
+							state := cast(^State)context.user_ptr
+
+							get_face_centre :: proc(f: Mesh_Face) -> glm.vec3 {
+								a := f[0].pos
+								b := f[2].pos
+								t := (a + b) / 2
+								if a.x == b.x {
+									return {a.x, t.y, t.z}
+								} else if a.y == b.y {
+									return {t.x, a.y, t.z}
+								} else if a.z == b.z {
+									return {t.x, t.y, a.z}
+								}
+								unreachable()
+							}
+
+							i_c := get_face_centre(i)
+							j_c := get_face_centre(j)
+
+							i_dist := glm.length(state.camera.pos - i_c)
+							j_dist := glm.length(state.camera.pos - j_c)
+
+							return i_dist > j_dist
+						})
+					}
 				}
 
 				setup_vertex_attribs :: #force_inline proc() {
@@ -495,39 +517,46 @@ main :: proc() {
 					)
 				}
 
-				bind_buffer(vbo)
-				setup_vertex_attribs()
-				gl.Disable(gl.BLEND) // Disable blending for opaque meshes; slight performance boost
-				for &chunk in opaque_chunks {
-					buffer_sub_data(vbo, 0, chunk.mesh.opaque[:])
-					gl.DrawArrays(
-						gl.TRIANGLES,
-						0,
-						FACE_VERT_COUNT * cast(i32)len(chunk.mesh.opaque),
-					)
+				if prof.event("render opaque meshes") {
+					bind_buffer(vbo)
+					setup_vertex_attribs()
+					gl.Disable(gl.BLEND) // Disable blending for opaque meshes; slight performance boost
+					for &chunk in opaque_chunks {
+						buffer_sub_data(vbo, 0, chunk.mesh.opaque[:])
+						gl.DrawArrays(
+							gl.TRIANGLES,
+							0,
+							FACE_VERT_COUNT * cast(i32)len(chunk.mesh.opaque),
+						)
+					}
 				}
 
 				gl.Enable(gl.BLEND)
-				bind_buffer(transparent_vbo)
-				setup_vertex_attribs()
-				for chunk in transparent_chunks {
-					buffer_sub_data(vbo, 0, chunk.mesh.transparent[:])
-					gl.DrawArrays(
-						gl.TRIANGLES,
-						0,
-						FACE_VERT_COUNT * cast(i32)len(chunk.mesh.transparent),
-					)
+
+				if prof.event("render transparent meshes") {
+					bind_buffer(transparent_vbo)
+					setup_vertex_attribs()
+					for chunk in transparent_chunks {
+						buffer_sub_data(vbo, 0, chunk.mesh.transparent[:])
+						gl.DrawArrays(
+							gl.TRIANGLES,
+							0,
+							FACE_VERT_COUNT * cast(i32)len(chunk.mesh.transparent),
+						)
+					}
 				}
 
-				bind_buffer(water_vbo)
-				setup_vertex_attribs()
-				for chunk in water_chunks {
-					buffer_sub_data(vbo, 0, chunk.mesh.water[:])
-					gl.DrawArrays(
-						gl.TRIANGLES,
-						0,
-						FACE_VERT_COUNT * cast(i32)len(chunk.mesh.water),
-					)
+				if prof.event("render water meshes") {
+					bind_buffer(water_vbo)
+					setup_vertex_attribs()
+					for chunk in water_chunks {
+						buffer_sub_data(vbo, 0, chunk.mesh.water[:])
+						gl.DrawArrays(
+							gl.TRIANGLES,
+							0,
+							FACE_VERT_COUNT * cast(i32)len(chunk.mesh.water),
+						)
+					}
 				}
 
 				unbind_buffer(.Array)
@@ -535,7 +564,7 @@ main :: proc() {
 			}
 
 			defer clear(&state.frame.line_vertices)
-			{ 	// Debug lines
+			if prof.event("render lines") {
 				if state.render_frustum {
 					frustum_vertices := get_frustum_vertices(frustum)
 					append(&state.frame.line_vertices, ..frustum_vertices[:])
@@ -572,11 +601,10 @@ main :: proc() {
 				gl.DrawArrays(gl.LINES, 0, cast(i32)len(state.frame.line_vertices))
 			}
 
-			{ 	// UI
+			if prof.event("render ui") {
 				mu_render_ui(&state)
 			}
 		}
-
 
 		window_swap_buffers(state.window)
 		glfw.PollEvents()

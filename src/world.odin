@@ -9,7 +9,9 @@ import vmem "core:mem/virtual"
 import "core:slice"
 import "core:sync"
 import "core:sync/chan"
+
 import "noise"
+import "prof"
 
 WATER_LEVEL :: 12
 
@@ -63,78 +65,84 @@ destroy_world :: proc(world: ^World) {
 }
 
 world_update :: proc(world: ^World, player_pos: glm.vec3) {
-	player_pos := player_pos
-	context.user_ptr = &player_pos
-	slice.sort_by(
-		world.chunk_msg_stack[:],
-		proc(i, j: Meshgen_Msg) -> bool {
-			player_pos := cast(^glm.vec3)context.user_ptr
-			i_dist, j_dist: f32
-			j_pos: glm.ivec3
+	if prof.event("world sort messages") {
+		player_pos := player_pos
+		context.user_ptr = &player_pos
+		slice.sort_by(
+			world.chunk_msg_stack[:],
+			proc(i, j: Meshgen_Msg) -> bool {
+				player_pos := cast(^glm.vec3)context.user_ptr
+				i_dist, j_dist: f32
+				j_pos: glm.ivec3
 
-			switch vi in i {
-			// Give terminate/tombstone priority (send to top of stack)
-			case Meshgen_Msg_Terminate, Meshgen_Msg_Tombstone:
-				return false
+				switch vi in i {
+				// Give terminate/tombstone priority (send to top of stack)
+				case Meshgen_Msg_Terminate, Meshgen_Msg_Tombstone:
+					return false
 
-			case Meshgen_Msg_Remesh:
-				i_dist = glm.length(player_pos^ - chunk_pos_centre(vi.pos))
-							// odinfmt:disable
+				case Meshgen_Msg_Remesh:
+					i_dist = glm.length(player_pos^ - chunk_pos_centre(vi.pos))
+								// odinfmt:disable
 				switch vj in j {
 				case Meshgen_Msg_Terminate, Meshgen_Msg_Tombstone: return true
 				case Meshgen_Msg_Remesh:                           j_pos = vj.pos
 				case Meshgen_Msg_Demesh:                           j_pos = vj.pos
 				}
 				// odinfmt:enable
-				j_dist = glm.length(player_pos^ - chunk_pos_centre(j_pos))
-				return i_dist > j_dist
+					j_dist = glm.length(player_pos^ - chunk_pos_centre(j_pos))
+					return i_dist > j_dist
 
-			case Meshgen_Msg_Demesh:
-				i_dist = glm.length(player_pos^ - chunk_pos_centre(vi.pos))
-							// odinfmt:disable
+				case Meshgen_Msg_Demesh:
+					i_dist = glm.length(player_pos^ - chunk_pos_centre(vi.pos))
+								// odinfmt:disable
 				switch vj in j {
 				case Meshgen_Msg_Terminate, Meshgen_Msg_Tombstone: return true
 				case Meshgen_Msg_Remesh:                           j_pos = vj.pos
 				case Meshgen_Msg_Demesh:                           j_pos = vj.pos
 				}
 				// odinfmt:enable
-				j_dist = glm.length(player_pos^ - chunk_pos_centre(j_pos))
-				return i_dist > j_dist
+					j_dist = glm.length(player_pos^ - chunk_pos_centre(j_pos))
+					return i_dist > j_dist
+				}
+				unreachable()
+			},
+		)
+	}
+
+	if prof.event("world send events") {
+		for msg in pop_safe(&world.chunk_msg_stack) {
+			if !chan.try_send(world.meshgen_tx, msg) {
+				append(&world.chunk_msg_stack, msg)
+				break
 			}
-			unreachable()
-		},
-	)
-
-	for msg in pop_safe(&world.chunk_msg_stack) {
-		if !chan.try_send(world.meshgen_tx, msg) {
-			append(&world.chunk_msg_stack, msg)
-			break
 		}
 	}
 
-	for msg in chan.try_recv(world.rx) {
-		switch v in msg {
-		case World_Msg_Meshed:
-			sync.guard(&world.lock)
-			chunk, exists := &world.chunks[v.chunk_pos]
-			ensure(exists, "Meshed chunk doesn't exist")
-			old_mesh := chunk.mesh
-			chunk.mesh = v.mesh
-			if old_mesh != nil {
-				append(&world.chunk_msg_stack, Meshgen_Msg_Tombstone{old_mesh})
-			}
-			sync.atomic_store(&chunk.needs_remeshing, false)
+	if prof.event("world recieve events") {
+		for msg in chan.try_recv(world.rx) {
+			switch v in msg {
+			case World_Msg_Meshed:
+				sync.guard(&world.lock)
+				chunk, exists := &world.chunks[v.chunk_pos]
+				ensure(exists, "Meshed chunk doesn't exist")
+				old_mesh := chunk.mesh
+				chunk.mesh = v.mesh
+				if old_mesh != nil {
+					append(&world.chunk_msg_stack, Meshgen_Msg_Tombstone{old_mesh})
+				}
+				sync.atomic_store(&chunk.needs_remeshing, false)
 
-		case World_Msg_Demeshed:
-			sync.guard(&world.lock)
-			chunk, exists := &world.chunks[v.chunk_pos]
-			ensure(exists, "Demeshed chunk doesn't exist")
-			old_mesh := chunk.mesh
-			if old_mesh != nil {
-				append(&world.chunk_msg_stack, Meshgen_Msg_Tombstone{old_mesh})
+			case World_Msg_Demeshed:
+				sync.guard(&world.lock)
+				chunk, exists := &world.chunks[v.chunk_pos]
+				ensure(exists, "Demeshed chunk doesn't exist")
+				old_mesh := chunk.mesh
+				if old_mesh != nil {
+					append(&world.chunk_msg_stack, Meshgen_Msg_Tombstone{old_mesh})
+				}
+				chunk.mesh = nil
+				sync.atomic_store(&chunk.needs_remeshing, false)
 			}
-			chunk.mesh = nil
-			sync.atomic_store(&chunk.needs_remeshing, false)
 		}
 	}
 }

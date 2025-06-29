@@ -10,6 +10,8 @@
 - [X] Better transparency; glass/water still has cutoffs
   - [X] Probably needs different winding (it was just culling being disabled ofc)
   - [X] MC also has 4 tris per face for water, both cw & ccw (excl. bottom & connecting faces)
+- [X] Setup profiling (tiny wrapper around spall for easy debug/release switching)
+- [ ] "world sort messages" is causing massive slowdowns due to the stack getting massive somehow
 - [ ] The frustum culling code needs a look at; sometimes chunks can be culled when in view
 - [ ] Add 'regions', containing 32^2 chunks each
 - [ ] Move worldgen onto a separate thread
