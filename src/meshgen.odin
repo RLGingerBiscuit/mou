@@ -108,13 +108,17 @@ _meshgen_thread_proc :: proc(mg: ^Meshgen_Thread) {
 
 		switch v in msg {
 		case Meshgen_Msg_Remesh:
+			chunk, exists := &world.chunks[v.pos]
+			ensure(exists, "Chunk sent for meshing doesn't exist")
+			if !chunk_marked_remesh(chunk) || chunk_marked_demesh(chunk) {
+				continue
+			}
+
 			// Make a new mesh here to avoid flashes as meshes are updated
 			mesh := len(mg.tombstones) > 0 ? pop(&mg.tombstones) : new_chunk_mesh(mg, world)
 			assert(mesh != nil)
 
 			if prof.event("chunk mesh generation") {
-				chunk, exists := &world.chunks[v.pos]
-				ensure(exists, "Chunk sent for meshing doesn't exist")
 				mesh_chunk(world, chunk, mesh)
 			}
 
@@ -149,10 +153,6 @@ new_chunk_mesh :: proc(mg: ^Meshgen_Thread, world: ^World) -> ^Chunk_Mesh {
 }
 
 mesh_chunk :: proc(world: ^World, chunk: ^Chunk, mesh: ^Chunk_Mesh) {
-	if !chunk_needs_remeshing(chunk) {
-		return
-	}
-
 	clear(&mesh.opaque)
 	clear(&mesh.transparent)
 	clear(&mesh.water)

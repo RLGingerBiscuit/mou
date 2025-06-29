@@ -130,7 +130,7 @@ world_update :: proc(world: ^World, player_pos: glm.vec3) {
 				if old_mesh != nil {
 					append(&world.chunk_msg_stack, Meshgen_Msg_Tombstone{old_mesh})
 				}
-				sync.atomic_store(&chunk.needs_remeshing, false)
+				sync.atomic_store(&chunk.mark_remesh, false)
 
 			case World_Msg_Demeshed:
 				sync.guard(&world.lock)
@@ -141,7 +141,7 @@ world_update :: proc(world: ^World, player_pos: glm.vec3) {
 					append(&world.chunk_msg_stack, Meshgen_Msg_Tombstone{old_mesh})
 				}
 				chunk.mesh = nil
-				sync.atomic_store(&chunk.needs_remeshing, false)
+				sync.atomic_store(&chunk.mark_remesh, false)
 			}
 		}
 	}
@@ -248,17 +248,20 @@ world_remesh_surrounding_chunks :: proc(world: ^World, chunk_pos: glm.ivec3) {
 
 // Marks a chunk as in need of remeshing and adds it to the queue for dispatching to the meshgen thread.
 world_mark_chunk_remesh :: proc(world: ^World, chunk: ^Chunk) {
-	if queued := sync.atomic_compare_exchange_strong(&chunk.needs_remeshing, false, true);
-	   !queued {
-		sync.atomic_store(&chunk.needs_remeshing, true)
+	if queued := sync.atomic_compare_exchange_strong(&chunk.mark_remesh, false, true); !queued {
+		sync.atomic_store(&chunk.mark_remesh, true)
+		sync.atomic_store(&chunk.mark_demesh, false)
 		append(&world.chunk_msg_stack, Meshgen_Msg_Remesh{chunk.pos})
 	}
 }
 
 // Marks a chunk as in need of demeshing and adds it to the queue for dispatching to the meshgen thread.
 world_mark_chunk_demesh :: proc(world: ^World, chunk: ^Chunk) {
-	sync.atomic_store(&chunk.needs_remeshing, false)
-	append(&world.chunk_msg_stack, Meshgen_Msg_Demesh{chunk.pos})
+	if queued := sync.atomic_compare_exchange_strong(&chunk.mark_demesh, false, true); !queued {
+		sync.atomic_store(&chunk.mark_remesh, false)
+		sync.atomic_store(&chunk.mark_demesh, true)
+		append(&world.chunk_msg_stack, Meshgen_Msg_Demesh{chunk.pos})
+	}
 }
 
 global_pos_to_chunk_pos :: proc(global_pos: glm.ivec3) -> glm.ivec3 {

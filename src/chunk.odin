@@ -10,10 +10,11 @@ CHUNK_SIZE :: CHUNK_WIDTH * CHUNK_HEIGHT * CHUNK_DEPTH
 CHUNK_MULTIPLIER :: glm.ivec3{CHUNK_WIDTH, CHUNK_HEIGHT, CHUNK_DEPTH}
 
 Chunk :: struct {
-	pos:             glm.ivec3,
-	blocks:          []Block `fmt:"-"`,
-	mesh:            ^Chunk_Mesh,
-	needs_remeshing: bool,
+	pos:         glm.ivec3,
+	blocks:      []Block `fmt:"-"`,
+	mesh:        ^Chunk_Mesh,
+	mark_remesh: bool,
+	mark_demesh: bool,
 }
 
 make_chunk :: proc(pos: glm.ivec3, allocator := context.allocator) -> Chunk {
@@ -31,8 +32,12 @@ destroy_chunk :: proc(chunk: ^Chunk, allocator := context.allocator) {
 	chunk^ = {}
 }
 
-chunk_needs_remeshing :: proc(chunk: ^Chunk) -> bool {
-	return sync.atomic_load(&chunk.needs_remeshing)
+chunk_marked_remesh :: proc(chunk: ^Chunk) -> bool {
+	return sync.atomic_load(&chunk.mark_remesh)
+}
+
+chunk_marked_demesh :: proc(chunk: ^Chunk) -> bool {
+	return sync.atomic_load(&chunk.mark_demesh)
 }
 
 get_chunk_block :: proc(chunk: Chunk, local_pos: glm.ivec3) -> (Block, bool) {
