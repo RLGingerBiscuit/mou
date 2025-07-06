@@ -17,10 +17,11 @@ Texture :: struct {
 }
 
 Format :: enum i32 {
-	R8   = gl.R8,
-	Red  = gl.RED,
-	RGB  = gl.RGB,
-	RGBA = gl.RGBA,
+	Depth = gl.DEPTH_COMPONENT,
+	R8    = gl.R8,
+	Red   = gl.RED,
+	RGB   = gl.RGB,
+	RGBA  = gl.RGBA,
 }
 
 Wrap :: enum i32 {
@@ -38,6 +39,7 @@ Filter :: enum i32 {
 texture_format_bytes :: proc(format: Format) -> i32 {
 	// odinfmt:disable
 	switch format {
+	case .Depth:	return 1 // TODO: Don't use unsized variant?
 	case .R8, .Red:	return 1
 	case .RGB:		return 3
 	case .RGBA:		return 4
@@ -68,6 +70,7 @@ make_texture :: proc(
 	
 	// odinfmt:disable
 	switch tex.format {
+	case .Depth:	tex.internal_format = .Depth
 	case .R8, .Red:	tex.internal_format = .Red
 	case .RGB:		tex.internal_format = .RGB
 	case .RGBA:		tex.internal_format = .RGBA

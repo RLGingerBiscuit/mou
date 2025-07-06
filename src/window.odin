@@ -126,6 +126,7 @@ resize_window :: proc(wnd: ^Window, width, height: i32) {
 	wnd.size = {width, height}
 	gl.Viewport(0, 0, width, height)
 	log.debugf("Window '{}' resized to {}x{}", wnd.title, width, height)
+	// TODO: Recreate framebuffer backings here
 }
 
 show_window :: proc(wnd: ^Window) {

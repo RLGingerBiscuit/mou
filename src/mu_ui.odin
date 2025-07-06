@@ -569,10 +569,16 @@ mu_render_ui :: proc(state: ^State) {
 
 	// FIXME: doesn't update mu viewport unless move mu window to top left
 	gl.Viewport(0, 0, state.window.size.x, state.window.size.y)
+
 	gl.Enable(gl.SCISSOR_TEST)
 	gl.Disable(gl.CULL_FACE)
 	gl.Disable(gl.DEPTH_TEST)
+
 	gl.PolygonMode(gl.FRONT_AND_BACK, gl.FILL)
+	defer if .Wireframe in state.camera.flags {
+		gl.PolygonMode(gl.FRONT_AND_BACK, gl.LINE)
+	}
+
 
 	command_backing: ^mu.Command
 	for variant in mu.next_command_iterator(state.ui.ctx, &command_backing) {
@@ -595,13 +601,6 @@ mu_render_ui :: proc(state: ^State) {
 	}
 
 	flush(state)
-
-	if .Wireframe in state.camera.flags {
-		gl.PolygonMode(gl.FRONT_AND_BACK, gl.LINE)
-	}
-	gl.Enable(gl.DEPTH_TEST)
-	gl.Enable(gl.CULL_FACE)
-	gl.Disable(gl.SCISSOR_TEST)
 }
 
 @(private = "file")

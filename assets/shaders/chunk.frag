@@ -6,7 +6,7 @@ in vec2 tex_coord;
 in vec4 vertex_colour;
 in float vertex_distance;
 
-out vec4 frag_colour;
+layout(location = 0) out vec4 frag_colour;
 
 uniform sampler2D u_atlas;
 uniform float u_fog_start;

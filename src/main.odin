@@ -131,13 +131,17 @@ main :: proc() {
 
 	glfw.SetInputMode(state.window.handle, glfw.CURSOR, glfw.CURSOR_DISABLED)
 
-	gl.Enable(gl.DEPTH_TEST)
 	gl.Enable(gl.CULL_FACE)
-	gl.Enable(gl.BLEND)
 	gl.BlendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA)
 
 	chunk_shader := make_shader("assets/shaders/chunk.vert", "assets/shaders/chunk.frag")
 	defer destroy_shader(&chunk_shader)
+
+	fullscreen_shader := make_shader(
+		"assets/shaders/fullscreen.vert",
+		"assets/shaders/fullscreen.frag",
+	)
+	defer destroy_shader(&fullscreen_shader)
 
 	line_shader := make_shader("assets/shaders/line.vert", "assets/shaders/line.frag")
 	defer destroy_shader(&line_shader)
@@ -147,18 +151,6 @@ main :: proc() {
 
 	init_world(&state.world, &atlas)
 	defer destroy_world(&state.world)
-
-	if prof.event("initial chunk generation") {
-		N := state.render_distance
-		for y in i32(0) ..= 1 {
-			for z in i32(-N) ..= N {
-				for x in i32(-N) ..= N {
-					sync.guard(&state.world.lock)
-					world_generate_chunk(&state.world, {x, y, z})
-				}
-			}
-		}
-	}
 
 	vao := make_vertex_array()
 	defer destroy_vertex_array(&vao)
@@ -210,6 +202,89 @@ main :: proc() {
 
 		// unbind_buffer(.Array)
 		unbind_vertex_array()
+	}
+
+	quad_vao := make_vertex_array()
+	defer destroy_vertex_array(&quad_vao)
+	quad_vbo := make_buffer(.Array, .Static)
+	defer destroy_buffer(&quad_vbo)
+
+	{
+		Fullscreen_Vert :: struct #packed {
+			pos:       glm.vec2,
+			tex_coord: glm.vec2,
+		}
+			// odinfmt:disable
+		@(static, rodata)
+		verts := [?]Fullscreen_Vert {
+			{{-1,  1},  {0, 1}},
+			{{-1, -1},  {0, 0}},
+			{{ 1, -1},  {1, 0}},
+			{{ 1, -1},  {1, 0}},
+			{{ 1,  1},  {1, 1}},
+			{{-1,  1},  {0, 1}},
+		}
+		// odinfmt:enable
+
+		bind_vertex_array(quad_vao)
+		bind_buffer(quad_vbo)
+
+		buffer_data(quad_vbo, verts[:])
+
+		vertex_attrib_pointer(
+			0,
+			2,
+			.Float,
+			false,
+			size_of(Fullscreen_Vert),
+			offset_of(Fullscreen_Vert, pos),
+		)
+		vertex_attrib_pointer(
+			1,
+			2,
+			.Float,
+			false,
+			size_of(Fullscreen_Vert),
+			offset_of(Fullscreen_Vert, tex_coord),
+		)
+
+		// unbind_buffer(.Array)
+		unbind_vertex_array()
+	}
+
+	// FIXME: framebuffer backings need to resize
+	fbo_colour_tex := make_texture(
+		"::/fbo_colour",
+		WINDOW_WIDTH,
+		WINDOW_HEIGHT,
+		.RGB,
+		filter = .Linear,
+		mipmap = false,
+	)
+	defer destroy_texture(&fbo_colour_tex)
+	fbo_depth_tex := make_texture(
+		"::/fbo_depth",
+		WINDOW_WIDTH,
+		WINDOW_HEIGHT,
+		.Depth,
+		filter = .Linear,
+		mipmap = false,
+	)
+	defer destroy_texture(&fbo_depth_tex)
+
+	fbo := make_framebuffer({{.Colour0, &fbo_colour_tex}, {.Depth, &fbo_depth_tex}})
+	defer destroy_framebuffer(&fbo)
+
+	if prof.event("initial chunk generation") {
+		N := state.render_distance
+		for y in i32(0) ..= 1 {
+			for z in i32(-N) ..= N {
+				for x in i32(-N) ..= N {
+					sync.guard(&state.world.lock)
+					world_generate_chunk(&state.world, {x, y, z})
+				}
+			}
+		}
 	}
 
 	mu_init_ui(&state)
@@ -356,8 +431,8 @@ main :: proc() {
 
 		if prof.event("render iteration") {
 			SKY_COLOUR := glm.vec4{0.3, 0.6, 0.8, 1}
-
 			gl.ClearColor(SKY_COLOUR[0], SKY_COLOUR[1], SKY_COLOUR[2], SKY_COLOUR[3])
+
 			gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
 
 			projection_matrix := state.camera.projection_matrix
@@ -367,7 +442,16 @@ main :: proc() {
 			frustum_matrix := state.frozen_frustum.? or_else u_mvp
 			frustum := create_frustum(frustum_matrix)
 
+			// Ensure stuff is reset
+			gl.Enable(gl.CULL_FACE)
+			gl.Enable(gl.DEPTH_TEST)
+			gl.Enable(gl.SCISSOR_TEST)
+
 			if prof.event("render chunks") {
+				bind_framebuffer(fbo, .All)
+				defer unbind_framebuffer(.All)
+				gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
+
 				bind_vertex_array(vao)
 				defer unbind_vertex_array()
 
@@ -563,6 +647,24 @@ main :: proc() {
 				unbind_vertex_array()
 			}
 
+			gl.Disable(gl.DEPTH_TEST)
+
+			if prof.event("framebuffer blit") {
+				if .Wireframe in state.camera.flags {
+					gl.PolygonMode(gl.FRONT_AND_BACK, gl.FILL)
+				}
+				defer if .Wireframe in state.camera.flags {
+					gl.PolygonMode(gl.FRONT_AND_BACK, gl.LINE)
+				}
+
+				use_shader(fullscreen_shader)
+				bind_vertex_array(quad_vao)
+				defer unbind_vertex_array()
+
+				bind_texture(fbo_colour_tex)
+				gl.DrawArrays(gl.TRIANGLES, 0, 6)
+			}
+
 			defer clear(&state.frame.line_vertices)
 			if prof.event("render lines") {
 				if state.render_frustum {
@@ -570,35 +672,33 @@ main :: proc() {
 					append(&state.frame.line_vertices, ..frustum_vertices[:])
 				}
 
-				// Remove far plane temporarily
-				old_far_plane := state.far_plane
-				state.far_plane = false
-				defer state.far_plane = old_far_plane
-				_update_camera_axes(&state)
-				projection_matrix = state.camera.projection_matrix
-				view_matrix = state.camera.view_matrix
-				u_mvp = projection_matrix * view_matrix
+				if len(state.frame.line_vertices) > 0 {
+					// Remove far plane temporarily
+					old_far_plane := state.far_plane
+					state.far_plane = false
+					defer state.far_plane = old_far_plane
+					_update_camera_axes(&state)
+					projection_matrix = state.camera.projection_matrix
+					view_matrix = state.camera.view_matrix
+					u_mvp = projection_matrix * view_matrix
 
-				// Disable depth testing temporarily
-				gl.Disable(gl.DEPTH_TEST)
-				defer gl.Enable(gl.DEPTH_TEST)
+					use_shader(line_shader)
+					bind_vertex_array(line_vao)
+					defer unbind_vertex_array()
+					bind_buffer(line_vbo)
+					defer unbind_buffer(.Array)
 
-				use_shader(line_shader)
-				bind_vertex_array(line_vao)
-				defer unbind_vertex_array()
-				bind_buffer(line_vbo)
-				defer unbind_buffer(.Array)
+					gl.UniformMatrix4fv(
+						gl.GetUniformLocation(line_shader.handle, "u_mvp"),
+						1,
+						false,
+						&u_mvp[0, 0],
+					)
 
-				gl.UniformMatrix4fv(
-					gl.GetUniformLocation(line_shader.handle, "u_mvp"),
-					1,
-					false,
-					&u_mvp[0, 0],
-				)
+					buffer_data(line_vbo, state.frame.line_vertices[:])
 
-				buffer_data(line_vbo, state.frame.line_vertices[:])
-
-				gl.DrawArrays(gl.LINES, 0, cast(i32)len(state.frame.line_vertices))
+					gl.DrawArrays(gl.LINES, 0, cast(i32)len(state.frame.line_vertices))
+				}
 			}
 
 			if prof.event("render ui") {
