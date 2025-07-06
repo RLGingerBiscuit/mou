@@ -7,6 +7,7 @@ State :: struct {
 	// Rendering state
 	window:          Window,
 	camera:          Camera,
+	fbo:             Framebuffer,
 	// UI state
 	ui:              UI_State,
 	// Settings

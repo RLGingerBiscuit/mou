@@ -68,7 +68,7 @@ init_window :: proc(
 	gl.load_up_to(GL_MAJOR, GL_MINOR, glfw.gl_set_proc_address)
 
 	WINDOW.flags = visible ? {.Visible} : {}
-	resize_window(WINDOW, size.x, size.y)
+	resize_window(state, size.x, size.y)
 
 	glfw.SetWindowUserPointer(WINDOW.handle, state)
 	glfw.SetFramebufferSizeCallback(WINDOW.handle, _window_framebuffer_size_callback)
@@ -120,13 +120,14 @@ window_center_cursor :: proc(wnd: ^Window) {
 	wnd.cursor = centre
 }
 
-resize_window :: proc(wnd: ^Window, width, height: i32) {
+resize_window :: proc(state: ^State, width, height: i32) {
+	wnd := &state.window
 	assert(width > 0, "window width must be > 0")
 	assert(height > 0, "window height must be > 0")
 	wnd.size = {width, height}
 	gl.Viewport(0, 0, width, height)
 	log.debugf("Window '{}' resized to {}x{}", wnd.title, width, height)
-	// TODO: Recreate framebuffer backings here
+	resize_framebuffer(&state.fbo, width, height)
 }
 
 show_window :: proc(wnd: ^Window) {
@@ -155,7 +156,7 @@ _window_framebuffer_size_callback :: proc "c" (handle: glfw.WindowHandle, width,
 	context = default_context()
 	ptr := glfw.GetWindowUserPointer(handle)
 	state := cast(^State)ptr
-	resize_window(&state.window, width, height)
+	resize_window(state, width, height)
 }
 
 _window_key_callback :: proc "c" (

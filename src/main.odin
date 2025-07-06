@@ -252,7 +252,6 @@ main :: proc() {
 		unbind_vertex_array()
 	}
 
-	// FIXME: framebuffer backings need to resize
 	fbo_colour_tex := make_texture(
 		"::/fbo_colour",
 		WINDOW_WIDTH,
@@ -272,8 +271,8 @@ main :: proc() {
 	)
 	defer destroy_texture(&fbo_depth_tex)
 
-	fbo := make_framebuffer({{.Colour0, &fbo_colour_tex}, {.Depth, &fbo_depth_tex}})
-	defer destroy_framebuffer(&fbo)
+	state.fbo = make_framebuffer({{.Colour0, &fbo_colour_tex}, {.Depth, &fbo_depth_tex}})
+	defer destroy_framebuffer(&state.fbo)
 
 	if prof.event("initial chunk generation") {
 		N := state.render_distance
@@ -448,7 +447,7 @@ main :: proc() {
 			gl.Enable(gl.SCISSOR_TEST)
 
 			if prof.event("render chunks") {
-				bind_framebuffer(fbo, .All)
+				bind_framebuffer(state.fbo, .All)
 				defer unbind_framebuffer(.All)
 				gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
 

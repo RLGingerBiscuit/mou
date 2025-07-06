@@ -34,6 +34,7 @@ make_framebuffer :: proc(attachments: []Framebuffer_Attachment) -> (fbo: Framebu
 	if len(attachments) == 0 {return}
 
 	bind_framebuffer(fbo, .All)
+	defer unbind_framebuffer(.All)
 
 	assert(
 		len(attachments) <= len(Attachment_Type),
@@ -75,8 +76,6 @@ make_framebuffer :: proc(attachments: []Framebuffer_Attachment) -> (fbo: Framebu
 		os.exit(1)
 	}
 
-	unbind_framebuffer(.All)
-
 	return
 }
 
@@ -90,4 +89,39 @@ bind_framebuffer :: proc(fbo: Framebuffer, target: Framebuffer_Target) {
 
 unbind_framebuffer :: proc(target: Framebuffer_Target) {
 	gl.BindFramebuffer(cast(u32)target, 0)
+}
+
+resize_framebuffer :: proc(fbo: ^Framebuffer, width, height: i32) {
+	for a in sa.slice(&fbo.attachments) {
+		new_tex := make_texture(
+			a.tex.name,
+			width,
+			height,
+			a.tex.format,
+			a.tex.wrap,
+			a.tex.filter,
+			a.tex.mipmap,
+			a.tex.allocator,
+		)
+
+		bind_framebuffer(fbo^, .All)
+		defer unbind_framebuffer(.All)
+
+		gl.FramebufferTexture2D(
+			cast(u32)Framebuffer_Target.All,
+			cast(u32)a.type,
+			gl.TEXTURE_2D,
+			new_tex.handle,
+			0,
+		)
+
+		if gl.CheckFramebufferStatus(cast(u32)Framebuffer_Target.All) != gl.FRAMEBUFFER_COMPLETE {
+			log.fatal("Framebuffer resize did not complete")
+			os.exit(1)
+		}
+
+		// NOTE: this'll replace the initial textures, which will be cleaned up in main
+		destroy_texture(a.tex)
+		a.tex^ = new_tex
+	}
 }

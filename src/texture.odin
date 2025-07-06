@@ -11,6 +11,8 @@ Texture :: struct {
 	mipmap:          bool,
 	format:          Format,
 	internal_format: Format,
+	wrap:            Wrap,
+	filter:          Filter,
 	// Only for debug
 	name:            string,
 	allocator:       mem.Allocator,
@@ -66,6 +68,8 @@ make_texture :: proc(
 	tex.height = height
 	tex.mipmap = mipmap
 	tex.format = format
+	tex.wrap = wrap
+	tex.filter = filter
 	tex.allocator = allocator
 	
 	// odinfmt:disable
@@ -158,6 +162,8 @@ image_to_texture :: proc(
 	tex.width = img.width
 	tex.height = img.height
 	tex.mipmap = mipmap
+	tex.wrap = wrap
+	tex.filter = filter
 	tex.allocator = allocator
 
 	format: Format
