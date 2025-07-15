@@ -79,8 +79,6 @@ destroy_image :: proc(img: ^Image, do_log := true) {
 }
 
 image_blit :: proc(destination: ^Image, source: Image, x, y: i32) {
-	// TODO: alpha blending
-
 	// bounds in destination image
 	bounds: [2][2]i32
 	bounds[0].x = x
