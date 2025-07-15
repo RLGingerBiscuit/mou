@@ -101,7 +101,6 @@ resize_framebuffer :: proc(fbo: ^Framebuffer, width, height: i32) {
 			a.tex.wrap,
 			a.tex.filter,
 			a.tex.mipmap,
-			a.tex.allocator,
 		)
 
 		bind_framebuffer(fbo^, .All)

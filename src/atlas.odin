@@ -2,7 +2,6 @@ package mou
 
 import "core:log"
 import glm "core:math/linalg/glsl"
-import "core:mem"
 import "core:os"
 import path "core:path/filepath"
 import "core:strings"
@@ -17,14 +16,10 @@ ATLAS_PADDING :: 1
 Atlas :: struct {
 	uvs:       map[string][2]glm.vec2,
 	texture:   Texture,
-	allocator: mem.Allocator,
 }
 
-make_atlas :: proc(asset_path: string, allocator := context.allocator) -> (atlas: Atlas) {
-	context.allocator = allocator
-
+make_atlas :: proc(asset_path: string) -> (atlas: Atlas) {
 	atlas.uvs = make(map[string][2]glm.vec2)
-	atlas.allocator = allocator
 
 	asset_fd, _ := os.open(asset_path)
 	defer os.close(asset_fd)
@@ -114,7 +109,6 @@ make_atlas :: proc(asset_path: string, allocator := context.allocator) -> (atlas
 }
 
 destroy_atlas :: proc(atlas: ^Atlas) {
-	context.allocator = atlas.allocator
 	for name in atlas.uvs {
 		delete(name)
 	}

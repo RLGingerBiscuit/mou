@@ -17,8 +17,7 @@ Chunk :: struct {
 	mark_demesh: bool,
 }
 
-make_chunk :: proc(pos: glm.ivec3, allocator := context.allocator) -> Chunk {
-	context.allocator = allocator
+make_chunk :: proc(pos: glm.ivec3) -> Chunk {
 	chunk: Chunk
 	chunk.pos = pos
 	chunk.blocks = make([]Block, CHUNK_SIZE)
@@ -26,8 +25,7 @@ make_chunk :: proc(pos: glm.ivec3, allocator := context.allocator) -> Chunk {
 	return chunk
 }
 
-destroy_chunk :: proc(chunk: ^Chunk, allocator := context.allocator) {
-	context.allocator = allocator
+destroy_chunk :: proc(chunk: ^Chunk) {
 	delete(chunk.blocks)
 	chunk^ = {}
 }

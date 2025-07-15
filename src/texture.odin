@@ -57,12 +57,9 @@ make_texture :: proc(
 	wrap := Wrap.Repeat,
 	filter := Filter.Nearest,
 	mipmap := true,
-	allocator := context.allocator,
 ) -> (
 	tex: Texture,
 ) {
-	context.allocator = allocator
-
 	tex.name = strings.clone(name)
 	tex.width = width
 	tex.height = height
@@ -70,7 +67,6 @@ make_texture :: proc(
 	tex.format = format
 	tex.wrap = wrap
 	tex.filter = filter
-	tex.allocator = allocator
 	
 	// odinfmt:disable
 	switch tex.format {
@@ -152,19 +148,15 @@ image_to_texture :: proc(
 	wrap := Wrap.Repeat,
 	filter := Filter.Nearest,
 	mipmap := true,
-	allocator := context.allocator,
 ) -> (
 	tex: Texture,
 ) {
-	context.allocator = allocator
-
 	tex.name = strings.clone(img.name)
 	tex.width = img.width
 	tex.height = img.height
 	tex.mipmap = mipmap
 	tex.wrap = wrap
 	tex.filter = filter
-	tex.allocator = allocator
 
 	format: Format
 	internal_format: Format
@@ -219,7 +211,6 @@ unbind_texture :: proc() {
 }
 
 destroy_texture :: proc(tex: ^Texture) {
-	context.allocator = tex.allocator
 	log.debugf("Destroying texture '{}'", tex.name)
 	gl.DeleteTextures(1, &tex.handle)
 	delete(tex.name)
