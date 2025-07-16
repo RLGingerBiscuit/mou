@@ -270,7 +270,8 @@ mu_update_ui :: proc(state: ^State, dt: f64) {
 	mu.begin(ctx)
 	defer mu.end(ctx)
 
-	if mu.window(ctx, "Minceraft", {10, 10, 580, 440}, {.NO_CLOSE}, FONT_BOUNCY) {
+	// FIXME: for some reason unbeknownst to me making '435' >= 440 breaks resizing???
+	if mu.window(ctx, "Minceraft", {10, 10, 560, 435}, {.NO_CLOSE}, FONT_BOUNCY) {
 		LABEL_WIDTH :: 160
 
 		mu.layout_row(ctx, {LABEL_WIDTH, -1})
