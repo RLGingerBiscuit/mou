@@ -3,5 +3,9 @@
 	"prettier.useTabs": true,
 	"[glsl]": {
 		"editor.insertSpaces": true
+	},
+	"[markdown]": {
+		"editor.tabSize": 2,
+		"prettier.tabWidth": 2
 	}
 }

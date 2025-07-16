@@ -108,12 +108,8 @@ get_frustum_vertices :: proc(f: Frustum) -> [FRUSTUM_VERT_COUNT]Line_Vert {
 	return verts.data
 }
 
-frustum_contains_chunk :: proc(f: Frustum, ipos: glm.ivec3) -> bool {
-	pos := glm.vec3 {
-		f32(ipos.x) * CHUNK_WIDTH,
-		f32(ipos.y) * CHUNK_HEIGHT,
-		f32(ipos.z) * CHUNK_DEPTH,
-	}
+frustum_contains_chunk :: proc(f: Frustum, chunk_pos: Chunk_Pos) -> bool {
+	pos := chunk_pos_to_world_pos(chunk_pos)
 
 	check :: #force_inline proc(p: Frustum_Plane, pos: glm.vec3) -> bool {
 		vert := pos

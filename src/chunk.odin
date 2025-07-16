@@ -6,21 +6,21 @@ import "core:sync"
 CHUNK_WIDTH :: 16
 CHUNK_HEIGHT :: 16
 CHUNK_DEPTH :: 16
-CHUNK_SIZE :: CHUNK_WIDTH * CHUNK_HEIGHT * CHUNK_DEPTH
-CHUNK_MULTIPLIER :: glm.ivec3{CHUNK_WIDTH, CHUNK_HEIGHT, CHUNK_DEPTH}
+CHUNK_BLOCK_COUNT :: CHUNK_WIDTH * CHUNK_HEIGHT * CHUNK_DEPTH
+CHUNK_SIZE :: glm.ivec3{CHUNK_WIDTH, CHUNK_HEIGHT, CHUNK_DEPTH}
 
 Chunk :: struct {
-	pos:         glm.ivec3,
+	pos:         Chunk_Pos,
 	blocks:      []Block `fmt:"-"`,
 	mesh:        ^Chunk_Mesh,
 	mark_remesh: bool,
 	mark_demesh: bool,
 }
 
-make_chunk :: proc(pos: glm.ivec3) -> Chunk {
+make_chunk :: proc(pos: Chunk_Pos) -> Chunk {
 	chunk: Chunk
 	chunk.pos = pos
-	chunk.blocks = make([]Block, CHUNK_SIZE)
+	chunk.blocks = make([]Block, CHUNK_BLOCK_COUNT)
 
 	return chunk
 }
@@ -38,7 +38,7 @@ chunk_marked_demesh :: proc(chunk: ^Chunk) -> bool {
 	return sync.atomic_load(&chunk.mark_demesh)
 }
 
-get_chunk_block :: proc(chunk: Chunk, local_pos: glm.ivec3) -> (Block, bool) {
+get_chunk_block :: proc(chunk: Chunk, local_pos: Local_Pos) -> (Block, bool) {
 	x := local_pos.x
 	y := local_pos.y
 	z := local_pos.z
@@ -62,15 +62,20 @@ get_chunk_layers :: proc(chunk: ^Chunk, start_y, end_y: i32) -> []Block {
 }
 
 get_chunk_centre :: proc(chunk: ^Chunk) -> glm.vec3 {
-	return chunk_pos_to_global_pos(chunk.pos) + ({CHUNK_WIDTH, CHUNK_HEIGHT, CHUNK_DEPTH} / 2)
+	return chunk_pos_centre(chunk.pos)
 }
 
-chunk_pos_centre :: proc(chunk_pos: glm.ivec3) -> glm.vec3 {
-	return chunk_pos_to_global_pos(chunk_pos) + ({CHUNK_WIDTH, CHUNK_HEIGHT, CHUNK_DEPTH} / 2)
+chunk_pos_centre :: proc(chunk_pos: Chunk_Pos) -> glm.vec3 {
+	centre := chunk_pos_to_block_pos(chunk_pos) + Block_Pos(CHUNK_SIZE / 2)
+	return {f32(centre.x), f32(centre.y), f32(centre.z)}
 }
 
-chunk_pos_to_global_pos :: proc(chunk_pos: glm.ivec3) -> glm.vec3 {
+chunk_pos_to_world_pos :: proc(chunk_pos: Chunk_Pos) -> World_Pos {
 	return {f32(chunk_pos.x << 4), f32(chunk_pos.y << 4), f32(chunk_pos.z << 4)}
+}
+
+chunk_pos_to_block_pos :: proc(chunk_pos: Chunk_Pos) -> Block_Pos {
+	return {chunk_pos.x << 4, chunk_pos.y << 4, chunk_pos.z << 4}
 }
 
 local_coords_to_block_index :: proc(x, y, z: i32) -> i32 {

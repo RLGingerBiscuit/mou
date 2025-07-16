@@ -162,7 +162,7 @@ main :: proc() {
 	defer destroy_buffer(&water_vbo)
 
 	{
-		MAX_VERTEX_SIZE :: CHUNK_SIZE * size_of(Mesh_Face) * 3
+		MAX_VERTEX_SIZE :: CHUNK_BLOCK_COUNT * size_of(Mesh_Face) * 3
 		temp := make([]f32, MAX_VERTEX_SIZE, context.temp_allocator)
 		defer delete(temp, context.temp_allocator)
 
@@ -323,12 +323,7 @@ main :: proc() {
 
 			{
 				N := i32(1.2 * f32(state.render_distance))
-				global_pos := glm.ivec3 {
-					i32(state.camera.pos.x),
-					i32(state.camera.pos.y),
-					i32(state.camera.pos.z),
-				}
-				cam_chunk_pos := global_pos_to_chunk_pos(global_pos)
+				cam_chunk_pos := world_pos_to_chunk_pos(state.camera.pos)
 				cam_chunk_pos.y = 0
 
 				if prof.event("generate near chunks") {

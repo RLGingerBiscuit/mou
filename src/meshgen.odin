@@ -1,7 +1,6 @@
 package mou
 
 import "core:log"
-import glm "core:math/linalg/glsl"
 import "core:mem"
 import vmem "core:mem/virtual"
 import "core:sync/chan"
@@ -12,15 +11,16 @@ import "prof"
 MESHGEN_CHAN_CAP :: 16
 
 Meshgen_Msg_Remesh :: struct {
-	pos: glm.ivec3,
+	pos: Chunk_Pos,
 }
 Meshgen_Msg_Demesh :: struct {
-	pos: glm.ivec3,
+	pos: Chunk_Pos,
 }
 Meshgen_Msg_Tombstone :: struct {
 	mesh: ^Chunk_Mesh,
 }
-Meshgen_Msg_Terminate :: struct {}
+Meshgen_Msg_Terminate :: struct {
+}
 
 Meshgen_Msg :: union {
 	Meshgen_Msg_Remesh,
@@ -145,7 +145,7 @@ new_chunk_mesh :: proc(mg: ^Meshgen_Thread, world: ^World) -> ^Chunk_Mesh {
 	mesh, _ := new(Chunk_Mesh)
 
 	// From some *very* basic tests these numbers seem to be alright for now
-	mesh.opaque = make([dynamic]Mesh_Face, 0, CHUNK_SIZE / 48)
+	mesh.opaque = make([dynamic]Mesh_Face, 0, CHUNK_BLOCK_COUNT / 48)
 	mesh.transparent = make([dynamic]Mesh_Face)
 	mesh.water = make([dynamic]Mesh_Face)
 
@@ -159,6 +159,8 @@ mesh_chunk :: proc(world: ^World, chunk: ^Chunk, mesh: ^Chunk_Mesh) {
 
 	WATER_TOP_OFFSET :: (f32(1) / 16)
 
+	chunk_block_pos := chunk_pos_to_block_pos(chunk.pos)
+
 	for y in i32(0) ..< CHUNK_HEIGHT {
 		for z in i32(0) ..< CHUNK_DEPTH {
 			for x in i32(0) ..< CHUNK_WIDTH {
@@ -167,12 +169,12 @@ mesh_chunk :: proc(world: ^World, chunk: ^Chunk, mesh: ^Chunk_Mesh) {
 					continue
 				}
 
-				bnx, bnxok := get_world_block(world^, chunk.pos * CHUNK_MULTIPLIER + {x - 1, y, z})
-				bpx, bpxok := get_world_block(world^, chunk.pos * CHUNK_MULTIPLIER + {x + 1, y, z})
-				bny, bnyok := get_world_block(world^, chunk.pos * CHUNK_MULTIPLIER + {x, y - 1, z})
-				bpy, bpyok := get_world_block(world^, chunk.pos * CHUNK_MULTIPLIER + {x, y + 1, z})
-				bnz, bnzok := get_world_block(world^, chunk.pos * CHUNK_MULTIPLIER + {x, y, z - 1})
-				bpz, bpzok := get_world_block(world^, chunk.pos * CHUNK_MULTIPLIER + {x, y, z + 1})
+				bnx, bnxok := get_world_block(world^, chunk_block_pos + {x - 1, y, z})
+				bpx, bpxok := get_world_block(world^, chunk_block_pos + {x + 1, y, z})
+				bny, bnyok := get_world_block(world^, chunk_block_pos + {x, y - 1, z})
+				bpy, bpyok := get_world_block(world^, chunk_block_pos + {x, y + 1, z})
+				bnz, bnzok := get_world_block(world^, chunk_block_pos + {x, y, z - 1})
+				bpz, bpzok := get_world_block(world^, chunk_block_pos + {x, y, z + 1})
 
 				// Which directions SHOULD faces be placed
 				mask: Block_Face_Mask
@@ -196,25 +198,19 @@ mesh_chunk :: proc(world: ^World, chunk: ^Chunk, mesh: ^Chunk_Mesh) {
 
 				mesh :=
 					block_is_opaque(block) ? &mesh.opaque : block.id == .Water ? &mesh.water : &mesh.transparent
-				block_pos := glm.ivec3{x, y, z}
+				block_pos := chunk_block_pos + Block_Pos{x, y, z}
 				face: Mesh_Face
 
 				if .Neg_Y in mask {
-					face = position_face(.Neg_Y, block_pos, chunk.pos, block, world.atlas)
+					face = position_face(.Neg_Y, block_pos, block, world.atlas)
 					if block.id == .Water {
 						append(mesh, face)
-						face = position_face(
-							.Pos_Y,
-							block_pos + {0, -1, 0},
-							chunk.pos,
-							block,
-							world.atlas,
-						)
+						face = position_face(.Pos_Y, block_pos + {0, -1, 0}, block, world.atlas)
 					}
 					append(mesh, face)
 				}
 				if .Pos_Y in mask {
-					face = position_face(.Pos_Y, block_pos, chunk.pos, block, world.atlas)
+					face = position_face(.Pos_Y, block_pos, block, world.atlas)
 					if block.id == .Water {
 						if bpyok && bpy.id != .Water {
 							face[0].pos.y -= WATER_TOP_OFFSET
@@ -225,13 +221,7 @@ mesh_chunk :: proc(world: ^World, chunk: ^Chunk, mesh: ^Chunk_Mesh) {
 							face[5].pos.y -= WATER_TOP_OFFSET
 						}
 						append(mesh, face)
-						face = position_face(
-							.Neg_Y,
-							block_pos + {0, 1, 0},
-							chunk.pos,
-							block,
-							world.atlas,
-						)
+						face = position_face(.Neg_Y, block_pos + {0, 1, 0}, block, world.atlas)
 						if bpyok && bpy.id != .Water {
 							face[0].pos.y -= WATER_TOP_OFFSET
 							face[1].pos.y -= WATER_TOP_OFFSET
@@ -244,7 +234,7 @@ mesh_chunk :: proc(world: ^World, chunk: ^Chunk, mesh: ^Chunk_Mesh) {
 					append(mesh, face)
 				}
 				if .Neg_Z in mask {
-					face = position_face(.Neg_Z, block_pos, chunk.pos, block, world.atlas)
+					face = position_face(.Neg_Z, block_pos, block, world.atlas)
 					if block.id == .Water {
 						if bpyok && bpy.id != .Water {
 							face[0].pos.y -= WATER_TOP_OFFSET
@@ -252,13 +242,7 @@ mesh_chunk :: proc(world: ^World, chunk: ^Chunk, mesh: ^Chunk_Mesh) {
 							face[5].pos.y -= WATER_TOP_OFFSET
 						}
 						append(mesh, face)
-						face = position_face(
-							.Pos_Z,
-							block_pos + {0, 0, -1},
-							chunk.pos,
-							block,
-							world.atlas,
-						)
+						face = position_face(.Pos_Z, block_pos + {0, 0, -1}, block, world.atlas)
 						if bpyok && bpy.id != .Water {
 							face[0].pos.y -= WATER_TOP_OFFSET
 							face[4].pos.y -= WATER_TOP_OFFSET
@@ -268,7 +252,7 @@ mesh_chunk :: proc(world: ^World, chunk: ^Chunk, mesh: ^Chunk_Mesh) {
 					append(mesh, face)
 				}
 				if .Pos_Z in mask {
-					face = position_face(.Pos_Z, block_pos, chunk.pos, block, world.atlas)
+					face = position_face(.Pos_Z, block_pos, block, world.atlas)
 					if block.id == .Water {
 						if bpyok && bpy.id != .Water {
 							face[0].pos.y -= WATER_TOP_OFFSET
@@ -276,13 +260,7 @@ mesh_chunk :: proc(world: ^World, chunk: ^Chunk, mesh: ^Chunk_Mesh) {
 							face[5].pos.y -= WATER_TOP_OFFSET
 						}
 						append(mesh, face)
-						face = position_face(
-							.Neg_Z,
-							block_pos + {0, 0, 1},
-							chunk.pos,
-							block,
-							world.atlas,
-						)
+						face = position_face(.Neg_Z, block_pos + {0, 0, 1}, block, world.atlas)
 						if bpyok && bpy.id != .Water {
 							face[0].pos.y -= WATER_TOP_OFFSET
 							face[4].pos.y -= WATER_TOP_OFFSET
@@ -292,7 +270,7 @@ mesh_chunk :: proc(world: ^World, chunk: ^Chunk, mesh: ^Chunk_Mesh) {
 					append(mesh, face)
 				}
 				if .Neg_X in mask {
-					face = position_face(.Neg_X, block_pos, chunk.pos, block, world.atlas)
+					face = position_face(.Neg_X, block_pos, block, world.atlas)
 					if block.id == .Water {
 						if bpyok && bpy.id != .Water {
 							face[0].pos.y -= WATER_TOP_OFFSET
@@ -300,13 +278,7 @@ mesh_chunk :: proc(world: ^World, chunk: ^Chunk, mesh: ^Chunk_Mesh) {
 							face[5].pos.y -= WATER_TOP_OFFSET
 						}
 						append(mesh, face)
-						face = position_face(
-							.Pos_X,
-							block_pos + {-1, 0, 0},
-							chunk.pos,
-							block,
-							world.atlas,
-						)
+						face = position_face(.Pos_X, block_pos + {-1, 0, 0}, block, world.atlas)
 						if bpyok && bpy.id != .Water {
 							face[0].pos.y -= WATER_TOP_OFFSET
 							face[4].pos.y -= WATER_TOP_OFFSET
@@ -316,7 +288,7 @@ mesh_chunk :: proc(world: ^World, chunk: ^Chunk, mesh: ^Chunk_Mesh) {
 					append(mesh, face)
 				}
 				if .Pos_X in mask {
-					face = position_face(.Pos_X, block_pos, chunk.pos, block, world.atlas)
+					face = position_face(.Pos_X, block_pos, block, world.atlas)
 					if block.id == .Water {
 						if bpyok && bpy.id != .Water {
 							face[0].pos.y -= WATER_TOP_OFFSET
@@ -324,13 +296,7 @@ mesh_chunk :: proc(world: ^World, chunk: ^Chunk, mesh: ^Chunk_Mesh) {
 							face[5].pos.y -= WATER_TOP_OFFSET
 						}
 						append(mesh, face)
-						face = position_face(
-							.Neg_X,
-							block_pos + {1, 0, 0},
-							chunk.pos,
-							block,
-							world.atlas,
-						)
+						face = position_face(.Neg_X, block_pos + {1, 0, 0}, block, world.atlas)
 						if bpyok && bpy.id != .Water {
 							face[0].pos.y -= WATER_TOP_OFFSET
 							face[4].pos.y -= WATER_TOP_OFFSET
@@ -347,48 +313,46 @@ mesh_chunk :: proc(world: ^World, chunk: ^Chunk, mesh: ^Chunk_Mesh) {
 @(private = "file")
 position_face :: #force_inline proc(
 	$face: Block_Face_Bit,
-	block_pos: glm.ivec3,
-	chunk_pos: glm.ivec3,
+	block_pos: Block_Pos,
 	block: Block,
 	atlas: ^Atlas,
 ) -> Mesh_Face {
 	face_data := FACE_PLANES[face]
 
-	pos_i := chunk_pos * CHUNK_MULTIPLIER + block_pos
-	pos := glm.vec3{f32(pos_i.x), f32(pos_i.y), f32(pos_i.z)}
+	world_pos := block_pos_to_world_pos(block_pos)
 	uvs := atlas.uvs[block_asset_name(block, face)]
 
-	face_data[0].pos += pos
+	face_data[0].pos += world_pos
 	face_data[0].tex_coord = {
 		uvs[int(face_data[0].tex_coord.x)].x,
 		uvs[int(face_data[0].tex_coord.y)].y,
 	}
 
-	face_data[1].pos += pos
+	face_data[1].pos += world_pos
 	face_data[1].tex_coord = {
 		uvs[int(face_data[1].tex_coord.x)].x,
 		uvs[int(face_data[1].tex_coord.y)].y,
 	}
 
-	face_data[2].pos += pos
+	face_data[2].pos += world_pos
 	face_data[2].tex_coord = {
 		uvs[int(face_data[2].tex_coord.x)].x,
 		uvs[int(face_data[2].tex_coord.y)].y,
 	}
 
-	face_data[3].pos += pos
+	face_data[3].pos += world_pos
 	face_data[3].tex_coord = {
 		uvs[int(face_data[3].tex_coord.x)].x,
 		uvs[int(face_data[3].tex_coord.y)].y,
 	}
 
-	face_data[4].pos += pos
+	face_data[4].pos += world_pos
 	face_data[4].tex_coord = {
 		uvs[int(face_data[4].tex_coord.x)].x,
 		uvs[int(face_data[4].tex_coord.y)].y,
 	}
 
-	face_data[5].pos += pos
+	face_data[5].pos += world_pos
 	face_data[5].tex_coord = {
 		uvs[int(face_data[5].tex_coord.x)].x,
 		uvs[int(face_data[5].tex_coord.y)].y,

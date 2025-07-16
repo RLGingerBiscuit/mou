@@ -13,15 +13,20 @@ import "core:sync/chan"
 import "noise"
 import "prof"
 
+World_Pos :: glm.vec3 // Player pos in world
+Block_Pos :: glm.ivec3 // Block pos in world
+Chunk_Pos :: glm.ivec3 // Chunk in world
+Local_Pos :: glm.ivec3 // Block pos in chunk
+
 WATER_LEVEL :: 12
 
 World_Msg_Meshed :: struct {
-	chunk_pos: glm.ivec3,
+	chunk_pos: Chunk_Pos,
 	mesh:      ^Chunk_Mesh,
 }
 
 World_Msg_Demeshed :: struct {
-	chunk_pos: glm.ivec3,
+	chunk_pos: Chunk_Pos,
 }
 
 World_Msg :: union {
@@ -30,7 +35,7 @@ World_Msg :: union {
 }
 
 World :: struct {
-	chunks:          map[glm.ivec3]Chunk,
+	chunks:          map[Chunk_Pos]Chunk,
 	meshgen_thread:  Meshgen_Thread,
 	meshgen_tx:      chan.Chan(Meshgen_Msg, chan.Direction.Send),
 	rx:              chan.Chan(World_Msg, chan.Direction.Recv),
@@ -47,7 +52,7 @@ init_world :: proc(world: ^World, atlas: ^Atlas) {
 	ensure(vmem.arena_init_growing(&world.arena) == nil)
 
 	context.allocator = vmem.arena_allocator(&world.arena)
-	world.chunks = make(map[glm.ivec3]Chunk)
+	world.chunks = make(map[Chunk_Pos]Chunk)
 	world.chunk_msg_stack = make(
 		[dynamic]Meshgen_Msg,
 		0,
@@ -73,7 +78,7 @@ world_update :: proc(world: ^World, player_pos: glm.vec3) {
 			proc(i, j: Meshgen_Msg) -> bool {
 				player_pos := cast(^glm.vec3)context.user_ptr
 				i_dist, j_dist: f32
-				j_pos: glm.ivec3
+				j_pos: Chunk_Pos
 
 				switch vi in i {
 				// Give terminate/tombstone priority (send to top of stack)
@@ -152,7 +157,7 @@ world_update :: proc(world: ^World, player_pos: glm.vec3) {
 // Returns true if a chunk was generated, false if it was already generated.
 //
 // NOTE: Caller needs to have the lock on the world.
-world_generate_chunk :: proc(world: ^World, chunk_pos: glm.ivec3) -> bool {
+world_generate_chunk :: proc(world: ^World, chunk_pos: Chunk_Pos) -> bool {
 	context.allocator = vmem.arena_allocator(&world.arena)
 
 	if _, found := world.chunks[chunk_pos]; found {
@@ -220,7 +225,7 @@ world_generate_chunk :: proc(world: ^World, chunk_pos: glm.ivec3) -> bool {
 }
 
 // NOTE: caller needs to have the lock on the world
-world_fill_chunk :: proc(world: ^World, chunk_pos: glm.ivec3, block: Block) {
+world_fill_chunk :: proc(world: ^World, chunk_pos: Chunk_Pos, block: Block) {
 	context.allocator = vmem.arena_allocator(&world.arena)
 
 	chunk: ^Chunk
@@ -234,7 +239,7 @@ world_fill_chunk :: proc(world: ^World, chunk_pos: glm.ivec3, block: Block) {
 	world_remesh_surrounding_chunks(world, chunk_pos)
 }
 
-world_remesh_surrounding_chunks :: proc(world: ^World, chunk_pos: glm.ivec3) {
+world_remesh_surrounding_chunks :: proc(world: ^World, chunk_pos: Chunk_Pos) {
 	for z in i32(-1) ..= 1 {
 		for y in i32(-1) ..= 1 {
 			for x in i32(-1) ..= 1 {
@@ -264,21 +269,29 @@ world_mark_chunk_demesh :: proc(world: ^World, chunk: ^Chunk) {
 	}
 }
 
-global_pos_to_chunk_pos :: proc(global_pos: glm.ivec3) -> glm.ivec3 {
-	return {global_pos.x >> 4, global_pos.y >> 4, global_pos.z >> 4}
+world_pos_to_chunk_pos :: proc(world_pos: World_Pos) -> Chunk_Pos {
+	return {i32(world_pos.x) >> 4, i32(world_pos.y) >> 4, i32(world_pos.z) >> 4}
 }
 
-global_pos_to_local_pos :: proc(global_pos: glm.ivec3) -> glm.ivec3 {
-	return global_pos - global_pos_to_chunk_pos(global_pos) * 16
+block_pos_to_world_pos :: proc(block_pos: Block_Pos) -> World_Pos {
+	return {f32(block_pos.x), f32(block_pos.y), f32(block_pos.z)}
 }
 
-get_world_chunk :: proc(world: World, chunk_pos: glm.ivec3) -> (c: Chunk, ok: bool) {
-	return world.chunks[chunk_pos]
+block_pos_to_chunk_pos :: proc(block_pos: Block_Pos) -> Chunk_Pos {
+	return {block_pos.x >> 4, block_pos.y >> 4, block_pos.z >> 4}
 }
 
-get_world_block :: proc(world: World, global_pos: glm.ivec3) -> (b: Block, ok: bool) {
-	chunk_pos := global_pos_to_chunk_pos(global_pos)
-	local_pos := global_pos - chunk_pos * CHUNK_MULTIPLIER
+block_pos_to_local_pos :: proc(block_pos: Block_Pos) -> Local_Pos {
+	return block_pos - block_pos_to_chunk_pos(block_pos) * CHUNK_SIZE
+}
+
+get_world_chunk :: proc(world: World, chunk_pos: Chunk_Pos) -> (c: ^Chunk, ok: bool) {
+	return &world.chunks[chunk_pos]
+}
+
+get_world_block :: proc(world: World, block_pos: Block_Pos) -> (b: Block, ok: bool) {
+	chunk_pos := block_pos_to_chunk_pos(block_pos)
+	local_pos := block_pos_to_local_pos(block_pos)
 	chunk := get_world_chunk(world, chunk_pos) or_return
-	return get_chunk_block(chunk, local_pos)
+	return get_chunk_block(chunk^, local_pos)
 }
