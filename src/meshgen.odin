@@ -19,8 +19,7 @@ Meshgen_Msg_Demesh :: struct {
 Meshgen_Msg_Tombstone :: struct {
 	mesh: ^Chunk_Mesh,
 }
-Meshgen_Msg_Terminate :: struct {
-}
+Meshgen_Msg_Terminate :: struct {}
 
 Meshgen_Msg :: union {
 	Meshgen_Msg_Remesh,
@@ -176,8 +175,30 @@ mesh_chunk :: proc(world: ^World, chunk: ^Chunk, mesh: ^Chunk_Mesh) {
 				bnz, bnzok := get_world_block(world^, chunk_block_pos + {x, y, z - 1})
 				bpz, bpzok := get_world_block(world^, chunk_block_pos + {x, y, z + 1})
 
+				bnnn, bnnnok := get_world_block(world^, chunk_block_pos + {x - 1, y - 1, z - 1})
+				bnnz, bnnzok := get_world_block(world^, chunk_block_pos + {x - 1, y - 1, z + 0})
+				bnnp, bnnpok := get_world_block(world^, chunk_block_pos + {x - 1, y - 1, z + 1})
+				bnzn, bnznok := get_world_block(world^, chunk_block_pos + {x - 1, y + 0, z - 1})
+				bnzp, bnzpok := get_world_block(world^, chunk_block_pos + {x - 1, y + 0, z + 1})
+				bnpn, bnpnok := get_world_block(world^, chunk_block_pos + {x - 1, y + 1, z - 1})
+				bnpz, bnpzok := get_world_block(world^, chunk_block_pos + {x - 1, y + 1, z + 0})
+				bnpp, bnppok := get_world_block(world^, chunk_block_pos + {x - 1, y + 1, z + 1})
+				bznn, bznnok := get_world_block(world^, chunk_block_pos + {x + 0, y - 1, z - 1})
+				bznp, bznpok := get_world_block(world^, chunk_block_pos + {x + 0, y - 1, z + 1})
+				bzpn, bzpnok := get_world_block(world^, chunk_block_pos + {x + 0, y + 1, z - 1})
+				bzpp, bzppok := get_world_block(world^, chunk_block_pos + {x + 0, y + 1, z + 1})
+				bpnn, bpnnok := get_world_block(world^, chunk_block_pos + {x + 1, y - 1, z - 1})
+				bpnz, bpnzok := get_world_block(world^, chunk_block_pos + {x + 1, y - 1, z + 0})
+				bpnp, bpnpok := get_world_block(world^, chunk_block_pos + {x + 1, y - 1, z + 1})
+				bpzn, bpznok := get_world_block(world^, chunk_block_pos + {x + 1, y + 0, z - 1})
+				bpzp, bpzpok := get_world_block(world^, chunk_block_pos + {x + 1, y + 0, z + 1})
+				bppn, bppnok := get_world_block(world^, chunk_block_pos + {x + 1, y + 1, z - 1})
+				bppz, bppzok := get_world_block(world^, chunk_block_pos + {x + 1, y + 1, z + 0})
+				bppp, bpppok := get_world_block(world^, chunk_block_pos + {x + 1, y + 1, z + 1})
+
 				// Which directions SHOULD faces be placed
 				mask: Block_Face_Mask
+				ao_mask: Block_Diag_Mask
 
 				mask |=
 					bnxok && bnx.id != .Air && (block_is_opaque(bnx) || (bnx.id == block.id && block_culls_self(bnx))) ? {} : {.Neg_X}
@@ -192,6 +213,27 @@ mesh_chunk :: proc(world: ^World, chunk: ^Chunk, mesh: ^Chunk_Mesh) {
 				mask |=
 					bpzok && bpz.id != .Air && (block_is_opaque(bpz) || (bpz.id == block.id && block_culls_self(bpz))) ? {} : {.Pos_Z}
 
+				ao_mask |= bnnnok && bnnn.id != .Air && block_is_opaque(bnnn) ? {.NNN} : {}
+				ao_mask |= bnnzok && bnnz.id != .Air && block_is_opaque(bnnz) ? {.NNZ} : {}
+				ao_mask |= bnnpok && bnnp.id != .Air && block_is_opaque(bnnp) ? {.NNP} : {}
+				ao_mask |= bnznok && bnzn.id != .Air && block_is_opaque(bnzn) ? {.NZN} : {}
+				ao_mask |= bnzpok && bnzp.id != .Air && block_is_opaque(bnzp) ? {.NZP} : {}
+				ao_mask |= bnpnok && bnpn.id != .Air && block_is_opaque(bnpn) ? {.NPN} : {}
+				ao_mask |= bnpzok && bnpz.id != .Air && block_is_opaque(bnpz) ? {.NPZ} : {}
+				ao_mask |= bnppok && bnpp.id != .Air && block_is_opaque(bnpp) ? {.NPP} : {}
+				ao_mask |= bznnok && bznn.id != .Air && block_is_opaque(bznn) ? {.ZNN} : {}
+				ao_mask |= bznpok && bznp.id != .Air && block_is_opaque(bznp) ? {.ZNP} : {}
+				ao_mask |= bzpnok && bzpn.id != .Air && block_is_opaque(bzpn) ? {.ZPN} : {}
+				ao_mask |= bzppok && bzpp.id != .Air && block_is_opaque(bzpp) ? {.ZPP} : {}
+				ao_mask |= bpnnok && bpnn.id != .Air && block_is_opaque(bpnn) ? {.PNN} : {}
+				ao_mask |= bpnzok && bpnz.id != .Air && block_is_opaque(bpnz) ? {.PNZ} : {}
+				ao_mask |= bpnpok && bpnp.id != .Air && block_is_opaque(bpnp) ? {.PNP} : {}
+				ao_mask |= bpznok && bpzn.id != .Air && block_is_opaque(bpzn) ? {.PZN} : {}
+				ao_mask |= bpzpok && bpzp.id != .Air && block_is_opaque(bpzp) ? {.PZP} : {}
+				ao_mask |= bppnok && bppn.id != .Air && block_is_opaque(bppn) ? {.PPN} : {}
+				ao_mask |= bppzok && bppz.id != .Air && block_is_opaque(bppz) ? {.PPZ} : {}
+				ao_mask |= bpppok && bppp.id != .Air && block_is_opaque(bppp) ? {.PPP} : {}
+
 				if mask == {} {
 					continue
 				}
@@ -202,15 +244,21 @@ mesh_chunk :: proc(world: ^World, chunk: ^Chunk, mesh: ^Chunk_Mesh) {
 				face: Mesh_Face
 
 				if .Neg_Y in mask {
-					face = position_face(.Neg_Y, block_pos, block, world.atlas)
+					face = position_face(.Neg_Y, ao_mask, block_pos, block, world.atlas)
 					if block.id == .Water {
 						append(mesh, face)
-						face = position_face(.Pos_Y, block_pos + {0, -1, 0}, block, world.atlas)
+						face = position_face(
+							.Pos_Y,
+							ao_mask,
+							block_pos + {0, -1, 0},
+							block,
+							world.atlas,
+						)
 					}
 					append(mesh, face)
 				}
 				if .Pos_Y in mask {
-					face = position_face(.Pos_Y, block_pos, block, world.atlas)
+					face = position_face(.Pos_Y, ao_mask, block_pos, block, world.atlas)
 					if block.id == .Water {
 						if bpyok && bpy.id != .Water {
 							face[0].pos.y -= WATER_TOP_OFFSET
@@ -221,7 +269,13 @@ mesh_chunk :: proc(world: ^World, chunk: ^Chunk, mesh: ^Chunk_Mesh) {
 							face[5].pos.y -= WATER_TOP_OFFSET
 						}
 						append(mesh, face)
-						face = position_face(.Neg_Y, block_pos + {0, 1, 0}, block, world.atlas)
+						face = position_face(
+							.Neg_Y,
+							ao_mask,
+							block_pos + {0, 1, 0},
+							block,
+							world.atlas,
+						)
 						if bpyok && bpy.id != .Water {
 							face[0].pos.y -= WATER_TOP_OFFSET
 							face[1].pos.y -= WATER_TOP_OFFSET
@@ -234,7 +288,7 @@ mesh_chunk :: proc(world: ^World, chunk: ^Chunk, mesh: ^Chunk_Mesh) {
 					append(mesh, face)
 				}
 				if .Neg_Z in mask {
-					face = position_face(.Neg_Z, block_pos, block, world.atlas)
+					face = position_face(.Neg_Z, ao_mask, block_pos, block, world.atlas)
 					if block.id == .Water {
 						if bpyok && bpy.id != .Water {
 							face[0].pos.y -= WATER_TOP_OFFSET
@@ -242,7 +296,13 @@ mesh_chunk :: proc(world: ^World, chunk: ^Chunk, mesh: ^Chunk_Mesh) {
 							face[5].pos.y -= WATER_TOP_OFFSET
 						}
 						append(mesh, face)
-						face = position_face(.Pos_Z, block_pos + {0, 0, -1}, block, world.atlas)
+						face = position_face(
+							.Pos_Z,
+							ao_mask,
+							block_pos + {0, 0, -1},
+							block,
+							world.atlas,
+						)
 						if bpyok && bpy.id != .Water {
 							face[0].pos.y -= WATER_TOP_OFFSET
 							face[4].pos.y -= WATER_TOP_OFFSET
@@ -252,7 +312,7 @@ mesh_chunk :: proc(world: ^World, chunk: ^Chunk, mesh: ^Chunk_Mesh) {
 					append(mesh, face)
 				}
 				if .Pos_Z in mask {
-					face = position_face(.Pos_Z, block_pos, block, world.atlas)
+					face = position_face(.Pos_Z, ao_mask, block_pos, block, world.atlas)
 					if block.id == .Water {
 						if bpyok && bpy.id != .Water {
 							face[0].pos.y -= WATER_TOP_OFFSET
@@ -260,7 +320,13 @@ mesh_chunk :: proc(world: ^World, chunk: ^Chunk, mesh: ^Chunk_Mesh) {
 							face[5].pos.y -= WATER_TOP_OFFSET
 						}
 						append(mesh, face)
-						face = position_face(.Neg_Z, block_pos + {0, 0, 1}, block, world.atlas)
+						face = position_face(
+							.Neg_Z,
+							ao_mask,
+							block_pos + {0, 0, 1},
+							block,
+							world.atlas,
+						)
 						if bpyok && bpy.id != .Water {
 							face[0].pos.y -= WATER_TOP_OFFSET
 							face[4].pos.y -= WATER_TOP_OFFSET
@@ -270,7 +336,7 @@ mesh_chunk :: proc(world: ^World, chunk: ^Chunk, mesh: ^Chunk_Mesh) {
 					append(mesh, face)
 				}
 				if .Neg_X in mask {
-					face = position_face(.Neg_X, block_pos, block, world.atlas)
+					face = position_face(.Neg_X, ao_mask, block_pos, block, world.atlas)
 					if block.id == .Water {
 						if bpyok && bpy.id != .Water {
 							face[0].pos.y -= WATER_TOP_OFFSET
@@ -278,7 +344,13 @@ mesh_chunk :: proc(world: ^World, chunk: ^Chunk, mesh: ^Chunk_Mesh) {
 							face[5].pos.y -= WATER_TOP_OFFSET
 						}
 						append(mesh, face)
-						face = position_face(.Pos_X, block_pos + {-1, 0, 0}, block, world.atlas)
+						face = position_face(
+							.Pos_X,
+							ao_mask,
+							block_pos + {-1, 0, 0},
+							block,
+							world.atlas,
+						)
 						if bpyok && bpy.id != .Water {
 							face[0].pos.y -= WATER_TOP_OFFSET
 							face[4].pos.y -= WATER_TOP_OFFSET
@@ -288,7 +360,7 @@ mesh_chunk :: proc(world: ^World, chunk: ^Chunk, mesh: ^Chunk_Mesh) {
 					append(mesh, face)
 				}
 				if .Pos_X in mask {
-					face = position_face(.Pos_X, block_pos, block, world.atlas)
+					face = position_face(.Pos_X, ao_mask, block_pos, block, world.atlas)
 					if block.id == .Water {
 						if bpyok && bpy.id != .Water {
 							face[0].pos.y -= WATER_TOP_OFFSET
@@ -296,7 +368,13 @@ mesh_chunk :: proc(world: ^World, chunk: ^Chunk, mesh: ^Chunk_Mesh) {
 							face[5].pos.y -= WATER_TOP_OFFSET
 						}
 						append(mesh, face)
-						face = position_face(.Neg_X, block_pos + {1, 0, 0}, block, world.atlas)
+						face = position_face(
+							.Neg_X,
+							ao_mask,
+							block_pos + {1, 0, 0},
+							block,
+							world.atlas,
+						)
 						if bpyok && bpy.id != .Water {
 							face[0].pos.y -= WATER_TOP_OFFSET
 							face[4].pos.y -= WATER_TOP_OFFSET
@@ -313,11 +391,61 @@ mesh_chunk :: proc(world: ^World, chunk: ^Chunk, mesh: ^Chunk_Mesh) {
 @(private = "file")
 position_face :: #force_inline proc(
 	$face: Block_Face_Bit,
+	ao_mask: Block_Diag_Mask,
 	block_pos: Block_Pos,
 	block: Block,
 	atlas: ^Atlas,
 ) -> Mesh_Face {
 	face_data := FACE_PLANES[face]
+
+	ao_index :: #force_inline proc(s1, s2, c: bool) -> u8 {
+		if s1 && s2 {
+			return 3
+		} else if (s1 || s2) && c {
+			return 2
+		} else if !s1 && !s2 && !c {
+			return 0
+		} else {
+			return 1
+		}
+	}
+
+	side_ao :: #force_inline proc(mask: Block_Diag_Mask, n: [8]Block_Diag_Bit) -> [4]u8 {
+		ns: [8]bool
+		for x, i in n {
+			ns[i] = x in mask
+		}
+		return {
+			ao_index(ns[4], ns[6], ns[5]),
+			ao_index(ns[2], ns[4], ns[3]),
+			ao_index(ns[0], ns[2], ns[1]),
+			ao_index(ns[6], ns[0], ns[7]),
+		}
+	}
+
+	if block.id != .Water {
+		ao := side_ao(ao_mask, FACE_NEIGHBOURS[face])
+
+		face_data[0].ao = AO_DATA[ao[0]] // tl
+		face_data[5].ao = AO_DATA[ao[0]]
+
+		face_data[1].ao = AO_DATA[ao[1]] // bl
+
+		face_data[2].ao = AO_DATA[ao[2]] // br
+		face_data[3].ao = AO_DATA[ao[2]]
+
+		face_data[4].ao = AO_DATA[ao[3]] // tr
+
+		// flip face to get rid if nasty anisotropy
+		if ao[1] + ao[3] < ao[0] + ao[2] {
+			face_data[0] = face_data[1] // 0=1
+			face_data[1] = face_data[2] // 1=2
+			face_data[2] = face_data[4] // 2=4
+			face_data[3] = face_data[4] // 3=4
+			face_data[4] = face_data[5] // 4=5
+			face_data[5] = face_data[0] // 5=1
+		}
+	}
 
 	world_pos := block_pos_to_world_pos(block_pos)
 	uvs := atlas.uvs[block_asset_name(block, face)]
@@ -382,56 +510,66 @@ position_face :: #force_inline proc(
 // odinfmt:disable
 @(private = "file")
 VERTEX_INPUT_COUNT :: size_of(Mesh_Face)
-// odinfmt:disable
+@(rodata, private = "file")
+AO_DATA := [?]f32{0, 0.25, 0.5, 0.75}
+@( private = "file")
+FACE_NEIGHBOURS :: [Block_Face_Bit][8]Block_Diag_Bit {
+	.Neg_X={.NZP, .NNP, .NNZ, .NNN, .NZN, .NPN, .NPZ, .NPP},
+	.Pos_X={.PZN, .PNN, .PNZ, .PNP, .PZP, .PPP, .PPZ, .PPN},
+	.Neg_Y={.NNZ, .NNP, .ZNP, .PNP, .PNZ, .PNN, .ZNN, .NNN},
+	.Pos_Y={.ZPP, .NPP, .NPZ, .NPN, .ZPN, .PPN, .PPZ, .PPP},
+	.Neg_Z={.NZN, .NNN, .ZNN, .PNN, .PZN, .PPN, .ZPN, .NPN},
+	.Pos_Z={.PZP, .PNP, .ZNP, .NNP, .NZP, .NPP, .ZPP, .PPP},
+}
 @(private = "file")
 FACE_PLANES :: [Block_Face_Bit]Mesh_Face {
 	.Neg_X={// Left
-	{{-0.5,  0.5, -0.5},  {0, 0},  {255, 255, 255, 255}},
-	{{-0.5, -0.5, -0.5},  {0, 1},  {255, 255, 255, 255}},
-	{{-0.5, -0.5,  0.5},  {1, 1},  {255, 255, 255, 255}},
-	{{-0.5, -0.5,  0.5},  {1, 1},  {255, 255, 255, 255}},
-	{{-0.5,  0.5,  0.5},  {1, 0},  {255, 255, 255, 255}},
-	{{-0.5,  0.5, -0.5},  {0, 0},  {255, 255, 255, 255}},
+	{{-0.5,  0.5, -0.5},  {0, 0},  {255, 255, 255, 255}, 0},
+	{{-0.5, -0.5, -0.5},  {0, 1},  {255, 255, 255, 255}, 0},
+	{{-0.5, -0.5,  0.5},  {1, 1},  {255, 255, 255, 255}, 0},
+	{{-0.5, -0.5,  0.5},  {1, 1},  {255, 255, 255, 255}, 0},
+	{{-0.5,  0.5,  0.5},  {1, 0},  {255, 255, 255, 255}, 0},
+	{{-0.5,  0.5, -0.5},  {0, 0},  {255, 255, 255, 255}, 0},
 },
 	.Pos_X={// Right
-	{{ 0.5,  0.5,  0.5},  {0, 0},  {255, 255, 255, 255}},
-	{{ 0.5, -0.5,  0.5},  {0, 1},  {255, 255, 255, 255}},
-	{{ 0.5, -0.5, -0.5},  {1, 1},  {255, 255, 255, 255}},
-	{{ 0.5, -0.5, -0.5},  {1, 1},  {255, 255, 255, 255}},
-	{{ 0.5,  0.5, -0.5},  {1, 0},  {255, 255, 255, 255}},
-	{{ 0.5,  0.5,  0.5},  {0, 0},  {255, 255, 255, 255}},
+	{{ 0.5,  0.5,  0.5},  {0, 0},  {255, 255, 255, 255}, 0},
+	{{ 0.5, -0.5,  0.5},  {0, 1},  {255, 255, 255, 255}, 0},
+	{{ 0.5, -0.5, -0.5},  {1, 1},  {255, 255, 255, 255}, 0},
+	{{ 0.5, -0.5, -0.5},  {1, 1},  {255, 255, 255, 255}, 0},
+	{{ 0.5,  0.5, -0.5},  {1, 0},  {255, 255, 255, 255}, 0},
+	{{ 0.5,  0.5,  0.5},  {0, 0},  {255, 255, 255, 255}, 0},
 },
 	.Neg_Y={// Bottom
-	{{-0.5, -0.5,  0.5},  {1, 1},  {255, 255, 255, 255}},
-	{{-0.5, -0.5, -0.5},  {1, 0},  {255, 255, 255, 255}},
-	{{ 0.5, -0.5, -0.5},  {0, 0},  {255, 255, 255, 255}},
-	{{ 0.5, -0.5, -0.5},  {0, 0},  {255, 255, 255, 255}},
-	{{ 0.5, -0.5,  0.5},  {0, 1},  {255, 255, 255, 255}},
-	{{-0.5, -0.5,  0.5},  {1, 1},  {255, 255, 255, 255}},
+	{{ 0.5, -0.5, -0.5},  {0, 0},  {255, 255, 255, 255}, 0},
+	{{ 0.5, -0.5,  0.5},  {0, 1},  {255, 255, 255, 255}, 0},
+	{{-0.5, -0.5,  0.5},  {1, 1},  {255, 255, 255, 255}, 0},
+	{{-0.5, -0.5,  0.5},  {1, 1},  {255, 255, 255, 255}, 0},
+	{{-0.5, -0.5, -0.5},  {1, 0},  {255, 255, 255, 255}, 0},
+	{{ 0.5, -0.5, -0.5},  {0, 0},  {255, 255, 255, 255}, 0},
 },
 	.Pos_Y={// Top
-	{{-0.5,  0.5, -0.5},  {1, 1},  {255, 255, 255, 255}},
-	{{-0.5,  0.5,  0.5},  {1, 0},  {255, 255, 255, 255}},
-	{{ 0.5,  0.5,  0.5},  {0, 0},  {255, 255, 255, 255}},
-	{{ 0.5,  0.5,  0.5},  {0, 0},  {255, 255, 255, 255}},
-	{{ 0.5,  0.5, -0.5},  {0, 1},  {255, 255, 255, 255}},
-	{{-0.5,  0.5, -0.5},  {1, 1},  {255, 255, 255, 255}},
+	{{ 0.5,  0.5, -0.5},  {0, 1},  {255, 255, 255, 255}, 0},
+	{{-0.5,  0.5, -0.5},  {1, 1},  {255, 255, 255, 255}, 0},
+	{{-0.5,  0.5,  0.5},  {1, 0},  {255, 255, 255, 255}, 0},
+	{{-0.5,  0.5,  0.5},  {1, 0},  {255, 255, 255, 255}, 0},
+	{{ 0.5,  0.5,  0.5},  {0, 0},  {255, 255, 255, 255}, 0},
+	{{ 0.5,  0.5, -0.5},  {0, 1},  {255, 255, 255, 255}, 0},
 },
 	.Pos_Z={// Front
-	{{-0.5,  0.5,  0.5},  {0, 0},  {255, 255, 255, 255}},
-	{{-0.5, -0.5,  0.5},  {0, 1},  {255, 255, 255, 255}},
-	{{ 0.5, -0.5,  0.5},  {1, 1},  {255, 255, 255, 255}},
-	{{ 0.5, -0.5,  0.5},  {1, 1},  {255, 255, 255, 255}},
-	{{ 0.5,  0.5,  0.5},  {1, 0},  {255, 255, 255, 255}},
-	{{-0.5,  0.5,  0.5},  {0, 0},  {255, 255, 255, 255}},
+	{{-0.5,  0.5,  0.5},  {0, 0},  {255, 255, 255, 255}, 0},
+	{{-0.5, -0.5,  0.5},  {0, 1},  {255, 255, 255, 255}, 0},
+	{{ 0.5, -0.5,  0.5},  {1, 1},  {255, 255, 255, 255}, 0},
+	{{ 0.5, -0.5,  0.5},  {1, 1},  {255, 255, 255, 255}, 0},
+	{{ 0.5,  0.5,  0.5},  {1, 0},  {255, 255, 255, 255}, 0},
+	{{-0.5,  0.5,  0.5},  {0, 0},  {255, 255, 255, 255}, 0},
 },
 	.Neg_Z={// Back
-	{{ 0.5,  0.5, -0.5},  {1, 0},  {255, 255, 255, 255}},
-	{{ 0.5, -0.5, -0.5},  {1, 1},  {255, 255, 255, 255}},
-	{{-0.5, -0.5, -0.5},  {0, 1},  {255, 255, 255, 255}},
-	{{-0.5, -0.5, -0.5},  {0, 1},  {255, 255, 255, 255}},
-	{{-0.5,  0.5, -0.5},  {0, 0},  {255, 255, 255, 255}},
-	{{ 0.5,  0.5, -0.5},  {1, 0},  {255, 255, 255, 255}},
+	{{ 0.5,  0.5, -0.5},  {1, 0},  {255, 255, 255, 255}, 0},
+	{{ 0.5, -0.5, -0.5},  {1, 1},  {255, 255, 255, 255}, 0},
+	{{-0.5, -0.5, -0.5},  {0, 1},  {255, 255, 255, 255}, 0},
+	{{-0.5, -0.5, -0.5},  {0, 1},  {255, 255, 255, 255}, 0},
+	{{-0.5,  0.5, -0.5},  {0, 0},  {255, 255, 255, 255}, 0},
+	{{ 0.5,  0.5, -0.5},  {1, 0},  {255, 255, 255, 255}, 0},
 },
 }
 // odinfmt:enable

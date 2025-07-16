@@ -110,13 +110,14 @@ main :: proc() {
 	state.render_distance = DEFAULT_RENDER_DISTANCE
 	state.fog_enabled = true
 	state.far_plane = true
+	state.ao = true
 	init_state(&state)
 	defer destroy_state(&state)
 
 	init_camera(
 		&state,
-		pos = {0, 17, 0},
-		yaw = -90,
+		pos = {0, 24, 0},
+		yaw = 120,
 		pitch = 0,
 		speed = 5,
 		sensitivity = 0.1,
@@ -432,7 +433,6 @@ main :: proc() {
 			projection_matrix := state.camera.projection_matrix
 			view_matrix := state.camera.view_matrix
 			u_mvp := projection_matrix * view_matrix
-
 			frustum_matrix := state.frozen_frustum.? or_else u_mvp
 			frustum := create_frustum(frustum_matrix)
 
@@ -461,6 +461,12 @@ main :: proc() {
 					gl.GetUniformLocation(chunk_shader.handle, "u_campos"),
 					1,
 					&state.camera.pos[0],
+				)
+
+				gl.Uniform1ui(gl.GetUniformLocation(chunk_shader.handle, "u_ao"), u32(state.ao))
+				gl.Uniform1ui(
+					gl.GetUniformLocation(chunk_shader.handle, "u_ao_debug"),
+					u32(state.ao_debug),
 				)
 
 				if state.fog_enabled {
@@ -592,6 +598,14 @@ main :: proc() {
 						.Unsigned_Int,
 						size_of(Mesh_Vert),
 						offset_of(Mesh_Vert, colour),
+					)
+					vertex_attrib_pointer(
+						3,
+						1,
+						.Float,
+						false,
+						size_of(Mesh_Vert),
+						offset_of(Mesh_Vert, ao),
 					)
 				}
 

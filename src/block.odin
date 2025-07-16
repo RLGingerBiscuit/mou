@@ -1,6 +1,6 @@
 package mou
 
-Block_Face_Bit :: enum u8 {
+Block_Face_Bit :: enum {
 	Neg_X,
 	Pos_X,
 	Neg_Y,
@@ -8,7 +8,31 @@ Block_Face_Bit :: enum u8 {
 	Neg_Z,
 	Pos_Z,
 }
-Block_Face_Mask :: bit_set[Block_Face_Bit;u8]
+Block_Face_Mask :: bit_set[Block_Face_Bit]
+
+Block_Diag_Bit :: enum {
+	NNN,
+	NNZ,
+	NNP,
+	NZN,
+	NZP,
+	NPN,
+	NPZ,
+	NPP,
+	ZNN,
+	ZNP,
+	ZPN,
+	ZPP,
+	PNN,
+	PNZ,
+	PNP,
+	PZN,
+	PZP,
+	PPN,
+	PPZ,
+	PPP,
+}
+Block_Diag_Mask :: bit_set[Block_Diag_Bit]
 
 Block_ID :: enum u8 {
 	Air,

@@ -9,6 +9,7 @@ Mesh_Vert :: struct #packed {
 	pos:       glm.vec3,
 	tex_coord: glm.vec2,
 	colour:    RGBA,
+	ao:        f32,
 }
 
 FACE_VERT_COUNT :: 6

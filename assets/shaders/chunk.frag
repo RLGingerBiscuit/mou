@@ -1,6 +1,7 @@
 #version 330 core
 
 #include <include/fog.glsl>
+#include <include/utils.glsl>
 
 in vec2 tex_coord;
 in vec4 vertex_colour;
@@ -12,9 +13,15 @@ uniform sampler2D u_atlas;
 uniform float u_fog_start;
 uniform float u_fog_end;
 uniform vec4 u_fog_colour;
+uniform uint u_ao_debug;
 
 void main() {
-    vec4 colour = texture(u_atlas, tex_coord) * vertex_colour;
+    vec4 colour;
+    if (ubool(u_ao_debug))
+        colour = vertex_colour;
+    else
+        colour = texture(u_atlas, tex_coord) * vertex_colour;
+
     if (colour.a < 0.1) {
         discard;
     }

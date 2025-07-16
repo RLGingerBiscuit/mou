@@ -16,6 +16,8 @@ State :: struct {
 	far_plane:       bool,
 	render_frustum:  bool,
 	frozen_frustum:  Maybe(glm.mat4), // view projection matrix of frustum
+	ao:              bool,
+	ao_debug:        bool,
 	// Other state
 	frame:           Frame_State,
 	world:           World,

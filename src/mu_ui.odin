@@ -270,7 +270,7 @@ mu_update_ui :: proc(state: ^State, dt: f64) {
 	mu.begin(ctx)
 	defer mu.end(ctx)
 
-	if mu.window(ctx, "Minceraft", {10, 10, 580, 390}, {.NO_CLOSE}, FONT_BOUNCY) {
+	if mu.window(ctx, "Minceraft", {10, 10, 580, 440}, {.NO_CLOSE}, FONT_BOUNCY) {
 		LABEL_WIDTH :: 160
 
 		mu.layout_row(ctx, {LABEL_WIDTH, -1})
@@ -321,6 +321,12 @@ mu_update_ui :: proc(state: ^State, dt: f64) {
 				state.camera.flags &~= {.Wireframe}
 			}
 		}
+
+		mu.label(ctx, "AO:")
+		checkbox_no_label(ctx, "ao", &state.ao)
+
+		mu.label(ctx, "AO Debug:")
+		checkbox_no_label(ctx, "ao_debug", &state.ao_debug)
 
 		mu.label(ctx, "Fog:")
 		checkbox_no_label(ctx, "fog_enabled", &state.fog_enabled)

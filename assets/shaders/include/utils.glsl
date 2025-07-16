@@ -6,3 +6,11 @@ vec4 unpack_colour(uint colour) {
         (float((colour & uint(0xff000000)) >> 24)) / 255
     );
 }
+
+vec4 colour_mix(vec4 a, vec4 b, float t) {
+    return (1 - t) * a + t * b;
+}
+
+bool ubool(uint x) {
+    return x != uint(0);
+}
