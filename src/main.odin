@@ -327,11 +327,19 @@ main :: proc() {
 				cam_chunk_pos := world_pos_to_chunk_pos(state.camera.pos)
 				cam_chunk_pos.y = 0
 
+				frustum := create_frustum(
+					state.frozen_frustum.? or_else state.camera.projection_matrix *
+					state.camera.view_matrix,
+				)
+
 				if prof.event("generate near chunks") {
 					for y in i32(0) ..= 1 {
 						for z in i32(-N) ..= N {
 							for x in i32(-N) ..= N {
 								chunk_pos := cam_chunk_pos + {x, y, z}
+								if !frustum_contains_chunk(frustum, chunk_pos) {
+									continue
+								}
 								sync.guard(&state.world.lock)
 								if !world_generate_chunk(&state.world, chunk_pos) {
 									chunk := &state.world.chunks[chunk_pos]
