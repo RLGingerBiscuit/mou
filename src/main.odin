@@ -363,7 +363,7 @@ main :: proc() {
 			}
 
 			if prof.event("update world") {
-				world_update(&state.world, state.camera.pos)
+				update_world(&state.world, state.camera.pos)
 			}
 		}
 
@@ -537,7 +537,7 @@ main :: proc() {
 					})
 				}
 
-				if prof.event("sort water vertices") {
+				if prof.event("sort water faces") {
 					for chunk in water_chunks {
 						mesh := chunk.mesh
 

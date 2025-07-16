@@ -69,7 +69,7 @@ destroy_world :: proc(world: ^World) {
 	world^ = {}
 }
 
-world_update :: proc(world: ^World, player_pos: glm.vec3) {
+update_world :: proc(world: ^World, player_pos: glm.vec3) {
 	if prof.event("world sort messages") {
 		player_pos := player_pos
 		context.user_ptr = &player_pos
@@ -141,9 +141,8 @@ world_update :: proc(world: ^World, player_pos: glm.vec3) {
 				sync.guard(&world.lock)
 				chunk, exists := &world.chunks[v.chunk_pos]
 				ensure(exists, "Demeshed chunk doesn't exist")
-				old_mesh := chunk.mesh
-				if old_mesh != nil {
-					append(&world.chunk_msg_stack, Meshgen_Msg_Tombstone{old_mesh})
+				if chunk.mesh != nil {
+					append(&world.chunk_msg_stack, Meshgen_Msg_Tombstone{chunk.mesh})
 				}
 				chunk.mesh = nil
 				sync.atomic_store(&chunk.mark_remesh, false)
