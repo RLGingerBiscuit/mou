@@ -42,7 +42,7 @@ build-debug *args: _init
 
 # Compiles with release profile
 build-release *args: _init
-	{{odin_exe}} build {{src}} -out:{{out_dir}}/{{name}}{{ext}} {{odin_args}} {{args}}
+	{{odin_exe}} build {{src}} -out:{{out_dir}}/{{name}}{{ext}} {{odin_args}} -o:speed {{args}}
 alias build := build-release
 
 # Runs `odin check`
@@ -56,7 +56,7 @@ alias debug := run-debug
 
 # Runs the application with release profile
 run-release *args: _init
-	{{odin_exe}} run {{src}} -out:{{out_dir}}/{{name}}{{ext}} {{odin_args}} {{args}}
+	{{odin_exe}} run {{src}} -out:{{out_dir}}/{{name}}{{ext}} {{odin_args}} -o:speed {{args}}
 alias run := run-release
 
 # Packages a release build of the application into a 'packaged' folder
