@@ -154,104 +154,71 @@ main :: proc() {
 	init_world(&state.world, &atlas)
 	defer destroy_world(&state.world)
 
-	vao := make_vertex_array()
-	defer destroy_vertex_array(&vao)
-	vbo := make_buffer(.Array, .Dynamic)
-	defer destroy_buffer(&vbo)
-	transparent_vbo := make_buffer(.Array, .Dynamic)
-	defer destroy_buffer(&transparent_vbo)
-	water_vbo := make_buffer(.Array, .Dynamic)
-	defer destroy_buffer(&water_vbo)
+	opaque_renderer := make_renderer(true, chunk_shader, .Dynamic)
+	defer destroy_renderer(&opaque_renderer)
+	transparent_renderer := make_renderer(true, chunk_shader, .Dynamic)
+	defer destroy_renderer(&transparent_renderer)
+	water_renderer := make_renderer(true, chunk_shader, .Dynamic)
+	defer destroy_renderer(&water_renderer)
+	line_renderer := make_renderer(false, line_shader, .Dynamic)
+	defer destroy_renderer(&line_renderer)
+	fullscreen_renderer := make_renderer(true, fullscreen_shader, .Static)
+	defer destroy_renderer(&fullscreen_renderer)
 
-	{
-		MAX_VERTEX_SIZE :: CHUNK_BLOCK_COUNT * size_of(Mesh_Face) * 3
-		temp := make([]f32, MAX_VERTEX_SIZE, context.temp_allocator)
-		defer delete(temp, context.temp_allocator)
+	{ 	// Renderer setup
+		MAX_VERTEX_SIZE :: CHUNK_BLOCK_COUNT * 3
+		MAX_INDEX_SIZE :: CHUNK_BLOCK_COUNT * 3
+		temp_verts := make([]Mesh_Face, MAX_VERTEX_SIZE, context.temp_allocator)
+		defer delete(temp_verts, context.temp_allocator)
+		temp_indices := make([]Mesh_Face_Indexes, MAX_INDEX_SIZE, context.temp_allocator)
+		defer delete(temp_indices, context.temp_allocator)
 
-		bind_vertex_array(vao)
-
-		bind_buffer(vbo)
-		buffer_data(vbo, temp)
-
-		bind_buffer(transparent_vbo)
-		buffer_data(transparent_vbo, temp)
-
-		bind_buffer(water_vbo)
-		buffer_data(water_vbo, temp)
-
-		unbind_buffer(.Array)
-		unbind_vertex_array()
-	}
-
-	line_vao := make_vertex_array()
-	defer destroy_vertex_array(&line_vao)
-	line_vbo := make_buffer(.Array, .Dynamic)
-	defer destroy_buffer(&line_vbo)
-
-	{
-		bind_vertex_array(line_vao)
-
-		bind_buffer(line_vbo)
-
-		vertex_attrib_pointer(0, 3, .Float, false, size_of(Line_Vert), offset_of(Line_Vert, pos))
-		vertex_attrib_i_pointer(
-			1,
-			1,
-			.Unsigned_Int,
-			size_of(Line_Vert),
-			offset_of(Line_Vert, colour),
-		)
-
-		// unbind_buffer(.Array)
-		unbind_vertex_array()
-	}
-
-	quad_vao := make_vertex_array()
-	defer destroy_vertex_array(&quad_vao)
-	quad_vbo := make_buffer(.Array, .Static)
-	defer destroy_buffer(&quad_vbo)
-
-	{
-		Fullscreen_Vert :: struct #packed {
-			pos:       glm.vec2,
-			tex_coord: glm.vec2,
+		{ 	// Opaque setup
+			bind_renderer(opaque_renderer)
+			defer unbind_renderer()
+			renderer_vertices(opaque_renderer, temp_verts)
+			renderer_indices(opaque_renderer, temp_indices)
+			vertex_attrib_vert(Mesh_Vert)
 		}
-			// odinfmt:disable
-		@(static, rodata)
-		verts := [?]Fullscreen_Vert {
-			{{-1,  1},  {0, 1}},
-			{{-1, -1},  {0, 0}},
-			{{ 1, -1},  {1, 0}},
-			{{ 1, -1},  {1, 0}},
-			{{ 1,  1},  {1, 1}},
-			{{-1,  1},  {0, 1}},
+		{ 	// Transparent setup
+			bind_renderer(transparent_renderer)
+			defer unbind_renderer()
+			renderer_vertices(transparent_renderer, temp_verts)
+			renderer_indices(transparent_renderer, temp_indices)
+			vertex_attrib_vert(Mesh_Vert)
 		}
-		// odinfmt:enable
-
-		bind_vertex_array(quad_vao)
-		bind_buffer(quad_vbo)
-
-		buffer_data(quad_vbo, verts[:])
-
-		vertex_attrib_pointer(
-			0,
-			2,
-			.Float,
-			false,
-			size_of(Fullscreen_Vert),
-			offset_of(Fullscreen_Vert, pos),
-		)
-		vertex_attrib_pointer(
-			1,
-			2,
-			.Float,
-			false,
-			size_of(Fullscreen_Vert),
-			offset_of(Fullscreen_Vert, tex_coord),
-		)
-
-		// unbind_buffer(.Array)
-		unbind_vertex_array()
+		{ 	// Water setup
+			bind_renderer(water_renderer)
+			defer unbind_renderer()
+			renderer_vertices(water_renderer, temp_verts)
+			renderer_indices(water_renderer, temp_indices)
+			vertex_attrib_vert(Mesh_Vert)
+		}
+		{ 	// Line setup
+			bind_renderer(line_renderer)
+			defer unbind_renderer()
+			vertex_attrib_vert(Line_Vert)
+		}
+		{ 	// Fullscreen setup
+			Fullscreen_Vert :: struct #packed {
+				pos:       glm.vec2,
+				tex_coord: glm.vec2,
+			}
+			bind_renderer(fullscreen_renderer)
+			defer unbind_renderer()
+			@(static, rodata)
+			verts := []Fullscreen_Vert {
+				{{-1, 1}, {0, 1}},
+				{{-1, -1}, {0, 0}},
+				{{1, -1}, {1, 0}},
+				{{1, 1}, {1, 1}},
+			}
+			@(static, rodata)
+			indices := []u32{0, 1, 2, 2, 3, 0}
+			renderer_vertices(fullscreen_renderer, verts)
+			renderer_indices(fullscreen_renderer, transmute([][1]u32)indices)
+			vertex_attrib_vert(Fullscreen_Vert)
+		}
 	}
 
 	fbo_colour_tex := make_texture(
@@ -390,13 +357,19 @@ main :: proc() {
 				append(
 					&state.frame.memory_usage,
 					[7]int {
-						len(mesh.opaque) * size_of(Mesh_Face),
-						cap(mesh.opaque) * size_of(Mesh_Face),
-						len(mesh.transparent) * size_of(Mesh_Face),
-						cap(mesh.transparent) * size_of(Mesh_Face),
+						len(mesh.opaque) * size_of(Mesh_Face) +
+						len(mesh.opaque_indices) * size_of(Mesh_Face_Indexes),
+						cap(mesh.opaque) * size_of(Mesh_Face) +
+						cap(mesh.opaque_indices) * size_of(Mesh_Face_Indexes),
+						len(mesh.transparent) * size_of(Mesh_Face) +
+						len(mesh.transparent_indices) * size_of(Mesh_Face_Indexes),
+						cap(mesh.transparent) * size_of(Mesh_Face) +
+						cap(mesh.transparent_indices) * size_of(Mesh_Face_Indexes),
 						len(chunk.blocks) * size_of(Block),
-						len(mesh.water) * size_of(Mesh_Face),
-						cap(mesh.water) * size_of(Mesh_Face),
+						len(mesh.water) * size_of(Mesh_Face) +
+						len(mesh.water_indices) * size_of(Mesh_Face_Indexes),
+						cap(mesh.water) * size_of(Mesh_Face) +
+						cap(mesh.water_indices) * size_of(Mesh_Face_Indexes),
 					},
 				)
 			}
@@ -439,7 +412,7 @@ main :: proc() {
 		}
 
 		if prof.event("render iteration") {
-			SKY_COLOUR := glm.vec4{0.3, 0.6, 0.8, 1}
+			SKY_COLOUR := RGBA32{0.3, 0.6, 0.8, 1}
 			gl.Viewport(0, 0, state.window.size.x, state.window.size.y)
 			gl.ClearColor(SKY_COLOUR[0], SKY_COLOUR[1], SKY_COLOUR[2], SKY_COLOUR[3])
 			gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
@@ -461,49 +434,48 @@ main :: proc() {
 				gl.Viewport(0, 0, state.window.size.x, state.window.size.y)
 				gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
 
-				bind_vertex_array(vao)
-				defer unbind_vertex_array()
-
-				use_shader(chunk_shader)
-				bind_texture(atlas.texture)
-				gl.UniformMatrix4fv(
-					gl.GetUniformLocation(chunk_shader.handle, "u_mvp"),
-					1,
-					false,
-					&u_mvp[0, 0],
-				)
-				gl.Uniform3fv(
-					gl.GetUniformLocation(chunk_shader.handle, "u_campos"),
-					1,
-					&state.camera.pos[0],
-				)
-
-				gl.Uniform1ui(gl.GetUniformLocation(chunk_shader.handle, "u_ao"), u32(state.ao))
-				gl.Uniform1ui(
-					gl.GetUniformLocation(chunk_shader.handle, "u_ao_debug"),
-					u32(state.ao_debug),
-				)
-
-				if state.fog_enabled {
-					gl.Uniform1f(
-						gl.GetUniformLocation(chunk_shader.handle, "u_fog_start"),
-						f32(state.render_distance) * CHUNK_WIDTH - CHUNK_WIDTH / 4,
-					)
-					gl.Uniform1f(
-						gl.GetUniformLocation(chunk_shader.handle, "u_fog_end"),
-						f32(state.render_distance) * CHUNK_WIDTH,
-					)
-					gl.Uniform4fv(
-						gl.GetUniformLocation(chunk_shader.handle, "u_fog_colour"),
+				set_uniforms :: proc(r: Renderer, state: ^State, sky: RGBA32, mvp: glm.mat4) {
+					sky := sky
+					mvp := mvp
+					gl.UniformMatrix4fv(
+						gl.GetUniformLocation(r.shader.handle, "u_mvp"),
 						1,
-						&SKY_COLOUR[0],
+						false,
+						&mvp[0, 0],
 					)
-				} else {
-					gl.Uniform1f(
-						gl.GetUniformLocation(chunk_shader.handle, "u_fog_start"),
-						max(f32),
+					gl.Uniform3fv(
+						gl.GetUniformLocation(r.shader.handle, "u_campos"),
+						1,
+						&state.camera.pos[0],
 					)
-					gl.Uniform1f(gl.GetUniformLocation(chunk_shader.handle, "u_fog_end"), max(f32))
+
+					gl.Uniform1ui(gl.GetUniformLocation(r.shader.handle, "u_ao"), u32(state.ao))
+					gl.Uniform1ui(
+						gl.GetUniformLocation(r.shader.handle, "u_ao_debug"),
+						u32(state.ao_debug),
+					)
+
+					if state.fog_enabled {
+						gl.Uniform1f(
+							gl.GetUniformLocation(r.shader.handle, "u_fog_start"),
+							f32(state.render_distance) * CHUNK_WIDTH - CHUNK_WIDTH / 4,
+						)
+						gl.Uniform1f(
+							gl.GetUniformLocation(r.shader.handle, "u_fog_end"),
+							f32(state.render_distance) * CHUNK_WIDTH,
+						)
+						gl.Uniform4fv(
+							gl.GetUniformLocation(r.shader.handle, "u_fog_colour"),
+							1,
+							&sky[0],
+						)
+					} else {
+						gl.Uniform1f(
+							gl.GetUniformLocation(r.shader.handle, "u_fog_start"),
+							max(f32),
+						)
+						gl.Uniform1f(gl.GetUniformLocation(r.shader.handle, "u_fog_end"), max(f32))
+					}
 				}
 
 				sync.shared_guard(&state.world.lock)
@@ -590,50 +562,21 @@ main :: proc() {
 					}
 				}
 
-				setup_vertex_attribs :: #force_inline proc() {
-					vertex_attrib_pointer(
-						0,
-						3,
-						.Float,
-						false,
-						size_of(Mesh_Vert),
-						offset_of(Mesh_Vert, pos),
-					)
-					vertex_attrib_pointer(
-						1,
-						2,
-						.Float,
-						false,
-						size_of(Mesh_Vert),
-						offset_of(Mesh_Vert, tex_coord),
-					)
-					vertex_attrib_i_pointer(
-						2,
-						1,
-						.Unsigned_Int,
-						size_of(Mesh_Vert),
-						offset_of(Mesh_Vert, colour),
-					)
-					vertex_attrib_pointer(
-						3,
-						1,
-						.Float,
-						false,
-						size_of(Mesh_Vert),
-						offset_of(Mesh_Vert, ao),
-					)
-				}
-
 				if prof.event("render opaque meshes") {
-					bind_buffer(vbo)
-					setup_vertex_attribs()
+					bind_renderer(opaque_renderer)
+					defer unbind_renderer()
+					bind_texture(atlas.texture)
+					set_uniforms(opaque_renderer, &state, SKY_COLOUR, u_mvp)
+
 					gl.Disable(gl.BLEND) // Disable blending for opaque meshes; slight performance boost
 					for &chunk in opaque_chunks {
-						buffer_sub_data(vbo, 0, chunk.mesh.opaque[:])
-						gl.DrawArrays(
+						renderer_sub_vertices(opaque_renderer, 0, chunk.mesh.opaque[:])
+						renderer_sub_indices(opaque_renderer, 0, chunk.mesh.opaque_indices[:])
+						gl.DrawElements(
 							gl.TRIANGLES,
-							0,
-							FACE_VERT_COUNT * cast(i32)len(chunk.mesh.opaque),
+							FACE_INDEX_COUNT * cast(i32)len(chunk.mesh.opaque),
+							gl.UNSIGNED_INT,
+							nil,
 						)
 					}
 				}
@@ -641,33 +584,44 @@ main :: proc() {
 				gl.Enable(gl.BLEND)
 
 				if prof.event("render transparent meshes") {
-					bind_buffer(transparent_vbo)
-					setup_vertex_attribs()
-					for chunk in transparent_chunks {
-						buffer_sub_data(vbo, 0, chunk.mesh.transparent[:])
-						gl.DrawArrays(
-							gl.TRIANGLES,
+					bind_renderer(transparent_renderer)
+					defer unbind_renderer()
+					bind_texture(atlas.texture)
+					set_uniforms(transparent_renderer, &state, SKY_COLOUR, u_mvp)
+
+					for &chunk in transparent_chunks {
+						renderer_sub_vertices(transparent_renderer, 0, chunk.mesh.transparent[:])
+						renderer_sub_indices(
+							transparent_renderer,
 							0,
-							FACE_VERT_COUNT * cast(i32)len(chunk.mesh.transparent),
+							chunk.mesh.transparent_indices[:],
+						)
+						gl.DrawElements(
+							gl.TRIANGLES,
+							FACE_INDEX_COUNT * cast(i32)len(chunk.mesh.transparent),
+							gl.UNSIGNED_INT,
+							nil,
 						)
 					}
 				}
 
 				if prof.event("render water meshes") {
-					bind_buffer(water_vbo)
-					setup_vertex_attribs()
-					for chunk in water_chunks {
-						buffer_sub_data(vbo, 0, chunk.mesh.water[:])
-						gl.DrawArrays(
+					bind_renderer(water_renderer)
+					defer unbind_renderer()
+					bind_texture(atlas.texture)
+					set_uniforms(water_renderer, &state, SKY_COLOUR, u_mvp)
+
+					for &chunk in water_chunks {
+						renderer_sub_vertices(water_renderer, 0, chunk.mesh.water[:])
+						renderer_sub_indices(water_renderer, 0, chunk.mesh.water_indices[:])
+						gl.DrawElements(
 							gl.TRIANGLES,
-							0,
-							FACE_VERT_COUNT * cast(i32)len(chunk.mesh.water),
+							FACE_INDEX_COUNT * cast(i32)len(chunk.mesh.water),
+							gl.UNSIGNED_INT,
+							nil,
 						)
 					}
 				}
-
-				unbind_buffer(.Array)
-				unbind_vertex_array()
 			}
 
 			gl.Disable(gl.DEPTH_TEST)
@@ -680,12 +634,11 @@ main :: proc() {
 					gl.PolygonMode(gl.FRONT_AND_BACK, gl.LINE)
 				}
 
-				use_shader(fullscreen_shader)
-				bind_vertex_array(quad_vao)
-				defer unbind_vertex_array()
+				bind_renderer(fullscreen_renderer)
+				defer unbind_renderer()
 
 				bind_texture(fbo_colour_tex)
-				gl.DrawArrays(gl.TRIANGLES, 0, 6)
+				gl.DrawElements(gl.TRIANGLES, 6, gl.UNSIGNED_INT, nil)
 			}
 
 			defer clear(&state.frame.line_vertices)
@@ -705,11 +658,8 @@ main :: proc() {
 					view_matrix = state.camera.view_matrix
 					u_mvp = projection_matrix * view_matrix
 
-					use_shader(line_shader)
-					bind_vertex_array(line_vao)
-					defer unbind_vertex_array()
-					bind_buffer(line_vbo)
-					defer unbind_buffer(.Array)
+					bind_renderer(line_renderer)
+					defer unbind_renderer()
 
 					gl.UniformMatrix4fv(
 						gl.GetUniformLocation(line_shader.handle, "u_mvp"),
@@ -718,7 +668,7 @@ main :: proc() {
 						&u_mvp[0, 0],
 					)
 
-					buffer_data(line_vbo, state.frame.line_vertices[:])
+					renderer_sub_vertices(line_renderer, 0, state.frame.line_vertices[:])
 
 					gl.DrawArrays(gl.LINES, 0, cast(i32)len(state.frame.line_vertices))
 				}
