@@ -17,6 +17,7 @@ Window :: struct {
 	flags:        bit_set[enum u8 {
 		Visible,
 		UI,
+		Minimised,
 	};u8],
 	// Input
 	cursor:       [2]f64,
@@ -122,6 +123,11 @@ window_center_cursor :: proc(wnd: ^Window) {
 
 resize_window :: proc(state: ^State, width, height: i32) {
 	wnd := &state.window
+	if width == 0 || height == 0 {
+		wnd.flags |= {.Minimised}
+		return
+	}
+	wnd.flags &~= {.Minimised}
 	assert(width > 0, "window width must be > 0")
 	assert(height > 0, "window height must be > 0")
 	wnd.size = {width, height}
@@ -133,6 +139,7 @@ resize_window :: proc(state: ^State, width, height: i32) {
 show_window :: proc(wnd: ^Window) {
 	wnd.flags |= {.Visible}
 	glfw.ShowWindow(wnd.handle)
+	gl.Viewport(0, 0, wnd.size.x, wnd.size.y)
 }
 hide_window :: proc(wnd: ^Window) {
 	wnd.flags &~= {.Visible}

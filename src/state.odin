@@ -14,6 +14,7 @@ State :: struct {
 	render_distance: i32,
 	fog_enabled:     bool,
 	far_plane:       bool,
+	render_ui:       bool,
 	render_frustum:  bool,
 	frozen_frustum:  Maybe(glm.mat4), // view projection matrix of frustum
 	ao:              bool,

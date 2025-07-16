@@ -16,7 +16,7 @@ _ :: strings
 _ :: sync
 _ :: time
 
-PROFILING :: #config(PROFILING, ODIN_DEBUG)
+PROFILING :: #config(PROFILING, false)
 
 when PROFILING {
 	Context :: spall.Context

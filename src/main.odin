@@ -110,6 +110,7 @@ main :: proc() {
 	state.render_distance = DEFAULT_RENDER_DISTANCE
 	state.fog_enabled = true
 	state.far_plane = true
+	state.render_ui = true
 	state.ao = true
 	init_state(&state)
 	defer destroy_state(&state)
@@ -310,12 +311,17 @@ main :: proc() {
 			}
 
 			if rdoc_api != nil &&
-			   window_get_key(state.window, .F1) == .Press &&
-			   window_get_prev_key(state.window, .F1) != .Press {
+			   window_get_key(state.window, .F2) == .Press &&
+			   window_get_prev_key(state.window, .F2) != .Press {
 				capture_frame = true
 			}
 
-			if prof.event("update ui") {
+			if window_get_key(state.window, .F1) == .Press &&
+			   window_get_prev_key(state.window, .F1) != .Press {
+				state.render_ui = !state.render_ui
+			}
+
+			if state.render_ui && prof.event("update ui") {
 				mu_update_ui(&state, delta_time)
 			}
 
@@ -434,8 +440,8 @@ main :: proc() {
 
 		if prof.event("render iteration") {
 			SKY_COLOUR := glm.vec4{0.3, 0.6, 0.8, 1}
+			gl.Viewport(0, 0, state.window.size.x, state.window.size.y)
 			gl.ClearColor(SKY_COLOUR[0], SKY_COLOUR[1], SKY_COLOUR[2], SKY_COLOUR[3])
-
 			gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
 
 			projection_matrix := state.camera.projection_matrix
@@ -452,6 +458,7 @@ main :: proc() {
 			if prof.event("render chunks") {
 				bind_framebuffer(state.fbo, .All)
 				defer unbind_framebuffer(.All)
+				gl.Viewport(0, 0, state.window.size.x, state.window.size.y)
 				gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
 
 				bind_vertex_array(vao)
@@ -717,7 +724,7 @@ main :: proc() {
 				}
 			}
 
-			if prof.event("render ui") {
+			if state.render_ui && prof.event("render ui") {
 				mu_render_ui(&state)
 			}
 		}
