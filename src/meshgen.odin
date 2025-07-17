@@ -323,6 +323,7 @@ mesh_chunk :: proc(world: ^World, chunk: ^Chunk, mesh: ^Chunk_Mesh) {
 					if block.id == .Water {
 						if bpyok && bpy.id != .Water {
 							face_verts[0].pos.y -= WATER_TOP_OFFSET
+							face_verts[3].pos.y -= WATER_TOP_OFFSET
 						}
 						append(vertices, face_verts)
 						face_indices += cast(u32)len(indices) * FACE_VERT_COUNT
@@ -336,6 +337,7 @@ mesh_chunk :: proc(world: ^World, chunk: ^Chunk, mesh: ^Chunk_Mesh) {
 						)
 						if bpyok && bpy.id != .Water {
 							face_verts[0].pos.y -= WATER_TOP_OFFSET
+							face_verts[3].pos.y -= WATER_TOP_OFFSET
 						}
 					}
 					append(vertices, face_verts)
@@ -353,6 +355,7 @@ mesh_chunk :: proc(world: ^World, chunk: ^Chunk, mesh: ^Chunk_Mesh) {
 					if block.id == .Water {
 						if bpyok && bpy.id != .Water {
 							face_verts[0].pos.y -= WATER_TOP_OFFSET
+							face_verts[3].pos.y -= WATER_TOP_OFFSET
 						}
 						append(vertices, face_verts)
 						face_indices += cast(u32)len(indices) * FACE_VERT_COUNT
@@ -366,6 +369,7 @@ mesh_chunk :: proc(world: ^World, chunk: ^Chunk, mesh: ^Chunk_Mesh) {
 						)
 						if bpyok && bpy.id != .Water {
 							face_verts[0].pos.y -= WATER_TOP_OFFSET
+							face_verts[3].pos.y -= WATER_TOP_OFFSET
 						}
 					}
 					append(vertices, face_verts)
@@ -383,6 +387,7 @@ mesh_chunk :: proc(world: ^World, chunk: ^Chunk, mesh: ^Chunk_Mesh) {
 					if block.id == .Water {
 						if bpyok && bpy.id != .Water {
 							face_verts[0].pos.y -= WATER_TOP_OFFSET
+							face_verts[3].pos.y -= WATER_TOP_OFFSET
 						}
 						append(vertices, face_verts)
 						face_indices += cast(u32)len(indices) * FACE_VERT_COUNT
@@ -396,6 +401,7 @@ mesh_chunk :: proc(world: ^World, chunk: ^Chunk, mesh: ^Chunk_Mesh) {
 						)
 						if bpyok && bpy.id != .Water {
 							face_verts[0].pos.y -= WATER_TOP_OFFSET
+							face_verts[3].pos.y -= WATER_TOP_OFFSET
 						}
 					}
 					append(vertices, face_verts)
@@ -413,6 +419,7 @@ mesh_chunk :: proc(world: ^World, chunk: ^Chunk, mesh: ^Chunk_Mesh) {
 					if block.id == .Water {
 						if bpyok && bpy.id != .Water {
 							face_verts[0].pos.y -= WATER_TOP_OFFSET
+							face_verts[3].pos.y -= WATER_TOP_OFFSET
 						}
 						append(vertices, face_verts)
 						face_indices += cast(u32)len(indices) * FACE_VERT_COUNT
@@ -426,6 +433,7 @@ mesh_chunk :: proc(world: ^World, chunk: ^Chunk, mesh: ^Chunk_Mesh) {
 						)
 						if bpyok && bpy.id != .Water {
 							face_verts[0].pos.y -= WATER_TOP_OFFSET
+							face_verts[3].pos.y -= WATER_TOP_OFFSET
 						}
 					}
 					append(vertices, face_verts)
