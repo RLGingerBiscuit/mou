@@ -7,7 +7,7 @@ layout(location = 1) in vec2 tex_coord0;
 layout(location = 2) in uint vertex_colour0;
 layout(location = 3) in float ao0;
 
-uniform mat4 u_mvp;
+uniform mat4 u_proj_view;
 uniform vec3 u_campos;
 uniform uint u_ao;
 uniform uint u_ao_debug;
@@ -17,7 +17,7 @@ out vec4 vertex_colour;
 out float vertex_distance;
 
 void main() {
-    gl_Position = u_mvp * vec4(position0, 1.0);
+    gl_Position = u_proj_view * vec4(position0, 1.0);
     tex_coord = tex_coord0;
     vertex_distance = length(u_campos - position0);
 

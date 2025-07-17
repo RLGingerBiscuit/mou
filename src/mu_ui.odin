@@ -455,17 +455,17 @@ mu_render_ui :: proc(state: ^State) {
 			1,
 		)
 		view_matrix := glm.identity(glm.mat4)
-		u_mvp := projection_matrix * view_matrix
+		proj_view := projection_matrix * view_matrix
 
 		bind_vertex_array(state.ui.vao)
 
 		use_shader(state.ui.shader)
 		bind_texture(state.ui.font_tex)
 		gl.UniformMatrix4fv(
-			gl.GetUniformLocation(state.ui.shader.handle, "u_mvp"),
+			gl.GetUniformLocation(state.ui.shader.handle, "u_proj_view"),
 			1,
 			false,
-			&u_mvp[0, 0],
+			&proj_view[0, 0],
 		)
 
 		bind_buffer(state.ui.vbo)

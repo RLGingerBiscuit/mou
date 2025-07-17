@@ -419,8 +419,8 @@ main :: proc() {
 
 			projection_matrix := state.camera.projection_matrix
 			view_matrix := state.camera.view_matrix
-			u_mvp := projection_matrix * view_matrix
-			frustum_matrix := state.frozen_frustum.? or_else u_mvp
+			proj_view := projection_matrix * view_matrix
+			frustum_matrix := state.frozen_frustum.? or_else proj_view
 			frustum := create_frustum(frustum_matrix)
 
 			// Ensure stuff is reset
@@ -438,7 +438,7 @@ main :: proc() {
 					sky := sky
 					mvp := mvp
 					gl.UniformMatrix4fv(
-						gl.GetUniformLocation(r.shader.handle, "u_mvp"),
+						gl.GetUniformLocation(r.shader.handle, "u_proj_view"),
 						1,
 						false,
 						&mvp[0, 0],
@@ -566,7 +566,7 @@ main :: proc() {
 					bind_renderer(opaque_renderer)
 					defer unbind_renderer()
 					bind_texture(atlas.texture)
-					set_uniforms(opaque_renderer, &state, SKY_COLOUR, u_mvp)
+					set_uniforms(opaque_renderer, &state, SKY_COLOUR, proj_view)
 
 					gl.Disable(gl.BLEND) // Disable blending for opaque meshes; slight performance boost
 					for &chunk in opaque_chunks {
@@ -587,7 +587,7 @@ main :: proc() {
 					bind_renderer(transparent_renderer)
 					defer unbind_renderer()
 					bind_texture(atlas.texture)
-					set_uniforms(transparent_renderer, &state, SKY_COLOUR, u_mvp)
+					set_uniforms(transparent_renderer, &state, SKY_COLOUR, proj_view)
 
 					for &chunk in transparent_chunks {
 						renderer_sub_vertices(transparent_renderer, 0, chunk.mesh.transparent[:])
@@ -609,7 +609,7 @@ main :: proc() {
 					bind_renderer(water_renderer)
 					defer unbind_renderer()
 					bind_texture(atlas.texture)
-					set_uniforms(water_renderer, &state, SKY_COLOUR, u_mvp)
+					set_uniforms(water_renderer, &state, SKY_COLOUR, proj_view)
 
 					for &chunk in water_chunks {
 						renderer_sub_vertices(water_renderer, 0, chunk.mesh.water[:])
@@ -656,16 +656,16 @@ main :: proc() {
 					_update_camera_axes(&state)
 					projection_matrix = state.camera.projection_matrix
 					view_matrix = state.camera.view_matrix
-					u_mvp = projection_matrix * view_matrix
+					proj_view = projection_matrix * view_matrix
 
 					bind_renderer(line_renderer)
 					defer unbind_renderer()
 
 					gl.UniformMatrix4fv(
-						gl.GetUniformLocation(line_shader.handle, "u_mvp"),
+						gl.GetUniformLocation(line_shader.handle, "u_proj_view"),
 						1,
 						false,
-						&u_mvp[0, 0],
+						&proj_view[0, 0],
 					)
 
 					renderer_vertices(line_renderer, state.frame.line_vertices[:])
