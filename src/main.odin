@@ -119,7 +119,7 @@ main :: proc() {
 		&state,
 		pos = {0, 24, 0},
 		yaw = 120,
-		pitch = 0,
+		pitch = 90,
 		speed = 5,
 		sensitivity = 0.1,
 		fov = DEFAULT_FOV,
