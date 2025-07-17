@@ -435,46 +435,26 @@ main :: proc() {
 				gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
 
 				set_uniforms :: proc(r: Renderer, state: ^State, sky: RGBA32, mvp: glm.mat4) {
-					sky := sky
-					mvp := mvp
-					gl.UniformMatrix4fv(
-						gl.GetUniformLocation(r.shader.handle, "u_proj_view"),
-						1,
-						false,
-						&mvp[0, 0],
-					)
-					gl.Uniform3fv(
-						gl.GetUniformLocation(r.shader.handle, "u_campos"),
-						1,
-						&state.camera.pos[0],
-					)
-
-					gl.Uniform1ui(gl.GetUniformLocation(r.shader.handle, "u_ao"), u32(state.ao))
-					gl.Uniform1ui(
-						gl.GetUniformLocation(r.shader.handle, "u_ao_debug"),
-						u32(state.ao_debug),
-					)
+					set_uniform(r.shader, "u_proj_view", mvp)
+					set_uniform(r.shader, "u_campos", state.camera.pos)
+					set_uniform(r.shader, "u_ao", u32(state.ao))
+					set_uniform(r.shader, "u_ao_debug", u32(state.ao_debug))
 
 					if state.fog_enabled {
-						gl.Uniform1f(
-							gl.GetUniformLocation(r.shader.handle, "u_fog_start"),
+						set_uniform(
+							r.shader,
+							"u_fog_start",
 							f32(state.render_distance) * CHUNK_WIDTH - CHUNK_WIDTH / 4,
 						)
-						gl.Uniform1f(
-							gl.GetUniformLocation(r.shader.handle, "u_fog_end"),
+						set_uniform(
+							r.shader,
+							"u_fog_end",
 							f32(state.render_distance) * CHUNK_WIDTH,
 						)
-						gl.Uniform4fv(
-							gl.GetUniformLocation(r.shader.handle, "u_fog_colour"),
-							1,
-							&sky[0],
-						)
+						set_uniform(r.shader, "u_fog_colour", sky)
 					} else {
-						gl.Uniform1f(
-							gl.GetUniformLocation(r.shader.handle, "u_fog_start"),
-							max(f32),
-						)
-						gl.Uniform1f(gl.GetUniformLocation(r.shader.handle, "u_fog_end"), max(f32))
+						set_uniform(r.shader, "u_fog_start", max(f32))
+						set_uniform(r.shader, "u_fog_end", max(f32))
 					}
 				}
 
@@ -661,12 +641,7 @@ main :: proc() {
 					bind_renderer(line_renderer)
 					defer unbind_renderer()
 
-					gl.UniformMatrix4fv(
-						gl.GetUniformLocation(line_shader.handle, "u_proj_view"),
-						1,
-						false,
-						&proj_view[0, 0],
-					)
+					set_uniform(line_shader, "u_proj_view", proj_view)
 
 					renderer_vertices(line_renderer, state.frame.line_vertices[:])
 

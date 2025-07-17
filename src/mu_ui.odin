@@ -461,12 +461,7 @@ mu_render_ui :: proc(state: ^State) {
 
 		use_shader(state.ui.shader)
 		bind_texture(state.ui.font_tex)
-		gl.UniformMatrix4fv(
-			gl.GetUniformLocation(state.ui.shader.handle, "u_proj_view"),
-			1,
-			false,
-			&proj_view[0, 0],
-		)
+		set_uniform(state.ui.shader, "u_proj_view", proj_view)
 
 		bind_buffer(state.ui.vbo)
 

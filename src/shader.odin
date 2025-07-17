@@ -1,6 +1,7 @@
 package mou
 
 import "core:log"
+import glm "core:math/linalg/glsl"
 import "core:os"
 import path "core:path/filepath"
 import "core:strings"
@@ -97,4 +98,99 @@ destroy_shader :: proc(shader: ^Shader) {
 
 use_shader :: proc(shader: Shader) {
 	gl.UseProgram(shader.handle)
+}
+
+get_uniform_location :: proc(shader: Shader, name: cstring) -> i32 {
+	return gl.GetUniformLocation(shader.handle, name)
+}
+
+set_uniform_mat2 :: proc(shader: Shader, name: cstring, val: glm.mat2) {
+	val := val
+	gl.UniformMatrix2fv(get_uniform_location(shader, name), 1, false, &val[0, 0])
+}
+
+set_uniform_mat3 :: proc(shader: Shader, name: cstring, val: glm.mat3) {
+	val := val
+	gl.UniformMatrix3fv(get_uniform_location(shader, name), 1, false, &val[0, 0])
+}
+
+set_uniform_mat4 :: proc(shader: Shader, name: cstring, val: glm.mat4) {
+	val := val
+	gl.UniformMatrix4fv(get_uniform_location(shader, name), 1, false, &val[0, 0])
+}
+
+set_uniform_f32 :: proc(shader: Shader, name: cstring, val: f32) {
+	gl.Uniform1f(get_uniform_location(shader, name), val)
+}
+
+set_uniform_i32 :: proc(shader: Shader, name: cstring, val: i32) {
+	gl.Uniform1i(get_uniform_location(shader, name), val)
+}
+
+set_uniform_u32 :: proc(shader: Shader, name: cstring, val: u32) {
+	gl.Uniform1ui(get_uniform_location(shader, name), val)
+}
+
+set_uniform_vec2 :: proc(shader: Shader, name: cstring, val: glm.vec2) {
+	gl.Uniform2f(get_uniform_location(shader, name), val.x, val.y)
+}
+
+set_uniform_vec3 :: proc(shader: Shader, name: cstring, val: glm.vec3) {
+	gl.Uniform3f(get_uniform_location(shader, name), val.x, val.y, val.z)
+}
+
+set_uniform_vec4 :: proc(shader: Shader, name: cstring, val: glm.vec4) {
+	gl.Uniform4f(get_uniform_location(shader, name), val.x, val.y, val.z, val.w)
+}
+
+set_uniform_ivec2 :: proc(shader: Shader, name: cstring, val: glm.ivec2) {
+	gl.Uniform2i(get_uniform_location(shader, name), val.x, val.y)
+}
+
+set_uniform_ivec3 :: proc(shader: Shader, name: cstring, val: glm.ivec3) {
+	gl.Uniform3i(get_uniform_location(shader, name), val.x, val.y, val.z)
+}
+
+set_uniform_ivec4 :: proc(shader: Shader, name: cstring, val: glm.ivec4) {
+	gl.Uniform4i(get_uniform_location(shader, name), val.x, val.y, val.z, val.w)
+}
+
+set_uniform_uvec2 :: proc(shader: Shader, name: cstring, val: glm.uvec2) {
+	gl.Uniform2ui(get_uniform_location(shader, name), val.x, val.y)
+}
+
+set_uniform_uvec3 :: proc(shader: Shader, name: cstring, val: glm.uvec3) {
+	gl.Uniform3ui(get_uniform_location(shader, name), val.x, val.y, val.z)
+}
+
+set_uniform_uvec4 :: proc(shader: Shader, name: cstring, val: glm.uvec4) {
+	gl.Uniform4ui(get_uniform_location(shader, name), val.x, val.y, val.z, val.w)
+}
+
+set_uniform_rgba :: proc(shader: Shader, name: cstring, val: RGBA) {
+	set_uniform(shader, name, transmute(u32)val)
+}
+
+set_uniform_rgba32 :: proc(shader: Shader, name: cstring, val: RGBA32) {
+	set_uniform(shader, name, cast(glm.vec4)val)
+}
+
+set_uniform :: proc {
+	set_uniform_mat2,
+	set_uniform_mat3,
+	set_uniform_mat4,
+	set_uniform_f32,
+	set_uniform_i32,
+	set_uniform_u32,
+	set_uniform_vec2,
+	set_uniform_vec3,
+	set_uniform_vec4,
+	set_uniform_ivec2,
+	set_uniform_ivec3,
+	set_uniform_ivec4,
+	set_uniform_uvec2,
+	set_uniform_uvec3,
+	set_uniform_uvec4,
+	set_uniform_rgba,
+	set_uniform_rgba32,
 }
