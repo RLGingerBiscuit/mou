@@ -487,21 +487,17 @@ position_face :: #force_inline proc(
 		ao := side_ao(ao_mask, FACE_NEIGHBOURS[face])
 
 		face_data[0].ao = AO_DATA[ao[0]] // tl
-
 		face_data[1].ao = AO_DATA[ao[1]] // bl
-
 		face_data[2].ao = AO_DATA[ao[2]] // br
-
 		face_data[3].ao = AO_DATA[ao[3]] // tr
 
 		// flip face to get rid if nasty anisotropy
 		if ao[1] + ao[3] < ao[0] + ao[2] {
-			// face_data[0] = face_data[1] // 0=1
-			// face_data[1] = face_data[2] // 1=2
-			// face_data[2] = face_data[4] // 2=4
-			// face_data[3] = face_data[4] // 3=4
-			// face_data[4] = face_data[5] // 4=5
-			// face_data[5] = face_data[0] // 5=1
+			tmp := face_data[0]
+			face_data[0] = face_data[1] // 0=1
+			face_data[1] = face_data[2] // 1=2
+			face_data[2] = face_data[3] // 2=3
+			face_data[3] = tmp // 3=0
 		}
 	}
 
