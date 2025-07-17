@@ -668,7 +668,7 @@ main :: proc() {
 						&u_mvp[0, 0],
 					)
 
-					renderer_sub_vertices(line_renderer, 0, state.frame.line_vertices[:])
+					renderer_vertices(line_renderer, state.frame.line_vertices[:])
 
 					gl.DrawArrays(gl.LINES, 0, cast(i32)len(state.frame.line_vertices))
 				}
