@@ -116,11 +116,11 @@ texture_set :: proc(tex: Texture, data: []byte) {
 	gl.TexImage2D(
 		gl.TEXTURE_2D,
 		0,
-		cast(i32)tex.format,
+		cast(i32)tex.internal_format,
 		tex.width,
 		tex.height,
 		0,
-		cast(u32)tex.internal_format,
+		cast(u32)tex.format,
 		gl.UNSIGNED_BYTE,
 		raw_data(data),
 	)
@@ -192,11 +192,11 @@ image_to_texture :: proc(
 	gl.TexImage2D(
 		gl.TEXTURE_2D,
 		0,
-		cast(i32)format,
+		cast(i32)internal_format,
 		tex.width,
 		tex.height,
 		0,
-		cast(u32)internal_format,
+		cast(u32)format,
 		gl.UNSIGNED_BYTE,
 		raw_data(img.data),
 	)
