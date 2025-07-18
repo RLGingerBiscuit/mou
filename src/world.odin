@@ -268,6 +268,11 @@ world_mark_chunk_demesh :: proc(world: ^World, chunk: ^Chunk) {
 	}
 }
 
+world_pos_to_block_pos :: proc(world_pos: World_Pos) -> Block_Pos {
+	p := glm.floor(world_pos)
+	return {i32(p.x), i32(p.y), i32(p.z)}
+}
+
 world_pos_to_chunk_pos :: proc(world_pos: World_Pos) -> Chunk_Pos {
 	return {i32(world_pos.x) >> 4, i32(world_pos.y) >> 4, i32(world_pos.z) >> 4}
 }

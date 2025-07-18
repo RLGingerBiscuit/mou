@@ -1,5 +1,7 @@
 package mou
 
+import glm "core:math/linalg/glsl"
+
 Block_Face_Bit :: enum {
 	Neg_X,
 	Pos_X,
@@ -106,4 +108,9 @@ block_asset_name :: proc(block: Block, face: Block_Face_Bit) -> string {
 	case:
 		unreachable()
 	}
+}
+
+block_pos_centre :: proc(block_pos: Block_Pos) -> glm.vec3 {
+	centre := block_pos + Block_Pos(0.5)
+	return {f32(centre.x), f32(centre.y), f32(centre.z)}
 }

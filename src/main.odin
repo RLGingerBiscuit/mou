@@ -27,6 +27,7 @@ MAX_RENDER_DISTANCE :: 16
 DEFAULT_FOV :: 70
 DEFAULT_SENSITIVITY_MULT :: f32(1) / 700
 NEAR_PLANE :: 0.1
+HIT_DISTANCE :: 6
 
 when ODIN_DEBUG {
 	tracking_allocator: mem.Tracking_Allocator
@@ -309,6 +310,59 @@ main :: proc() {
 
 			if state.render_ui && prof.event("update ui") {
 				mu_update_ui(&state, delta_time)
+			}
+
+			@(static) p, f: glm.vec3
+			if state.frozen_frustum == nil {
+				p = state.camera.pos
+				f = state.camera.front
+			} else {
+				append(&state.frame.line_vertices, Line_Vert{p, {0, 0xff, 0, 0xff}})
+				append(
+					&state.frame.line_vertices,
+					Line_Vert{p + f * HIT_DISTANCE, {0, 0xff, 0, 0xff}},
+				)
+			}
+
+			pos, hit := cast_ray_to_block(state.world, p, f, HIT_DISTANCE)
+			if hit {
+				world_pos := block_pos_to_world_pos(pos)
+				chunk_pos := block_pos_to_chunk_pos(pos)
+				local_pos := block_pos_to_local_pos(pos)
+				chunk, cok := get_world_chunk(state.world, chunk_pos)
+				if cok && chunk != nil {
+					v := &state.frame.line_vertices
+					C :: RGBA{0xff, 0xff, 0xff, 0xff}
+					// bottom
+					append(v, Line_Vert{world_pos + {0, 0, 0}, C})
+					append(v, Line_Vert{world_pos + {1, 0, 0}, C})
+					append(v, Line_Vert{world_pos + {1, 0, 0}, C})
+					append(v, Line_Vert{world_pos + {1, 0, 1}, C})
+					append(v, Line_Vert{world_pos + {1, 0, 1}, C})
+					append(v, Line_Vert{world_pos + {0, 0, 1}, C})
+					append(v, Line_Vert{world_pos + {0, 0, 1}, C})
+					append(v, Line_Vert{world_pos + {0, 0, 0}, C})
+					// top
+					append(v, Line_Vert{world_pos + {0, 1, 0}, C})
+					append(v, Line_Vert{world_pos + {1, 1, 0}, C})
+					append(v, Line_Vert{world_pos + {1, 1, 0}, C})
+					append(v, Line_Vert{world_pos + {1, 1, 1}, C})
+					append(v, Line_Vert{world_pos + {1, 1, 1}, C})
+					append(v, Line_Vert{world_pos + {0, 1, 1}, C})
+					append(v, Line_Vert{world_pos + {0, 1, 1}, C})
+					append(v, Line_Vert{world_pos + {0, 1, 0}, C})
+					// left
+					append(v, Line_Vert{world_pos + {0, 0, 0}, C})
+					append(v, Line_Vert{world_pos + {0, 1, 0}, C})
+					append(v, Line_Vert{world_pos + {1, 1, 0}, C})
+					append(v, Line_Vert{world_pos + {1, 0, 0}, C})
+					// right
+					append(v, Line_Vert{world_pos + {0, 0, 1}, C})
+					append(v, Line_Vert{world_pos + {0, 1, 1}, C})
+					append(v, Line_Vert{world_pos + {1, 1, 1}, C})
+					append(v, Line_Vert{world_pos + {1, 0, 1}, C})
+
+				}
 			}
 
 			update_camera(&state, delta_time)
