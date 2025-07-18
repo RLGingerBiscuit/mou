@@ -53,8 +53,7 @@ _update_camera_axes :: proc(state: ^State) {
 	cam.right = glm.normalize(glm.cross(cam.front, cam.global_up))
 	cam.up = glm.normalize(glm.cross(cam.right, cam.front))
 
-	aspect := cast(f32)state.window.size.x / cast(f32)state.window.size.y
-
+	aspect := window_aspect_ratio(state.window)
 	fovy := 2 * glm.atan(glm.tan(glm.radians(cam.fovx) / 2) / aspect)
 
 	cam.view_matrix = glm.mat4LookAt(cam.pos, cam.pos + cam.front, cam.up)
@@ -62,7 +61,7 @@ _update_camera_axes :: proc(state: ^State) {
 		fovy,
 		aspect,
 		NEAR_PLANE,
-		state.far_plane ? f32(state.render_distance + 2) * CHUNK_WIDTH : 10_000,
+		state.far_plane ? f32(state.render_distance + 1) * max(CHUNK_WIDTH, CHUNK_HEIGHT, CHUNK_DEPTH) : 1_000,
 	)
 }
 

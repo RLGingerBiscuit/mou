@@ -90,6 +90,10 @@ destroy_window :: proc(wnd: ^Window) {
 	glfw.DestroyWindow(wnd.handle)
 }
 
+window_aspect_ratio :: proc(wnd: Window) -> f32 {
+	return cast(f32)wnd.size.x / cast(f32)wnd.size.y
+}
+
 update_window :: proc(wnd: ^Window) {
 	if window_get_key(wnd^, .Tab) == .Press && window_get_prev_key(wnd^, .Tab) != .Press {
 		wnd.flags ~= {.UI}

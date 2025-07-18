@@ -26,7 +26,7 @@ DEFAULT_RENDER_DISTANCE :: 4
 MAX_RENDER_DISTANCE :: 16
 DEFAULT_FOV :: 70
 DEFAULT_SENSITIVITY_MULT :: f32(1) / 700
-NEAR_PLANE :: 0.001
+NEAR_PLANE :: 0.1
 
 when ODIN_DEBUG {
 	tracking_allocator: mem.Tracking_Allocator
@@ -440,8 +440,20 @@ main :: proc() {
 			projection_matrix := state.camera.projection_matrix
 			view_matrix := state.camera.view_matrix
 			proj_view := projection_matrix * view_matrix
-			frustum_matrix := state.frozen_frustum.? or_else proj_view
-			frustum := create_frustum(frustum_matrix)
+			frustum: Frustum
+			{
+				cam := state.camera
+				aspect := window_aspect_ratio(state.window)
+				fovy := 2 * glm.atan(glm.tan(glm.radians(cam.fovx) / 2) / aspect)
+				proj := glm.mat4Perspective(
+					fovy,
+					aspect,
+					NEAR_PLANE,
+					f32(state.render_distance + 1) * max(CHUNK_WIDTH, CHUNK_HEIGHT, CHUNK_DEPTH),
+				)
+				frustum_matrix := state.frozen_frustum.? or_else proj * view_matrix
+				frustum = create_frustum(frustum_matrix)
+			}
 
 			// Ensure stuff is reset
 			gl.Enable(gl.CULL_FACE)
