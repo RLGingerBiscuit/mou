@@ -21,6 +21,9 @@ Window :: struct {
 	};u8],
 	// Input
 	cursor:       [2]f64,
+	prev_cursor:  [2]f64,
+	scroll:       [2]f64,
+	prev_scroll:  [2]f64,
 	buttons:      [i32(Mouse_Button.Last)]Action,
 	prev_buttons: [i32(Mouse_Button.Last)]Action,
 	keys:         [i32(Key.Last)]Action,
@@ -76,6 +79,7 @@ init_window :: proc(
 	glfw.SetCursorPosCallback(WINDOW.handle, _window_cursor_pos_callback)
 	glfw.SetKeyCallback(WINDOW.handle, _window_key_callback)
 	glfw.SetMouseButtonCallback(WINDOW.handle, _window_mouse_button_callback)
+	glfw.SetScrollCallback(WINDOW.handle, _window_scroll_callback)
 
 	ok = true
 	return
@@ -99,8 +103,12 @@ update_window :: proc(wnd: ^Window) {
 		window_center_cursor(wnd)
 	}
 
+	wnd.prev_cursor = wnd.cursor
+	wnd.prev_scroll = wnd.scroll
 	wnd.prev_keys = wnd.keys
 	wnd.prev_buttons = wnd.buttons
+
+	wnd.scroll = {}
 }
 
 window_should_close :: proc(wnd: Window) -> bool {
@@ -163,7 +171,8 @@ window_get_prev_button :: proc(wnd: Window, button: Mouse_Button) -> Action {
 _window_cursor_pos_callback :: proc "c" (handle: glfw.WindowHandle, x, y: f64) {
 	ptr := glfw.GetWindowUserPointer(handle)
 	state := cast(^State)ptr
-	state.window.cursor = {x, y}
+	wnd := &state.window
+	wnd.cursor = {x, y}
 }
 
 _window_framebuffer_size_callback :: proc "c" (handle: glfw.WindowHandle, width, height: i32) {
@@ -180,11 +189,11 @@ _window_key_callback :: proc "c" (
 	if ikey == -1 {return}
 	ptr := glfw.GetWindowUserPointer(handle)
 	state := cast(^State)ptr
-	WND := &state.window
+	wnd := &state.window
 	key := cast(Key)ikey
 	action := cast(Action)iaction
 	if action == .Repeat {action = .Press}
-	WND.keys[key] = action
+	wnd.keys[key] = action
 }
 
 _window_mouse_button_callback :: proc "c" (
@@ -193,10 +202,17 @@ _window_mouse_button_callback :: proc "c" (
 ) {
 	ptr := glfw.GetWindowUserPointer(handle)
 	state := cast(^State)ptr
-	WND := &state.window
+	wnd := &state.window
 	button := cast(Mouse_Button)ibutton
 	action := cast(Action)iaction
-	WND.buttons[button] = action
+	wnd.buttons[button] = action
+}
+
+_window_scroll_callback :: proc "c" (handle: glfw.WindowHandle, xoffset, yoffset: f64) {
+	ptr := glfw.GetWindowUserPointer(handle)
+	state := cast(^State)ptr
+	wnd := &state.window
+	wnd.scroll = {xoffset, yoffset}
 }
 
 Action :: enum u8 {

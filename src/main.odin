@@ -24,7 +24,8 @@ WINDOW_TITLE :: "Goofin Minecraft Clone"
 
 DEFAULT_RENDER_DISTANCE :: 4
 MAX_RENDER_DISTANCE :: 16
-DEFAULT_FOV :: 45
+DEFAULT_FOV :: 70
+DEFAULT_SENSITIVITY_MULT :: f32(1) / 700
 NEAR_PLANE :: 0.001
 
 when ODIN_DEBUG {
@@ -118,11 +119,11 @@ main :: proc() {
 	init_camera(
 		&state,
 		pos = {0, 24, 0},
-		yaw = 120,
+		yaw = 240,
 		pitch = 90,
 		speed = 5,
-		sensitivity = 0.1,
-		fov = DEFAULT_FOV,
+		sensitivity_mult = DEFAULT_SENSITIVITY_MULT,
+		fovx = DEFAULT_FOV,
 	)
 
 	window_ok := init_window(&state, WINDOW_TITLE, WINDOW_SIZE, vsync = true, visible = false)
@@ -270,6 +271,15 @@ main :: proc() {
 		capture_frame := false
 
 		if prof.event("update iteration") {
+			if (window_get_key(state.window, .Left_Alt) == .Press ||
+				   window_get_key(state.window, .Right_Alt) == .Press) {
+				state.camera.fovx = glm.clamp(
+					state.camera.fovx - 5 * f32(state.window.scroll.y),
+					5,
+					120,
+				)
+			}
+
 			if window_get_key(state.window, .Escape) == .Press {
 				log.debugf("Escape pressed, closing window")
 				set_window_should_close(state.window, true)
@@ -302,7 +312,6 @@ main :: proc() {
 			}
 
 			update_camera(&state, delta_time)
-			update_window(&state.window)
 
 			{
 				N := i32(1.2 * f32(state.render_distance))
@@ -356,6 +365,8 @@ main :: proc() {
 			if prof.event("update world") {
 				update_world(&state.world, state.camera.pos)
 			}
+
+			update_window(&state.window)
 		}
 
 		{

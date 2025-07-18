@@ -10,8 +10,8 @@ Camera :: struct {
 	yaw, pitch:        f32,
 	pos:               glm.vec3,
 	speed:             f32,
-	sensitivity:       f32,
-	fov:               f32,
+	sensitivity_mult:  f32,
+	fovx:              f32,
 	view_matrix:       glm.mat4,
 	projection_matrix: glm.mat4,
 	global_up:         glm.vec3,
@@ -25,7 +25,7 @@ Camera :: struct {
 init_camera :: proc(
 	state: ^State,
 	pos: glm.vec3,
-	yaw, pitch, speed, sensitivity, fov: f32,
+	yaw, pitch, speed, sensitivity_mult, fovx: f32,
 	up := glm.vec3{0, 1, 0},
 ) {
 	cam := &state.camera
@@ -33,8 +33,8 @@ init_camera :: proc(
 	cam.yaw = yaw
 	cam.pitch = pitch
 	cam.speed = speed
-	cam.sensitivity = sensitivity
-	cam.fov = fov
+	cam.sensitivity_mult = sensitivity_mult
+	cam.fovx = fovx
 	cam.global_up = up
 	cam.up = up
 
@@ -53,10 +53,14 @@ _update_camera_axes :: proc(state: ^State) {
 	cam.right = glm.normalize(glm.cross(cam.front, cam.global_up))
 	cam.up = glm.normalize(glm.cross(cam.right, cam.front))
 
+	aspect := cast(f32)state.window.size.x / cast(f32)state.window.size.y
+
+	fovy := 2 * glm.atan(glm.tan(glm.radians(cam.fovx) / 2) / aspect)
+
 	cam.view_matrix = glm.mat4LookAt(cam.pos, cam.pos + cam.front, cam.up)
 	cam.projection_matrix = glm.mat4Perspective(
-		cam.fov,
-		cast(f32)state.window.size.x / cast(f32)state.window.size.y,
+		fovy,
+		aspect,
 		NEAR_PLANE,
 		state.far_plane ? f32(state.render_distance + 2) * CHUNK_WIDTH : 10_000,
 	)
@@ -80,8 +84,10 @@ update_camera :: proc(state: ^State, dt: f64) {
 	glfw.SetCursorPos(wnd.handle, centre.x, centre.y)
 	wnd.cursor = centre
 
-	x *= cast(f64)cam.sensitivity
-	y *= cast(f64)cam.sensitivity
+	sensitivity := state.camera.fovx * state.camera.sensitivity_mult
+
+	x *= cast(f64)sensitivity
+	y *= cast(f64)sensitivity
 
 	cam.yaw -= cast(f32)x
 	cam.pitch = clamp(cam.pitch - cast(f32)y, 0.01, 179.99)
@@ -132,16 +138,16 @@ update_camera :: proc(state: ^State, dt: f64) {
 	}
 
 	if window_get_key(wnd^, .Left) == .Press {
-		cam.yaw -= cam.sensitivity * 5
+		cam.yaw -= sensitivity * 5
 	}
 	if window_get_key(wnd^, .Right) == .Press {
-		cam.yaw += cam.sensitivity * 5
+		cam.yaw += sensitivity * 5
 	}
 	if window_get_key(wnd^, .Up) == .Press {
-		cam.pitch -= cam.sensitivity * 5
+		cam.pitch -= sensitivity * 5
 	}
 	if window_get_key(wnd^, .Down) == .Press {
-		cam.pitch += cam.sensitivity * 5
+		cam.pitch += sensitivity * 5
 	}
 
 	if cam.pos == old_pos && window_get_key(wnd^, .Left_Control) == .Release {
