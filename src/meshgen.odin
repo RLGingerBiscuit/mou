@@ -1,6 +1,7 @@
 package mou
 
 import "core:log"
+import glm "core:math/linalg/glsl"
 import "core:mem"
 import vmem "core:mem/virtual"
 import "core:sync/chan"
@@ -244,11 +245,13 @@ mesh_chunk :: proc(world: ^World, chunk: ^Chunk, mesh: ^Chunk_Mesh) {
 					continue
 				}
 
+				local_pos := Local_Pos{x, y, z}
+
 				vertices :=
 					block_is_opaque(block) ? &mesh.opaque : block.id == .Water ? &mesh.water : &mesh.transparent
 				indices :=
 					block_is_opaque(block) ? &mesh.opaque_indices : block.id == .Water ? &mesh.water_indices : &mesh.transparent_indices
-				block_pos := chunk_block_pos + Block_Pos{x, y, z}
+
 				face_verts: Mesh_Face
 				face_indices: Mesh_Face_Indexes
 
@@ -256,7 +259,7 @@ mesh_chunk :: proc(world: ^World, chunk: ^Chunk, mesh: ^Chunk_Mesh) {
 					face_verts, face_indices = position_face(
 						.Neg_Y,
 						ao_mask,
-						block_pos,
+						local_pos,
 						block,
 						world.atlas,
 					)
@@ -267,7 +270,7 @@ mesh_chunk :: proc(world: ^World, chunk: ^Chunk, mesh: ^Chunk_Mesh) {
 						face_verts, face_indices = position_face(
 							.Pos_Y,
 							ao_mask,
-							block_pos + {0, -1, 0},
+							local_pos + {0, -1, 0},
 							block,
 							world.atlas,
 						)
@@ -280,7 +283,7 @@ mesh_chunk :: proc(world: ^World, chunk: ^Chunk, mesh: ^Chunk_Mesh) {
 					face_verts, face_indices = position_face(
 						.Pos_Y,
 						ao_mask,
-						block_pos,
+						local_pos,
 						block,
 						world.atlas,
 					)
@@ -297,7 +300,7 @@ mesh_chunk :: proc(world: ^World, chunk: ^Chunk, mesh: ^Chunk_Mesh) {
 						face_verts, face_indices = position_face(
 							.Neg_Y,
 							ao_mask,
-							block_pos + {0, 1, 0},
+							local_pos + {0, 1, 0},
 							block,
 							world.atlas,
 						)
@@ -316,7 +319,7 @@ mesh_chunk :: proc(world: ^World, chunk: ^Chunk, mesh: ^Chunk_Mesh) {
 					face_verts, face_indices = position_face(
 						.Neg_Z,
 						ao_mask,
-						block_pos,
+						local_pos,
 						block,
 						world.atlas,
 					)
@@ -331,7 +334,7 @@ mesh_chunk :: proc(world: ^World, chunk: ^Chunk, mesh: ^Chunk_Mesh) {
 						face_verts, face_indices = position_face(
 							.Pos_Z,
 							ao_mask,
-							block_pos + {0, 0, -1},
+							local_pos + {0, 0, -1},
 							block,
 							world.atlas,
 						)
@@ -348,7 +351,7 @@ mesh_chunk :: proc(world: ^World, chunk: ^Chunk, mesh: ^Chunk_Mesh) {
 					face_verts, face_indices = position_face(
 						.Pos_Z,
 						ao_mask,
-						block_pos,
+						local_pos,
 						block,
 						world.atlas,
 					)
@@ -363,7 +366,7 @@ mesh_chunk :: proc(world: ^World, chunk: ^Chunk, mesh: ^Chunk_Mesh) {
 						face_verts, face_indices = position_face(
 							.Neg_Z,
 							ao_mask,
-							block_pos + {0, 0, 1},
+							local_pos + {0, 0, 1},
 							block,
 							world.atlas,
 						)
@@ -380,7 +383,7 @@ mesh_chunk :: proc(world: ^World, chunk: ^Chunk, mesh: ^Chunk_Mesh) {
 					face_verts, face_indices = position_face(
 						.Neg_X,
 						ao_mask,
-						block_pos,
+						local_pos,
 						block,
 						world.atlas,
 					)
@@ -395,7 +398,7 @@ mesh_chunk :: proc(world: ^World, chunk: ^Chunk, mesh: ^Chunk_Mesh) {
 						face_verts, face_indices = position_face(
 							.Pos_X,
 							ao_mask,
-							block_pos + {-1, 0, 0},
+							local_pos + {-1, 0, 0},
 							block,
 							world.atlas,
 						)
@@ -412,7 +415,7 @@ mesh_chunk :: proc(world: ^World, chunk: ^Chunk, mesh: ^Chunk_Mesh) {
 					face_verts, face_indices = position_face(
 						.Pos_X,
 						ao_mask,
-						block_pos,
+						local_pos,
 						block,
 						world.atlas,
 					)
@@ -427,7 +430,7 @@ mesh_chunk :: proc(world: ^World, chunk: ^Chunk, mesh: ^Chunk_Mesh) {
 						face_verts, face_indices = position_face(
 							.Neg_X,
 							ao_mask,
-							block_pos + {1, 0, 0},
+							local_pos + {1, 0, 0},
 							block,
 							world.atlas,
 						)
@@ -449,7 +452,7 @@ mesh_chunk :: proc(world: ^World, chunk: ^Chunk, mesh: ^Chunk_Mesh) {
 position_face :: #force_inline proc(
 	$face: Block_Face_Bit,
 	ao_mask: Block_Diag_Mask,
-	block_pos: Block_Pos,
+	local_pos: Local_Pos,
 	block: Block,
 	atlas: ^Atlas,
 ) -> (
@@ -501,28 +504,28 @@ position_face :: #force_inline proc(
 		}
 	}
 
-	world_pos := block_pos_to_world_pos(block_pos)
 	uvs := atlas.uvs[block_asset_name(block, face)]
+	pos := glm.vec3{f32(local_pos.x), f32(local_pos.y), f32(local_pos.z)}
 
-	face_data[0].pos += world_pos
+	face_data[0].pos += pos
 	face_data[0].tex_coord = {
 		uvs[int(face_data[0].tex_coord.x)].x,
 		uvs[int(face_data[0].tex_coord.y)].y,
 	}
 
-	face_data[1].pos += world_pos
+	face_data[1].pos += pos
 	face_data[1].tex_coord = {
 		uvs[int(face_data[1].tex_coord.x)].x,
 		uvs[int(face_data[1].tex_coord.y)].y,
 	}
 
-	face_data[2].pos += world_pos
+	face_data[2].pos += pos
 	face_data[2].tex_coord = {
 		uvs[int(face_data[2].tex_coord.x)].x,
 		uvs[int(face_data[2].tex_coord.y)].y,
 	}
 
-	face_data[3].pos += world_pos
+	face_data[3].pos += pos
 	face_data[3].tex_coord = {
 		uvs[int(face_data[3].tex_coord.x)].x,
 		uvs[int(face_data[3].tex_coord.y)].y,

@@ -587,6 +587,8 @@ main :: proc() {
 
 					gl.Disable(gl.BLEND) // Disable blending for opaque meshes; slight performance boost
 					for &chunk in opaque_chunks {
+						pos := chunk.pos * CHUNK_SIZE
+						set_uniform(opaque_renderer.shader, "u_chunkpos", pos)
 						renderer_sub_vertices(opaque_renderer, 0, chunk.mesh.opaque[:])
 						renderer_sub_indices(opaque_renderer, 0, chunk.mesh.opaque_indices[:])
 						gl.DrawElements(
@@ -607,6 +609,8 @@ main :: proc() {
 					set_uniforms(transparent_renderer, &state, SKY_COLOUR, proj_view)
 
 					for &chunk in transparent_chunks {
+						pos := chunk.pos * CHUNK_SIZE
+						set_uniform(transparent_renderer.shader, "u_chunkpos", pos)
 						renderer_sub_vertices(transparent_renderer, 0, chunk.mesh.transparent[:])
 						renderer_sub_indices(
 							transparent_renderer,
@@ -629,6 +633,8 @@ main :: proc() {
 					set_uniforms(water_renderer, &state, SKY_COLOUR, proj_view)
 
 					for &chunk in water_chunks {
+						pos := chunk.pos * CHUNK_SIZE
+						set_uniform(water_renderer.shader, "u_chunkpos", pos)
 						renderer_sub_vertices(water_renderer, 0, chunk.mesh.water[:])
 						renderer_sub_indices(water_renderer, 0, chunk.mesh.water_indices[:])
 						gl.DrawElements(

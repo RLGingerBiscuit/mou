@@ -8,6 +8,7 @@ layout(location = 2) in uint vertex_colour0;
 layout(location = 3) in float ao0;
 
 uniform mat4 u_proj_view;
+uniform ivec3 u_chunkpos;
 uniform vec3 u_campos;
 uniform uint u_ao;
 uniform uint u_ao_debug;
@@ -17,9 +18,11 @@ out vec4 vertex_colour;
 out float vertex_distance;
 
 void main() {
-    gl_Position = u_proj_view * vec4(position0, 1.0);
+    vec3 position = position0 + vec3(u_chunkpos);
+
+    gl_Position = u_proj_view * vec4(position, 1.0);
     tex_coord = tex_coord0;
-    vertex_distance = length(u_campos - position0);
+    vertex_distance = length(u_campos - position);
 
     float ao = ubool(u_ao) ? ao0 : 0;
     vertex_colour = colour_mix(vec4(1), vec4(vec3(0), 1), ao);
