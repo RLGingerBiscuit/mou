@@ -288,6 +288,17 @@ main :: proc() {
 				state.render_ui = !state.render_ui
 			}
 
+			if window_get_key(state.window, .R) == .Press &&
+			   window_get_prev_key(state.window, .R) != .Press {
+				sync.guard(&state.world.lock)
+				for _, &c in state.world.chunks {
+					if c.mesh == nil {continue}
+					append(&state.world.chunk_msg_stack, Meshgen_Msg_Tombstone{c.mesh})
+					c.mesh = nil
+					world_mark_chunk_remesh(&state.world, &c)
+				}
+			}
+
 			if state.render_ui && prof.event("update ui") {
 				mu_update_ui(&state, delta_time)
 			}
@@ -434,8 +445,13 @@ main :: proc() {
 				gl.Viewport(0, 0, state.window.size.x, state.window.size.y)
 				gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
 
-				set_uniforms :: proc(r: Renderer, state: ^State, sky: RGBA32, mvp: glm.mat4) {
-					set_uniform(r.shader, "u_proj_view", mvp)
+				set_uniforms :: proc(
+					r: Renderer,
+					state: ^State,
+					sky: RGBA32,
+					proj_view: glm.mat4,
+				) {
+					set_uniform(r.shader, "u_proj_view", proj_view)
 					set_uniform(r.shader, "u_campos", state.camera.pos)
 					set_uniform(r.shader, "u_ao", u32(state.ao))
 					set_uniform(r.shader, "u_ao_debug", u32(state.ao_debug))
