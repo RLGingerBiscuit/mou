@@ -12,7 +12,8 @@ Texture :: struct {
 	format:          Format,
 	internal_format: Format,
 	wrap:            Wrap,
-	filter:          Filter,
+	min_filter:      Filter,
+	mag_filter:      Filter,
 	// Only for debug
 	name:            string,
 	allocator:       mem.Allocator,
@@ -34,8 +35,12 @@ Wrap :: enum i32 {
 }
 
 Filter :: enum i32 {
-	Nearest = gl.NEAREST,
-	Linear  = gl.LINEAR,
+	Nearest                = gl.NEAREST,
+	Linear                 = gl.LINEAR,
+	Nearest_Mipmap_Nearest = gl.NEAREST_MIPMAP_NEAREST,
+	Linear_Mipmap_Nearest  = gl.LINEAR_MIPMAP_NEAREST,
+	Nearest_Mipmap_Linear  = gl.NEAREST_MIPMAP_LINEAR,
+	Linear_Mipmap_Linear   = gl.LINEAR_MIPMAP_LINEAR,
 }
 
 texture_format_bytes :: proc(format: Format) -> i32 {
@@ -55,8 +60,9 @@ make_texture :: proc(
 	width, height: i32,
 	format: Format,
 	wrap := Wrap.Repeat,
-	filter := Filter.Nearest,
-	mipmap := true,
+	min_filter := Filter.Nearest,
+	mag_filter := Filter.Nearest,
+	mipmap := false,
 ) -> (
 	tex: Texture,
 ) {
@@ -66,7 +72,8 @@ make_texture :: proc(
 	tex.mipmap = mipmap
 	tex.format = format
 	tex.wrap = wrap
-	tex.filter = filter
+	tex.min_filter = min_filter
+	tex.mag_filter = mag_filter
 	
 	// odinfmt:disable
 	switch tex.format {
@@ -81,8 +88,8 @@ make_texture :: proc(
 	gl.BindTexture(gl.TEXTURE_2D, tex.handle)
 	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, cast(i32)wrap)
 	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, cast(i32)wrap)
-	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, cast(i32)filter)
-	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, cast(i32)filter)
+	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, cast(i32)min_filter)
+	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, cast(i32)mag_filter)
 	gl.TexImage2D(
 		gl.TEXTURE_2D,
 		0,
@@ -140,14 +147,18 @@ texture_update :: proc(tex: Texture, data: []byte) {
 		gl.UNSIGNED_BYTE,
 		raw_data(data),
 	)
+	if tex.mipmap {
+		gl.GenerateMipmap(gl.TEXTURE_2D)
+	}
 	unbind_texture()
 }
 
 image_to_texture :: proc(
 	img: Image,
 	wrap := Wrap.Repeat,
-	filter := Filter.Nearest,
-	mipmap := true,
+	min_filter := Filter.Nearest,
+	mag_filter := Filter.Nearest,
+	mipmap := false,
 ) -> (
 	tex: Texture,
 ) {
@@ -156,7 +167,8 @@ image_to_texture :: proc(
 	tex.height = img.height
 	tex.mipmap = mipmap
 	tex.wrap = wrap
-	tex.filter = filter
+	tex.min_filter = min_filter
+	tex.mag_filter = mag_filter
 
 	format: Format
 	internal_format: Format
@@ -175,8 +187,8 @@ image_to_texture :: proc(
 	gl.BindTexture(gl.TEXTURE_2D, tex.handle)
 	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, cast(i32)wrap)
 	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, cast(i32)wrap)
-	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, cast(i32)filter)
-	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, cast(i32)filter)
+	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, cast(i32)min_filter)
+	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, cast(i32)mag_filter)
 	gl.TexImage2D(
 		gl.TEXTURE_2D,
 		0,

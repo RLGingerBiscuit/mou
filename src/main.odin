@@ -226,7 +226,6 @@ main :: proc() {
 		WINDOW_WIDTH,
 		WINDOW_HEIGHT,
 		.RGB,
-		filter = .Linear,
 		mipmap = false,
 	)
 	defer destroy_texture(&fbo_colour_tex)
@@ -235,7 +234,6 @@ main :: proc() {
 		WINDOW_WIDTH,
 		WINDOW_HEIGHT,
 		.Depth,
-		filter = .Linear,
 		mipmap = false,
 	)
 	defer destroy_texture(&fbo_depth_tex)

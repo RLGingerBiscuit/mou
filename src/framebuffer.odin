@@ -99,7 +99,8 @@ resize_framebuffer :: proc(fbo: ^Framebuffer, width, height: i32) {
 			height,
 			a.tex.format,
 			a.tex.wrap,
-			a.tex.filter,
+			a.tex.min_filter,
+			a.tex.mag_filter,
 			a.tex.mipmap,
 		)
 
