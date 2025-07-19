@@ -581,7 +581,6 @@ mu_render_ui :: proc(state: ^State) {
 		gl.PolygonMode(gl.FRONT_AND_BACK, gl.LINE)
 	}
 
-
 	command_backing: ^mu.Command
 	for variant in mu.next_command_iterator(state.ui.ctx, &command_backing) {
 		switch cmd in variant {

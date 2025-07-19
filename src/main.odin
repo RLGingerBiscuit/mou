@@ -308,8 +308,10 @@ main :: proc() {
 				}
 			}
 
-			if state.render_ui && prof.event("update ui") {
-				mu_update_ui(&state, delta_time)
+			if state.render_ui {
+				if prof.event("update ui") {
+					mu_update_ui(&state, delta_time)
+				}
 			}
 
 			@(static) p, f: glm.vec3
@@ -362,6 +364,46 @@ main :: proc() {
 					append(v, Line_Vert{world_pos + {1, 1, 1}, C})
 					append(v, Line_Vert{world_pos + {1, 0, 1}, C})
 
+					if .UI not_in state.window.flags &&
+					   window_get_button(state.window, .Left) == .Press &&
+					   window_get_prev_button(state.window, .Left) != .Press {
+						sync.guard(&state.world.lock)
+						chunk_update_block(&state.world, chunk, local_pos, {.Air})
+
+						if local_pos.x == 0 {
+							nb, nbok := get_world_chunk(state.world, chunk_pos + {-1, 0, 0})
+							if nbok {
+								world_mark_chunk_remesh_priority(&state.world, nb)
+							}
+						} else if local_pos.x == 15 {
+							nb, nbok := get_world_chunk(state.world, chunk_pos + {+1, 0, 0})
+							if nbok {
+								world_mark_chunk_remesh_priority(&state.world, nb)
+							}
+						}
+						if local_pos.y == 0 {
+							nb, nbok := get_world_chunk(state.world, chunk_pos + {0, -1, 0})
+							if nbok {
+								world_mark_chunk_remesh_priority(&state.world, nb)
+							}
+						} else if local_pos.y == 15 {
+							nb, nbok := get_world_chunk(state.world, chunk_pos + {0, +1, 0})
+							if nbok {
+								world_mark_chunk_remesh_priority(&state.world, nb)
+							}
+						}
+						if local_pos.z == 0 {
+							nb, nbok := get_world_chunk(state.world, chunk_pos + {0, 0, -1})
+							if nbok {
+								world_mark_chunk_remesh_priority(&state.world, nb)
+							}
+						} else if local_pos.z == 15 {
+							nb, nbok := get_world_chunk(state.world, chunk_pos + {0, 0, +1})
+							if nbok {
+								world_mark_chunk_remesh_priority(&state.world, nb)
+							}
+						}
+					}
 				}
 			}
 
@@ -746,8 +788,10 @@ main :: proc() {
 				}
 			}
 
-			if state.render_ui && prof.event("render ui") {
-				mu_render_ui(&state)
+			if state.render_ui {
+				if prof.event("render ui") {
+					mu_render_ui(&state)
+				}
 			}
 		}
 

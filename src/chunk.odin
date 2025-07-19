@@ -38,6 +38,20 @@ chunk_marked_demesh :: proc(chunk: ^Chunk) -> bool {
 	return sync.atomic_load(&chunk.mark_demesh)
 }
 
+chunk_update_block :: proc(
+	world: ^World,
+	chunk: ^Chunk,
+	local_pos: Local_Pos,
+	block: Block,
+	mark := true,
+) {
+	idx := local_coords_to_block_index(local_pos.x, local_pos.y, local_pos.z)
+	chunk.blocks[idx] = block
+	if mark {
+		world_mark_chunk_remesh_priority(world, chunk)
+	}
+}
+
 get_chunk_block :: proc(chunk: Chunk, local_pos: Local_Pos) -> (Block, bool) {
 	x := local_pos.x
 	y := local_pos.y

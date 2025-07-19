@@ -35,14 +35,15 @@ World_Msg :: union {
 }
 
 World :: struct {
-	chunks:          map[Chunk_Pos]Chunk,
-	meshgen_thread:  Meshgen_Thread,
-	meshgen_tx:      chan.Chan(Meshgen_Msg, chan.Direction.Send),
-	rx:              chan.Chan(World_Msg, chan.Direction.Recv),
-	lock:            sync.RW_Mutex,
-	atlas:           ^Atlas, // FIXME: This doesn't belong here
-	chunk_msg_stack: [dynamic]Meshgen_Msg,
-	arena:           vmem.Arena,
+	chunks:         map[Chunk_Pos]Chunk,
+	meshgen_thread: Meshgen_Thread,
+	meshgen_tx:     chan.Chan(Meshgen_Msg, chan.Direction.Send),
+	rx:             chan.Chan(World_Msg, chan.Direction.Recv),
+	lock:           sync.RW_Mutex,
+	atlas:          ^Atlas, // FIXME: This doesn't belong here
+	msg_stack:      [dynamic]Meshgen_Msg,
+	prio_msg_stack: [dynamic]Meshgen_Msg,
+	arena:          vmem.Arena,
 }
 
 init_world :: proc(world: ^World, atlas: ^Atlas) {
@@ -53,11 +54,8 @@ init_world :: proc(world: ^World, atlas: ^Atlas) {
 
 	context.allocator = vmem.arena_allocator(&world.arena)
 	world.chunks = make(map[Chunk_Pos]Chunk)
-	world.chunk_msg_stack = make(
-		[dynamic]Meshgen_Msg,
-		0,
-		MAX_RENDER_DISTANCE * MAX_RENDER_DISTANCE,
-	)
+	world.msg_stack = make([dynamic]Meshgen_Msg, 0, MAX_RENDER_DISTANCE * MAX_RENDER_DISTANCE)
+	world.prio_msg_stack = make([dynamic]Meshgen_Msg, 0, MAX_RENDER_DISTANCE)
 }
 
 destroy_world :: proc(world: ^World) {
@@ -70,55 +68,65 @@ destroy_world :: proc(world: ^World) {
 }
 
 update_world :: proc(world: ^World, player_pos: glm.vec3) {
-	if prof.event("world sort messages") {
-		player_pos := player_pos
-		context.user_ptr = &player_pos
-		slice.sort_by(
-			world.chunk_msg_stack[:],
-			proc(i, j: Meshgen_Msg) -> bool {
-				player_pos := cast(^glm.vec3)context.user_ptr
-				i_dist, j_dist: f32
-				j_pos: Chunk_Pos
+	if len(world.prio_msg_stack) < MESHGEN_CHAN_CAP {
+		if prof.event("world sort messages") {
+			player_pos := player_pos
+			context.user_ptr = &player_pos
+			slice.sort_by(
+				world.msg_stack[:],
+				proc(i, j: Meshgen_Msg) -> bool {
+					player_pos := cast(^glm.vec3)context.user_ptr
+					i_dist, j_dist: f32
+					j_pos: Chunk_Pos
 
-				switch vi in i {
-				// Give terminate/tombstone priority (send to top of stack)
-				case Meshgen_Msg_Terminate, Meshgen_Msg_Tombstone:
-					return false
+					switch vi in i {
+					// Give terminate/tombstone priority (send to top of stack)
+					case Meshgen_Msg_Terminate, Meshgen_Msg_Tombstone:
+						return false
 
-				case Meshgen_Msg_Remesh:
-					i_dist = glm.length(player_pos^ - chunk_pos_centre(vi.pos))
-								// odinfmt:disable
+					case Meshgen_Msg_Remesh:
+						i_dist = glm.length(player_pos^ - chunk_pos_centre(vi.pos))
+									// odinfmt:disable
 				switch vj in j {
 				case Meshgen_Msg_Terminate, Meshgen_Msg_Tombstone: return true
 				case Meshgen_Msg_Remesh:                           j_pos = vj.pos
 				case Meshgen_Msg_Demesh:                           j_pos = vj.pos
 				}
 				// odinfmt:enable
-					j_dist = glm.length(player_pos^ - chunk_pos_centre(j_pos))
-					return i_dist > j_dist
+						j_dist = glm.length(player_pos^ - chunk_pos_centre(j_pos))
+						return i_dist > j_dist
 
-				case Meshgen_Msg_Demesh:
-					i_dist = glm.length(player_pos^ - chunk_pos_centre(vi.pos))
-								// odinfmt:disable
+					case Meshgen_Msg_Demesh:
+						i_dist = glm.length(player_pos^ - chunk_pos_centre(vi.pos))
+									// odinfmt:disable
 				switch vj in j {
 				case Meshgen_Msg_Terminate, Meshgen_Msg_Tombstone: return true
 				case Meshgen_Msg_Remesh:                           j_pos = vj.pos
 				case Meshgen_Msg_Demesh:                           j_pos = vj.pos
 				}
 				// odinfmt:enable
-					j_dist = glm.length(player_pos^ - chunk_pos_centre(j_pos))
-					return i_dist > j_dist
-				}
-				unreachable()
-			},
-		)
+						j_dist = glm.length(player_pos^ - chunk_pos_centre(j_pos))
+						return i_dist > j_dist
+					}
+					unreachable()
+				},
+			)
+		}
 	}
 
 	if prof.event("world send events") {
-		for msg in pop_safe(&world.chunk_msg_stack) {
-			if !chan.try_send(world.meshgen_tx, msg) {
-				append(&world.chunk_msg_stack, msg)
-				break
+		events: {
+			for msg in pop_safe(&world.prio_msg_stack) {
+				if !chan.try_send(world.meshgen_tx, msg) {
+					append(&world.prio_msg_stack, msg)
+					break events
+				}
+			}
+			for msg in pop_safe(&world.msg_stack) {
+				if !chan.try_send(world.meshgen_tx, msg) {
+					append(&world.msg_stack, msg)
+					break events
+				}
 			}
 		}
 	}
@@ -133,19 +141,17 @@ update_world :: proc(world: ^World, player_pos: glm.vec3) {
 				old_mesh := chunk.mesh
 				chunk.mesh = v.mesh
 				if old_mesh != nil {
-					append(&world.chunk_msg_stack, Meshgen_Msg_Tombstone{old_mesh})
+					append(&world.prio_msg_stack, Meshgen_Msg_Tombstone{old_mesh})
 				}
-				sync.atomic_store(&chunk.mark_remesh, false)
 
 			case World_Msg_Demeshed:
 				sync.guard(&world.lock)
 				chunk, exists := &world.chunks[v.chunk_pos]
 				ensure(exists, "Demeshed chunk doesn't exist")
 				if chunk.mesh != nil {
-					append(&world.chunk_msg_stack, Meshgen_Msg_Tombstone{chunk.mesh})
+					append(&world.prio_msg_stack, Meshgen_Msg_Tombstone{chunk.mesh})
 				}
 				chunk.mesh = nil
-				sync.atomic_store(&chunk.mark_remesh, false)
 			}
 		}
 	}
@@ -253,9 +259,8 @@ world_remesh_surrounding_chunks :: proc(world: ^World, chunk_pos: Chunk_Pos) {
 // Marks a chunk as in need of remeshing and adds it to the queue for dispatching to the meshgen thread.
 world_mark_chunk_remesh :: proc(world: ^World, chunk: ^Chunk) {
 	if queued := sync.atomic_compare_exchange_strong(&chunk.mark_remesh, false, true); !queued {
-		sync.atomic_store(&chunk.mark_remesh, true)
 		sync.atomic_store(&chunk.mark_demesh, false)
-		append(&world.chunk_msg_stack, Meshgen_Msg_Remesh{chunk.pos})
+		append(&world.msg_stack, Meshgen_Msg_Remesh{chunk.pos})
 	}
 }
 
@@ -263,8 +268,23 @@ world_mark_chunk_remesh :: proc(world: ^World, chunk: ^Chunk) {
 world_mark_chunk_demesh :: proc(world: ^World, chunk: ^Chunk) {
 	if queued := sync.atomic_compare_exchange_strong(&chunk.mark_demesh, false, true); !queued {
 		sync.atomic_store(&chunk.mark_remesh, false)
-		sync.atomic_store(&chunk.mark_demesh, true)
-		append(&world.chunk_msg_stack, Meshgen_Msg_Demesh{chunk.pos})
+		append(&world.msg_stack, Meshgen_Msg_Demesh{chunk.pos})
+	}
+}
+
+// Marks a chunk as in need of high-priority remeshing and adds it to the queue for dispatching to the meshgen thread.
+world_mark_chunk_remesh_priority :: proc(world: ^World, chunk: ^Chunk) {
+	if queued := sync.atomic_compare_exchange_strong(&chunk.mark_remesh, false, true); !queued {
+		sync.atomic_store(&chunk.mark_demesh, false)
+		append(&world.prio_msg_stack, Meshgen_Msg_Remesh{chunk.pos})
+	}
+}
+
+// Marks a chunk as in need of high-priority demeshing and adds it to the queue for dispatching to the meshgen thread.
+world_mark_chunk_demesh_priority :: proc(world: ^World, chunk: ^Chunk) {
+	if queued := sync.atomic_compare_exchange_strong(&chunk.mark_demesh, false, true); !queued {
+		sync.atomic_store(&chunk.mark_remesh, false)
+		append(&world.prio_msg_stack, Meshgen_Msg_Demesh{chunk.pos})
 	}
 }
 

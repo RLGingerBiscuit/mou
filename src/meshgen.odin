@@ -4,6 +4,7 @@ import "core:log"
 import glm "core:math/linalg/glsl"
 import "core:mem"
 import vmem "core:mem/virtual"
+import "core:sync"
 import "core:sync/chan"
 import "core:thread"
 
@@ -118,6 +119,7 @@ _meshgen_thread_proc :: proc(mg: ^Meshgen_Thread) {
 			mesh := len(mg.tombstones) > 0 ? pop(&mg.tombstones) : new_chunk_mesh(mg, world)
 			assert(mesh != nil)
 
+			sync.atomic_store(&chunk.mark_remesh, false)
 			if prof.event("chunk mesh generation") {
 				mesh_chunk(world, chunk, mesh)
 			}
