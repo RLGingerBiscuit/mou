@@ -302,7 +302,7 @@ main :: proc() {
 				sync.guard(&state.world.lock)
 				for _, &c in state.world.chunks {
 					if c.mesh == nil {continue}
-					append(&state.world.chunk_msg_stack, Meshgen_Msg_Tombstone{c.mesh})
+					append(&state.world.msg_stack, Meshgen_Msg_Tombstone{c.mesh})
 					c.mesh = nil
 					world_mark_chunk_remesh(&state.world, &c)
 				}

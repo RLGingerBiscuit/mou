@@ -171,7 +171,7 @@ make_atlas :: proc(asset_path: string) -> (atlas: Atlas) {
 
 	atlas.texture = image_to_texture(
 		atlas_mips[0],
-		min_filter = Filter.Nearest,
+		min_filter = Filter.Nearest_Mipmap_Linear,
 		wrap = Wrap.Clamp_To_Edge,
 		mipmap = false,
 	)
