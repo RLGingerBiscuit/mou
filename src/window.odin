@@ -172,6 +172,13 @@ window_get_prev_button :: proc(wnd: Window, button: Mouse_Button) -> Action {
 	return wnd.prev_buttons[button]
 }
 
+window_get_scroll :: proc(wnd: Window) -> [2]f64 {
+	return wnd.scroll
+}
+window_get_prev_scroll :: proc(wnd: Window) -> [2]f64 {
+	return wnd.prev_scroll
+}
+
 _window_cursor_pos_callback :: proc "c" (handle: glfw.WindowHandle, x, y: f64) {
 	ptr := glfw.GetWindowUserPointer(handle)
 	state := cast(^State)ptr

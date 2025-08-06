@@ -272,13 +272,23 @@ main :: proc() {
 		capture_frame := false
 
 		if prof.event("update iteration") {
-			if (window_get_key(state.window, .Left_Alt) == .Press ||
-				   window_get_key(state.window, .Right_Alt) == .Press) {
+			if window_get_key(state.window, .Left_Alt) == .Press ||
+			   window_get_key(state.window, .Right_Alt) == .Press {
 				state.camera.fovx = glm.clamp(
 					state.camera.fovx - 5 * f32(state.window.scroll.y),
 					5,
 					120,
 				)
+			}
+
+			if window_get_key(state.window, .Left_Control) == .Press ||
+			   window_get_key(state.window, .Right_Control) == .Press {
+				state.camera.speed = glm.clamp(
+					state.camera.speed + f32(state.window.scroll.y),
+					1,
+					25,
+				)
+				log.debug(state.camera.speed)
 			}
 
 			if window_get_key(state.window, .Escape) == .Press {
