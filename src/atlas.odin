@@ -18,7 +18,6 @@ ATLAS_WIDTH :: 128
 ATLAS_HEIGHT :: 128
 ATLAS_MIPS :: 5
 ATLAS_MIP_BIAS :: 0
-ATLAS_PADDING :: 0
 
 #assert(ATLAS_MIPS >= 1)
 
@@ -27,11 +26,8 @@ Atlas :: struct {
 	texture: Texture,
 }
 
-make_atlas :: proc(asset_path: string) -> (atlas: Atlas) {
+make_atlas :: proc(asset_path: string, mips := true) -> (atlas: Atlas) {
 	atlas.uvs = make(map[string][2]glm.vec2)
-
-	asset_fd, _ := os.open(asset_path)
-	defer os.close(asset_fd)
 
 	Packer :: struct {
 		atlas: ^Atlas,
@@ -39,13 +35,14 @@ make_atlas :: proc(asset_path: string) -> (atlas: Atlas) {
 	}
 
 	atlas_mips: [ATLAS_MIPS]Image
+	mip_count := mips ? ATLAS_MIPS : 1
 
-	for i in i32(0) ..< ATLAS_MIPS {
+	for i in 0 ..< mip_count {
 		w, h: i32 = ATLAS_WIDTH, ATLAS_HEIGHT
 		w >>= u32(i)
 		h >>= u32(i)
 		atlas_mips[i] = create_image(
-			"::/atlas.png",
+			fmt.tprintf("::/{}_atlas{}.png", path.base(asset_path), i),
 			w,
 			h,
 			do_log = false,
@@ -53,12 +50,12 @@ make_atlas :: proc(asset_path: string) -> (atlas: Atlas) {
 		)
 	}
 	defer {
-		for i in 0 ..< ATLAS_MIPS {
+		for i in 0 ..< mip_count {
 			destroy_image(&atlas_mips[i], false)
 		}
 	}
 	defer when ODIN_DEBUG {
-		for i in 0 ..< ATLAS_MIPS {
+		for i in 0 ..< mip_count {
 			stbi.write_bmp(
 				fmt.ctprintf("{}_atlas{}.bmp", path.base(asset_path), i),
 				atlas_mips[i].width,
@@ -95,7 +92,7 @@ make_atlas :: proc(asset_path: string) -> (atlas: Atlas) {
 	})
 
 	ctx: stbrp.Context
-	nodes := make([]stbrp.Node, ATLAS_WIDTH - ATLAS_PADDING, context.temp_allocator)
+	nodes := make([]stbrp.Node, ATLAS_WIDTH, context.temp_allocator)
 	defer delete(nodes, context.temp_allocator)
 	stbrp.init_target(&ctx, ATLAS_WIDTH, ATLAS_HEIGHT, raw_data(nodes), i32(len(nodes)))
 
@@ -105,8 +102,8 @@ make_atlas :: proc(asset_path: string) -> (atlas: Atlas) {
 	for img, i in packer.imgs {
 		rects[i] = {
 			id = i32(i),
-			w  = stbrp.Coord(img.width) + ATLAS_PADDING * 2,
-			h  = stbrp.Coord(img.height) + ATLAS_PADDING * 2,
+			w  = stbrp.Coord(img.width),
+			h  = stbrp.Coord(img.height),
 		}
 	}
 
@@ -125,42 +122,36 @@ make_atlas :: proc(asset_path: string) -> (atlas: Atlas) {
 
 	for img, i in packer.imgs {
 		rect := rects[i]
-		rect.x += ATLAS_PADDING
-		rect.y += ATLAS_PADDING
-		rect.w -= 2 * ATLAS_PADDING
-		rect.h -= 2 * ATLAS_PADDING
 
 		image_blit(&atlas_mips[0], img, i32(rect.x), i32(rect.y))
-		when ATLAS_MIPS > 1 {
-			for j in i32(1) ..< ATLAS_MIPS {
-				mrect := rect
-				mrect.x >>= u32(j)
-				mrect.y >>= u32(j)
-				mrect.w >>= u32(j)
-				mrect.h >>= u32(j)
+		for j in 1 ..< mip_count {
+			mrect := rect
+			mrect.x >>= u32(j)
+			mrect.y >>= u32(j)
+			mrect.w >>= u32(j)
+			mrect.h >>= u32(j)
 
-				tmp_img := Image {
-					channels = img.channels,
-					width    = i32(mrect.w),
-					height   = i32(mrect.h),
-					data     = tmp_data,
-				}
-
-				ret := stbi.resize_uint8(
-					raw_data(img.data),
-					img.width,
-					img.height,
-					0,
-					raw_data(tmp_data),
-					tmp_img.width,
-					tmp_img.height,
-					0,
-					tmp_img.channels,
-				)
-				assert(ret == 1, "Could not resize image for mip")
-
-				image_blit(&atlas_mips[j], tmp_img, i32(mrect.x), i32(mrect.y))
+			tmp_img := Image {
+				channels = img.channels,
+				width    = i32(mrect.w),
+				height   = i32(mrect.h),
+				data     = tmp_data,
 			}
+
+			ret := stbi.resize_uint8(
+				raw_data(img.data),
+				img.width,
+				img.height,
+				0,
+				raw_data(tmp_data),
+				tmp_img.width,
+				tmp_img.height,
+				0,
+				tmp_img.channels,
+			)
+			assert(ret == 1, "Could not resize image for mip")
+
+			image_blit(&atlas_mips[j], tmp_img, i32(mrect.x), i32(mrect.y))
 		}
 
 		start_uv := glm.vec2{f32(rect.x), f32(rect.y)}
@@ -177,20 +168,20 @@ make_atlas :: proc(asset_path: string) -> (atlas: Atlas) {
 
 	atlas.texture = image_to_texture(
 		atlas_mips[0],
-		min_filter = Filter.Nearest_Mipmap_Linear,
+		min_filter = Filter.Nearest_Mipmap_Linear if mips else Filter.Nearest,
 		wrap = Wrap.Clamp_To_Edge,
 		mipmap = false,
 	)
 	bind_texture(atlas.texture)
 	defer unbind_texture()
-	_ :: gl
-	when ATLAS_MIPS > 1 {
+
+	if mips {
 		// TODO: nicer API for manual mips
 		gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAX_LEVEL, ATLAS_MIPS - 1)
 		gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_LOD, 0)
 		gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAX_LOD, ATLAS_MIPS - 1)
 		gl.TexParameterf(gl.TEXTURE_2D, gl.TEXTURE_LOD_BIAS, ATLAS_MIP_BIAS)
-		for i in i32(1) ..< ATLAS_MIPS {
+		for i in 1 ..< cast(i32)mip_count {
 			mip := atlas_mips[i]
 			gl.TexImage2D(
 				gl.TEXTURE_2D,
