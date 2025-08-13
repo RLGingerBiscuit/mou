@@ -60,7 +60,7 @@ make_atlas :: proc(asset_path: string) -> (atlas: Atlas) {
 	defer when ODIN_DEBUG {
 		for i in 0 ..< ATLAS_MIPS {
 			stbi.write_bmp(
-				fmt.ctprintf("atlas{}.bmp", i),
+				fmt.ctprintf("{}_atlas{}.bmp", path.base(asset_path), i),
 				atlas_mips[i].width,
 				atlas_mips[i].height,
 				atlas_mips[i].channels,
@@ -80,8 +80,14 @@ make_atlas :: proc(asset_path: string) -> (atlas: Atlas) {
 		delete(packer.imgs)
 	}
 
-	log.debug("Collecting textures...")
+	log.debugf("Collecting textures from '{}'...", asset_path)
 	path.walk(asset_path, _walk_proc, &packer)
+
+	if len(packer.imgs) == 0 {
+		atlas.texture = make_texture(atlas_mips[0].name, 1, 1, .Red)
+		texture_set(atlas.texture, []byte{0})
+		return
+	}
 
 	// Place larger images first
 	slice.sort_by(packer.imgs[:], proc(i, j: Image) -> bool {
@@ -211,7 +217,7 @@ make_atlas :: proc(asset_path: string) -> (atlas: Atlas) {
 		packer := cast(^Packer)data
 
 		if info.is_dir {
-			if info.name != "textures" {
+			if !strings.contains(info.fullpath, "textures") {
 				skip_dir = true
 			}
 			return

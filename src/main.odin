@@ -150,10 +150,10 @@ main :: proc() {
 	line_shader := make_shader("assets/shaders/line.vert", "assets/shaders/line.frag")
 	defer destroy_shader(&line_shader)
 
-	atlas := make_atlas("assets/textures/")
-	defer destroy_atlas(&atlas)
+	block_atlas := make_atlas("assets/textures/blocks/")
+	defer destroy_atlas(&block_atlas)
 
-	init_world(&state.world, &atlas)
+	init_world(&state.world, &block_atlas)
 	defer destroy_world(&state.world)
 
 	opaque_renderer := make_renderer(true, chunk_shader, .Dynamic)
@@ -688,7 +688,7 @@ main :: proc() {
 				if prof.event("render opaque meshes") {
 					bind_renderer(opaque_renderer)
 					defer unbind_renderer()
-					bind_texture(atlas.texture)
+					bind_texture(block_atlas.texture)
 					set_uniforms(opaque_renderer, &state, SKY_COLOUR, proj_view)
 
 					gl.Disable(gl.BLEND) // Disable blending for opaque meshes; slight performance boost
@@ -711,7 +711,7 @@ main :: proc() {
 				if prof.event("render transparent meshes") {
 					bind_renderer(transparent_renderer)
 					defer unbind_renderer()
-					bind_texture(atlas.texture)
+					bind_texture(block_atlas.texture)
 					set_uniforms(transparent_renderer, &state, SKY_COLOUR, proj_view)
 
 					for &chunk in transparent_chunks {
@@ -735,7 +735,7 @@ main :: proc() {
 				if prof.event("render water meshes") {
 					bind_renderer(water_renderer)
 					defer unbind_renderer()
-					bind_texture(atlas.texture)
+					bind_texture(block_atlas.texture)
 					set_uniforms(water_renderer, &state, SKY_COLOUR, proj_view)
 
 					for &chunk in water_chunks {
