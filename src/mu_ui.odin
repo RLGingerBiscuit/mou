@@ -40,9 +40,7 @@ UI_State :: struct {
 	font_tex: Texture,
 	icons:    [mu.Icon]mu.Rect,
 	// Rendering
-	vao:      Vertex_Array,
-	vbo, ebo: Buffer,
-	shader:   Shader,
+	renderer: Renderer,
 }
 
 mu_init_ui :: proc(state: ^State) {
@@ -149,38 +147,22 @@ mu_init_ui :: proc(state: ^State) {
 		}
 	}
 
-	state.ui.shader = make_shader("assets/shaders/ui.vert", "assets/shaders/ui.frag")
+	shader := make_shader("assets/shaders/ui.vert", "assets/shaders/ui.frag")
 
-	state.ui.vao = make_vertex_array()
-	state.ui.vbo = make_buffer(.Array, .Dynamic)
-	state.ui.ebo = make_buffer(.Element_Array, .Dynamic)
+	state.ui.renderer = make_renderer(true, shader, .Dynamic)
+	bind_renderer(state.ui.renderer)
+	defer unbind_renderer()
 
-	bind_vertex_array(state.ui.vao)
-	bind_buffer(state.ui.ebo)
-	buffer_data(state.ui.ebo, ebo_buf[:])
-
-	bind_buffer(state.ui.vbo)
-	buffer_data(state.ui.vbo, vbo_buf[:])
-
-	// position [x,y]
-	vertex_attrib_pointer(0, 2, .Float, false, size_of(UI_Vert), offset_of(UI_Vert, pos))
-	// tex_coord [x,y]
-	vertex_attrib_pointer(1, 2, .Float, false, size_of(UI_Vert), offset_of(UI_Vert, tex_coord))
-	// colour [rgba]
-	vertex_attrib_i_pointer(2, 1, .Unsigned_Int, size_of(UI_Vert), offset_of(UI_Vert, colour))
-
-	// unbind_buffer(.Element_Array)
-	unbind_buffer(.Array)
-	unbind_vertex_array()
+	renderer_vertices(state.ui.renderer, vbo_buf[:])
+	renderer_indices(state.ui.renderer, transmute([][1]u32)ebo_buf[:])
+	vertex_attrib_vert(UI_Vert)
 }
 
 mu_destroy_ui :: proc(state: ^State) {
 	fons.Destroy(&state.ui.font_ctx)
 	destroy_texture(&state.ui.font_tex)
-	destroy_shader(&state.ui.shader)
-	destroy_buffer(&state.ui.vbo)
-	destroy_buffer(&state.ui.ebo)
-	destroy_vertex_array(&state.ui.vao)
+	destroy_shader(&state.ui.renderer.shader)
+	destroy_renderer(&state.ui.renderer)
 	free(state.ui.ctx)
 }
 
@@ -457,28 +439,26 @@ mu_render_ui :: proc(state: ^State) {
 		view_matrix := glm.identity(glm.mat4)
 		proj_view := projection_matrix * view_matrix
 
-		bind_vertex_array(state.ui.vao)
+		bind_renderer(state.ui.renderer)
+		defer unbind_renderer()
 
-		use_shader(state.ui.shader)
 		bind_texture(state.ui.font_tex)
-		set_uniform(state.ui.shader, "u_proj_view", proj_view)
+		defer unbind_texture()
 
-		bind_buffer(state.ui.vbo)
+		set_uniform(state.ui.renderer.shader, "u_proj_view", proj_view)
 
-		buffer_sub_data(state.ui.vbo, 0, vbo_buf[:4 * buf_idx])
-		buffer_sub_data(state.ui.ebo, 0, ebo_buf[:6 * buf_idx])
+		renderer_sub_vertices(state.ui.renderer, 0, vbo_buf[:4 * buf_idx])
+		renderer_sub_indices(state.ui.renderer, 0, transmute([][1]u32)ebo_buf[:6 * buf_idx])
 
 		gl.DrawElements(gl.TRIANGLES, cast(i32)buf_idx * 6, gl.UNSIGNED_INT, nil)
-
-		unbind_texture()
-		unbind_buffer(.Array)
-		unbind_vertex_array()
 
 		buf_idx = 0
 	}
 
 	push_quad :: proc(state: ^State, dst: RectF, src: RectF, colour: mu.Color) {
 		if buf_idx == BUF_SZ {flush(state)}
+
+		c := cast(RGBA)colour
 
 		font := &state.ui.font_ctx
 
@@ -492,10 +472,10 @@ mu_render_ui :: proc(state: ^State) {
 		w := src.w / f32(font.width)
 		h := src.h / f32(font.height)
 
-		vbo_buf[tex_idx + 0] = {{dst.x, dst.y}, {x, y}, colour}
-		vbo_buf[tex_idx + 1] = {{dst.x + dst.w, dst.y}, {x + w, y}, colour}
-		vbo_buf[tex_idx + 2] = {{dst.x, dst.y + dst.h}, {x, y + h}, colour}
-		vbo_buf[tex_idx + 3] = {{dst.x + dst.w, dst.y + dst.h}, {x + w, y + h}, colour}
+		vbo_buf[tex_idx + 0] = {{dst.x, dst.y}, {x, y}, c}
+		vbo_buf[tex_idx + 1] = {{dst.x + dst.w, dst.y}, {x + w, y}, c}
+		vbo_buf[tex_idx + 2] = {{dst.x, dst.y + dst.h}, {x, y + h}, c}
+		vbo_buf[tex_idx + 3] = {{dst.x + dst.w, dst.y + dst.h}, {x + w, y + h}, c}
 
 		ebo_buf[index_idx + 0] = element_idx + 0
 		ebo_buf[index_idx + 1] = element_idx + 1
@@ -606,11 +586,10 @@ mu_render_ui :: proc(state: ^State) {
 
 @(private = "file")
 BUF_SZ :: 16384
-@(private = "file")
 UI_Vert :: struct #packed {
 	pos:       glm.vec2,
 	tex_coord: glm.vec2,
-	colour:    mu.Color,
+	colour:    RGBA,
 }
 @(private = "file")
 vbo_buf: [BUF_SZ * 4]UI_Vert
@@ -619,7 +598,6 @@ ebo_buf: [BUF_SZ * 6]u32
 @(private = "file")
 buf_idx: u32 = 0
 
-@(private = "file")
 RectF :: struct {
 	x, y, w, h: f32,
 }

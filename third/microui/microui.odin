@@ -140,7 +140,7 @@ Real         :: f32
 Font         :: distinct rawptr
 Vec2         :: distinct [2]i32
 Rect         :: struct { x, y, w, h: i32 }
-Color        :: struct { r, g, b, a: u8 }
+Color        :: [4]u8
 Frame_Index  :: distinct i32
 Pool_Item    :: struct { id: Id, last_update: Frame_Index }
 
