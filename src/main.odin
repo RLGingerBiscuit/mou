@@ -153,6 +153,9 @@ main :: proc() {
 	block_atlas := make_atlas("assets/textures/blocks/")
 	defer destroy_atlas(&block_atlas)
 
+	ui_atlas := make_atlas("assets/textures/ui/", false)
+	defer destroy_atlas(&ui_atlas)
+
 	init_world(&state.world, &block_atlas)
 	defer destroy_world(&state.world)
 
@@ -288,7 +291,6 @@ main :: proc() {
 					1,
 					25,
 				)
-				log.debug(state.camera.speed)
 			}
 
 			if window_get_key(state.window, .Escape) == .Press {
@@ -796,6 +798,57 @@ main :: proc() {
 
 					gl.DrawArrays(gl.LINES, 0, cast(i32)len(state.frame.line_vertices))
 				}
+			}
+
+			{ 	// TODO: Do this but better
+				projection_matrix = glm.mat4Ortho3d(
+					0,
+					f32(state.window.size.x),
+					f32(state.window.size.y),
+					0,
+					-1,
+					1,
+				)
+				view_matrix = glm.identity(glm.mat4)
+				proj_view = projection_matrix * view_matrix
+
+				CROSSHAIR_SIZE :: 16
+				C :: RGBA{0xff, 0xff, 0xff, 0xff}
+
+				uv := ui_atlas.uvs["crosshair.png"]
+
+				r := RectF {
+					x = f32(state.window.size.x - CROSSHAIR_SIZE) / 2,
+					y = f32(state.window.size.y - CROSSHAIR_SIZE) / 2,
+					w = CROSSHAIR_SIZE,
+					h = CROSSHAIR_SIZE,
+				}
+
+				bind_renderer(state.ui.renderer)
+				defer unbind_renderer()
+				bind_texture(ui_atlas.texture)
+				defer unbind_texture()
+
+				set_uniform(state.ui.renderer.shader, "u_proj_view", proj_view)
+
+				renderer_sub_vertices(
+					state.ui.renderer,
+					0,
+					[]UI_Vert {
+						{{r.x, r.y}, uv[0], C},
+						{{r.x + r.w, r.y}, {uv[1].x, uv[0].y}, C},
+						{{r.x, r.y + r.h}, {uv[0].x, uv[1].y}, C},
+						{{r.x + r.w, r.y + r.h}, uv[1], C},
+					},
+				)
+
+				renderer_sub_indices(
+					state.ui.renderer,
+					0,
+					transmute([][1]u32)[]u32{2, 1, 0, 2, 3, 1},
+				)
+
+				gl.DrawElements(gl.TRIANGLES, 6, gl.UNSIGNED_INT, nil)
 			}
 
 			if state.render_ui {
