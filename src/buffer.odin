@@ -39,13 +39,23 @@ unbind_buffer :: proc(target: Buffer_Target) {
 	gl.BindBuffer(cast(u32)target, 0)
 }
 
-buffer_data :: proc(buffer: Buffer, data: $S/[]$T) {
-	gl.BufferData(
-		cast(u32)buffer.target,
-		len(data) * size_of(T),
-		raw_data(data),
-		cast(u32)buffer.usage,
-	)
+buffer_data :: proc(buffer: Buffer, data: $S/[]$T, loc := #caller_location) {
+	when ODIN_DEBUG {
+		gl.BufferData(
+			cast(u32)buffer.target,
+			len(data) * size_of(T),
+			raw_data(data),
+			cast(u32)buffer.usage,
+			loc = loc,
+		)
+	} else {
+		gl.BufferData(
+			cast(u32)buffer.target,
+			len(data) * size_of(T),
+			raw_data(data),
+			cast(u32)buffer.usage,
+		)
+	}
 }
 
 buffer_sub_data :: proc(buffer: Buffer, offset: int, data: $S/[]$T, loc := #caller_location) {

@@ -42,20 +42,25 @@ unbind_renderer :: proc() {
 	defer unbind_buffer(.Array)
 }
 
-renderer_vertices :: proc(r: Renderer, verts: $S/[]$T) {
-	buffer_data(r.vbo, verts)
+renderer_vertices :: proc(r: Renderer, verts: $S/[]$T, loc := #caller_location) {
+	buffer_data(r.vbo, verts, loc = loc)
 }
 
-renderer_indices :: proc(r: Renderer, indices: $S/[][$N]u32) {
+renderer_indices :: proc(r: Renderer, indices: $S/[][$N]u32, loc := #caller_location) {
 	assert(r._indexed, #procedure + " called on un-indexed renderer")
-	buffer_data(r.ebo, indices)
+	buffer_data(r.ebo, indices, loc = loc)
 }
 
-renderer_sub_vertices :: proc(r: Renderer, offset: int, verts: $S/[]$T) {
-	buffer_sub_data(r.vbo, offset, verts)
+renderer_sub_vertices :: proc(r: Renderer, offset: int, verts: $S/[]$T, loc := #caller_location) {
+	buffer_sub_data(r.vbo, offset, verts, loc = loc)
 }
 
-renderer_sub_indices :: proc(r: Renderer, offset: int, indices: $S/[][$N]u32) {
+renderer_sub_indices :: proc(
+	r: Renderer,
+	offset: int,
+	indices: $S/[][$N]u32,
+	loc := #caller_location,
+) {
 	assert(r._indexed, #procedure + " called on un-indexed renderer")
-	buffer_sub_data(r.ebo, offset, indices)
+	buffer_sub_data(r.ebo, offset, indices, loc = loc)
 }

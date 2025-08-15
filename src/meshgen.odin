@@ -165,7 +165,7 @@ mesh_chunk :: proc(world: ^World, chunk: ^Chunk, mesh: ^Chunk_Mesh) {
 	clear(&mesh.transparent_indices)
 	clear(&mesh.water_indices)
 
-	WATER_TOP_OFFSET :: (f32(1) / 16)
+	WATER_TOP_OFFSET :: (f32(1) / CHUNK_SIZE)
 
 	chunk_block_pos := chunk_pos_to_block_pos(chunk.pos)
 
