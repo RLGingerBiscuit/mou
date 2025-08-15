@@ -169,9 +169,9 @@ mesh_chunk :: proc(world: ^World, chunk: ^Chunk, mesh: ^Chunk_Mesh) {
 
 	chunk_block_pos := chunk_pos_to_block_pos(chunk.pos)
 
-	for y in i32(0) ..< CHUNK_HEIGHT {
-		for z in i32(0) ..< CHUNK_DEPTH {
-			for x in i32(0) ..< CHUNK_WIDTH {
+	for y in i32(0) ..< CHUNK_SIZE {
+		for z in i32(0) ..< CHUNK_SIZE {
+			for x in i32(0) ..< CHUNK_SIZE {
 				block := chunk.blocks[local_coords_to_block_index(x, y, z)]
 				if block.id == .Air {
 					continue

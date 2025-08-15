@@ -3,11 +3,8 @@ package mou
 import glm "core:math/linalg/glsl"
 import "core:sync"
 
-CHUNK_WIDTH :: 16
-CHUNK_HEIGHT :: 16
-CHUNK_DEPTH :: 16
-CHUNK_BLOCK_COUNT :: CHUNK_WIDTH * CHUNK_HEIGHT * CHUNK_DEPTH
-CHUNK_SIZE :: glm.ivec3{CHUNK_WIDTH, CHUNK_HEIGHT, CHUNK_DEPTH}
+CHUNK_SIZE :: 16
+CHUNK_BLOCK_COUNT :: CHUNK_SIZE * CHUNK_SIZE * CHUNK_SIZE
 
 Chunk :: struct {
 	pos:         Chunk_Pos,
@@ -56,7 +53,7 @@ get_chunk_block :: proc(chunk: Chunk, local_pos: Local_Pos) -> (Block, bool) {
 	x := local_pos.x
 	y := local_pos.y
 	z := local_pos.z
-	if x < 0 || y < 0 || z < 0 || x >= CHUNK_WIDTH || y >= CHUNK_HEIGHT || z >= CHUNK_DEPTH {
+	if x < 0 || y < 0 || z < 0 || x >= CHUNK_SIZE || y >= CHUNK_SIZE || z >= CHUNK_SIZE {
 		return {}, false
 	}
 	index := local_coords_to_block_index(x, y, z)
@@ -93,5 +90,5 @@ chunk_pos_to_block_pos :: proc(chunk_pos: Chunk_Pos) -> Block_Pos {
 }
 
 local_coords_to_block_index :: proc(x, y, z: i32) -> i32 {
-	return (y * CHUNK_DEPTH * CHUNK_WIDTH) + (z * CHUNK_WIDTH) + x
+	return (y * CHUNK_SIZE * CHUNK_SIZE) + (z * CHUNK_SIZE) + x
 }

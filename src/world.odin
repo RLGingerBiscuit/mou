@@ -172,15 +172,15 @@ world_generate_chunk :: proc(world: ^World, chunk_pos: Chunk_Pos) -> bool {
 	world.chunks[chunk_pos] = make_chunk(chunk_pos)
 	chunk := &world.chunks[chunk_pos]
 
-	chunk_noise: [CHUNK_WIDTH * CHUNK_DEPTH]i32
+	chunk_noise: [CHUNK_SIZE * CHUNK_SIZE]i32
 
-	for z in i32(0) ..< CHUNK_DEPTH {
-		for x in i32(0) ..< CHUNK_WIDTH {
+	for z in i32(0) ..< CHUNK_SIZE {
+		for x in i32(0) ..< CHUNK_SIZE {
 			OCTAVES :: 4
 			PERSISTENCE :: 0.5
 
-			xf := f32(chunk_pos.x * CHUNK_WIDTH + x)
-			zf := f32(chunk_pos.z * CHUNK_DEPTH + z)
+			xf := f32(chunk_pos.x * CHUNK_SIZE + x)
+			zf := f32(chunk_pos.z * CHUNK_SIZE + z)
 
 			frequency := f32(1) / f32(64)
 			amplitude := f32(1)
@@ -195,19 +195,19 @@ world_generate_chunk :: proc(world: ^World, chunk_pos: Chunk_Pos) -> bool {
 			n /= amplitude_total
 			n *= 0.5
 			n += 0.5
-			n *= CHUNK_HEIGHT * 2
+			n *= CHUNK_SIZE * 2
 
 			height := cast(i32)math.round(n)
-			chunk_noise[z * CHUNK_DEPTH + x] = height
+			chunk_noise[z * CHUNK_SIZE + x] = height
 		}
 	}
 
-	for y in i32(0) ..< CHUNK_HEIGHT {
-		for z in i32(0) ..< CHUNK_DEPTH {
-			for x in i32(0) ..< CHUNK_WIDTH {
-				height := chunk_noise[z * CHUNK_DEPTH + x]
+	for y in i32(0) ..< CHUNK_SIZE {
+		for z in i32(0) ..< CHUNK_SIZE {
+			for x in i32(0) ..< CHUNK_SIZE {
+				height := chunk_noise[z * CHUNK_SIZE + x]
 
-				cy := y + chunk_pos.y * CHUNK_HEIGHT
+				cy := y + chunk_pos.y * CHUNK_SIZE
 				switch {
 				case cy == height:
 					chunk.blocks[local_coords_to_block_index(x, y, z)] = Block{.Grass}

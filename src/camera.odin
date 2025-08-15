@@ -61,7 +61,7 @@ _update_camera_axes :: proc(state: ^State) {
 		fovy,
 		aspect,
 		NEAR_PLANE,
-		state.far_plane ? f32(state.render_distance + 1) * max(CHUNK_WIDTH, CHUNK_HEIGHT, CHUNK_DEPTH) : 1_000,
+		state.far_plane ? f32(state.render_distance + 1) * CHUNK_SIZE : 1_000,
 	)
 }
 

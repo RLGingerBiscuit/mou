@@ -114,13 +114,13 @@ frustum_contains_chunk :: proc(f: Frustum, chunk_pos: Chunk_Pos) -> bool {
 	check :: #force_inline proc(p: Frustum_Plane, pos: glm.vec3) -> bool {
 		vert := pos
 		if p.x >= 0 {
-			vert.x += CHUNK_WIDTH
+			vert.x += CHUNK_SIZE
 		}
 		if p.y >= 0 {
-			vert.y += CHUNK_HEIGHT
+			vert.y += CHUNK_SIZE
 		}
 		if p.z >= 0 {
-			vert.z += CHUNK_DEPTH
+			vert.z += CHUNK_SIZE
 		}
 		return glm.dot(p.xyz, vert) + p.w >= 0
 	}

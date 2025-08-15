@@ -557,7 +557,7 @@ main :: proc() {
 					fovy,
 					aspect,
 					NEAR_PLANE,
-					f32(state.render_distance + 1) * max(CHUNK_WIDTH, CHUNK_HEIGHT, CHUNK_DEPTH),
+					f32(state.render_distance + 1) * CHUNK_SIZE,
 				)
 				frustum_matrix := state.frozen_frustum.? or_else proj * view_matrix
 				frustum = create_frustum(frustum_matrix)
@@ -589,13 +589,9 @@ main :: proc() {
 						set_uniform(
 							r.shader,
 							"u_fog_start",
-							f32(state.render_distance) * CHUNK_WIDTH - CHUNK_WIDTH / 4,
+							f32(state.render_distance) * CHUNK_SIZE - CHUNK_SIZE / 4,
 						)
-						set_uniform(
-							r.shader,
-							"u_fog_end",
-							f32(state.render_distance) * CHUNK_WIDTH,
-						)
+						set_uniform(r.shader, "u_fog_end", f32(state.render_distance) * CHUNK_SIZE)
 						set_uniform(r.shader, "u_fog_colour", sky)
 					} else {
 						set_uniform(r.shader, "u_fog_start", max(f32))
