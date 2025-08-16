@@ -123,6 +123,10 @@ set_window_should_close :: proc(wnd: Window, close: bool) {
 	glfw.SetWindowShouldClose(wnd.handle, b32(close))
 }
 
+set_window_title :: proc(wnd: Window, title: cstring) {
+	glfw.SetWindowTitle(wnd.handle, title)
+}
+
 window_swap_buffers :: proc(wnd: Window) {
 	glfw.SwapBuffers(wnd.handle)
 }

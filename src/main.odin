@@ -1,6 +1,8 @@
 package mou
 
 import "base:runtime"
+import sa "core:container/small_array"
+import "core:fmt"
 import "core:log"
 import glm "core:math/linalg/glsl"
 import "core:mem"
@@ -266,6 +268,7 @@ main :: proc() {
 
 	gl.LineWidth(4)
 
+	prev_delta_times: sa.Small_Array(240, f64)
 	previous_time := glfw.GetTime()
 	for !window_should_close(state.window) {
 		current_time := glfw.GetTime()
@@ -276,6 +279,22 @@ main :: proc() {
 
 		if prof.event("frame") {
 			if prof.event("update iteration") {
+				{
+					if sa.space(prev_delta_times) == 0 {
+						sa.ordered_remove(&prev_delta_times, 0)
+					}
+					sa.append(&prev_delta_times, delta_time)
+					avg_dt: f64
+					for dt in sa.slice(&prev_delta_times) {
+						avg_dt += dt
+					}
+					avg_dt /= f64(sa.len(prev_delta_times))
+					set_window_title(
+						state.window,
+						fmt.ctprintf(WINDOW_TITLE + " ({:.0f} fps)", 1 / avg_dt),
+					)
+				}
+
 				if window_get_key(state.window, .Left_Alt) == .Press ||
 				   window_get_key(state.window, .Right_Alt) == .Press {
 					state.camera.fovx = glm.clamp(
