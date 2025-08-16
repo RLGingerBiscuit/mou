@@ -22,9 +22,9 @@ WINDOW_HEIGHT :: 720
 WINDOW_SIZE :: [2]i32{WINDOW_WIDTH, WINDOW_HEIGHT}
 WINDOW_TITLE :: "Goofin Minecraft Clone"
 
-DEFAULT_RENDER_DISTANCE :: 4
-MAX_RENDER_DISTANCE :: 16
-DEFAULT_FOV :: 70
+DEFAULT_RENDER_DISTANCE :: 8
+MAX_RENDER_DISTANCE :: 32
+DEFAULT_FOV :: 90
 DEFAULT_SENSITIVITY_MULT :: f32(1) / 700
 NEAR_PLANE :: 0.1
 HIT_DISTANCE :: 6
@@ -274,582 +274,607 @@ main :: proc() {
 
 		capture_frame := false
 
-		if prof.event("update iteration") {
-			if window_get_key(state.window, .Left_Alt) == .Press ||
-			   window_get_key(state.window, .Right_Alt) == .Press {
-				state.camera.fovx = glm.clamp(
-					state.camera.fovx - 5 * f32(state.window.scroll.y),
-					5,
-					120,
-				)
-			}
-
-			if window_get_key(state.window, .Left_Control) == .Press ||
-			   window_get_key(state.window, .Right_Control) == .Press {
-				state.camera.speed = glm.clamp(
-					state.camera.speed + f32(state.window.scroll.y),
-					1,
-					25,
-				)
-			}
-
-			if window_get_key(state.window, .Escape) == .Press {
-				log.debugf("Escape pressed, closing window")
-				set_window_should_close(state.window, true)
-			}
-
-			if rdoc_api != nil &&
-			   window_get_key(state.window, .F2) == .Press &&
-			   window_get_prev_key(state.window, .F2) != .Press {
-				capture_frame = true
-			}
-
-			if window_get_key(state.window, .F1) == .Press &&
-			   window_get_prev_key(state.window, .F1) != .Press {
-				state.render_ui = !state.render_ui
-			}
-
-			if window_get_key(state.window, .R) == .Press &&
-			   window_get_prev_key(state.window, .R) != .Press {
-				sync.guard(&state.world.lock)
-				for _, &c in state.world.chunks {
-					if c.mesh == nil {continue}
-					append(&state.world.msg_stack, Meshgen_Msg_Tombstone{c.mesh})
-					c.mesh = nil
-					world_mark_chunk_remesh(&state.world, &c)
+		if prof.event("frame") {
+			if prof.event("update iteration") {
+				if window_get_key(state.window, .Left_Alt) == .Press ||
+				   window_get_key(state.window, .Right_Alt) == .Press {
+					state.camera.fovx = glm.clamp(
+						state.camera.fovx - 5 * f32(state.window.scroll.y),
+						5,
+						120,
+					)
 				}
-			}
 
-			if state.render_ui {
-				if prof.event("update ui") {
-					mu_update_ui(&state, delta_time)
+				if window_get_key(state.window, .Left_Control) == .Press ||
+				   window_get_key(state.window, .Right_Control) == .Press {
+					state.camera.speed = glm.clamp(
+						state.camera.speed + f32(state.window.scroll.y),
+						1,
+						25,
+					)
 				}
-			}
 
-			@(static) p, f: glm.vec3
-			if state.frozen_frustum == nil {
-				p = state.camera.pos
-				f = state.camera.front
-			} else {
-				append(&state.frame.line_vertices, Line_Vert{p, {0, 0xff, 0, 0xff}})
-				append(
-					&state.frame.line_vertices,
-					Line_Vert{p + f * HIT_DISTANCE, {0, 0xff, 0, 0xff}},
-				)
-			}
+				if window_get_key(state.window, .Escape) == .Press {
+					log.debugf("Escape pressed, closing window")
+					set_window_should_close(state.window, true)
+				}
 
-			pos, hit := cast_ray_to_block(state.world, p, f, HIT_DISTANCE)
-			if hit {
-				world_pos := block_pos_to_world_pos(pos)
-				chunk_pos := block_pos_to_chunk_pos(pos)
-				local_pos := block_pos_to_local_pos(pos)
-				chunk, cok := get_world_chunk(state.world, chunk_pos)
-				if cok && chunk != nil {
-					v := &state.frame.line_vertices
-					C :: RGBA{0xff, 0xff, 0xff, 0xff}
-					// bottom
-					append(v, Line_Vert{world_pos + {0, 0, 0}, C})
-					append(v, Line_Vert{world_pos + {1, 0, 0}, C})
-					append(v, Line_Vert{world_pos + {1, 0, 0}, C})
-					append(v, Line_Vert{world_pos + {1, 0, 1}, C})
-					append(v, Line_Vert{world_pos + {1, 0, 1}, C})
-					append(v, Line_Vert{world_pos + {0, 0, 1}, C})
-					append(v, Line_Vert{world_pos + {0, 0, 1}, C})
-					append(v, Line_Vert{world_pos + {0, 0, 0}, C})
-					// top
-					append(v, Line_Vert{world_pos + {0, 1, 0}, C})
-					append(v, Line_Vert{world_pos + {1, 1, 0}, C})
-					append(v, Line_Vert{world_pos + {1, 1, 0}, C})
-					append(v, Line_Vert{world_pos + {1, 1, 1}, C})
-					append(v, Line_Vert{world_pos + {1, 1, 1}, C})
-					append(v, Line_Vert{world_pos + {0, 1, 1}, C})
-					append(v, Line_Vert{world_pos + {0, 1, 1}, C})
-					append(v, Line_Vert{world_pos + {0, 1, 0}, C})
-					// left
-					append(v, Line_Vert{world_pos + {0, 0, 0}, C})
-					append(v, Line_Vert{world_pos + {0, 1, 0}, C})
-					append(v, Line_Vert{world_pos + {1, 1, 0}, C})
-					append(v, Line_Vert{world_pos + {1, 0, 0}, C})
-					// right
-					append(v, Line_Vert{world_pos + {0, 0, 1}, C})
-					append(v, Line_Vert{world_pos + {0, 1, 1}, C})
-					append(v, Line_Vert{world_pos + {1, 1, 1}, C})
-					append(v, Line_Vert{world_pos + {1, 0, 1}, C})
+				if rdoc_api != nil &&
+				   window_get_key(state.window, .F2) == .Press &&
+				   window_get_prev_key(state.window, .F2) != .Press {
+					capture_frame = true
+				}
 
-					if .UI not_in state.window.flags &&
-					   window_get_button(state.window, .Left) == .Press &&
-					   window_get_prev_button(state.window, .Left) != .Press {
-						sync.guard(&state.world.lock)
-						chunk_update_block(&state.world, chunk, local_pos, {.Air})
+				if window_get_key(state.window, .F1) == .Press &&
+				   window_get_prev_key(state.window, .F1) != .Press {
+					state.render_ui = !state.render_ui
+				}
 
-						if local_pos.x == 0 {
-							nb, nbok := get_world_chunk(state.world, chunk_pos + {-1, 0, 0})
-							if nbok {
-								world_mark_chunk_remesh_priority(&state.world, nb)
+				if window_get_key(state.window, .R) == .Press &&
+				   window_get_prev_key(state.window, .R) != .Press {
+					sync.guard(&state.world.lock)
+					for _, &c in state.world.chunks {
+						if c.mesh == nil {continue}
+						append(&state.world.msg_stack, Meshgen_Msg_Tombstone{c.mesh})
+						c.mesh = nil
+						world_mark_chunk_remesh(&state.world, &c)
+					}
+				}
+
+				if state.render_ui {
+					if prof.event("update ui") {
+						mu_update_ui(&state, delta_time)
+					}
+				}
+
+				@(static) p, f: glm.vec3
+				if state.frozen_frustum == nil {
+					p = state.camera.pos
+					f = state.camera.front
+				} else {
+					append(&state.frame.line_vertices, Line_Vert{p, {0, 0xff, 0, 0xff}})
+					append(
+						&state.frame.line_vertices,
+						Line_Vert{p + f * HIT_DISTANCE, {0, 0xff, 0, 0xff}},
+					)
+				}
+
+				pos, hit := cast_ray_to_block(state.world, p, f, HIT_DISTANCE)
+				if hit {
+					world_pos := block_pos_to_world_pos(pos)
+					chunk_pos := block_pos_to_chunk_pos(pos)
+					local_pos := block_pos_to_local_pos(pos)
+					chunk, cok := get_world_chunk(state.world, chunk_pos)
+					if cok && chunk != nil {
+						v := &state.frame.line_vertices
+						C :: RGBA{0xff, 0xff, 0xff, 0xff}
+						// bottom
+						append(v, Line_Vert{world_pos + {0, 0, 0}, C})
+						append(v, Line_Vert{world_pos + {1, 0, 0}, C})
+						append(v, Line_Vert{world_pos + {1, 0, 0}, C})
+						append(v, Line_Vert{world_pos + {1, 0, 1}, C})
+						append(v, Line_Vert{world_pos + {1, 0, 1}, C})
+						append(v, Line_Vert{world_pos + {0, 0, 1}, C})
+						append(v, Line_Vert{world_pos + {0, 0, 1}, C})
+						append(v, Line_Vert{world_pos + {0, 0, 0}, C})
+						// top
+						append(v, Line_Vert{world_pos + {0, 1, 0}, C})
+						append(v, Line_Vert{world_pos + {1, 1, 0}, C})
+						append(v, Line_Vert{world_pos + {1, 1, 0}, C})
+						append(v, Line_Vert{world_pos + {1, 1, 1}, C})
+						append(v, Line_Vert{world_pos + {1, 1, 1}, C})
+						append(v, Line_Vert{world_pos + {0, 1, 1}, C})
+						append(v, Line_Vert{world_pos + {0, 1, 1}, C})
+						append(v, Line_Vert{world_pos + {0, 1, 0}, C})
+						// left
+						append(v, Line_Vert{world_pos + {0, 0, 0}, C})
+						append(v, Line_Vert{world_pos + {0, 1, 0}, C})
+						append(v, Line_Vert{world_pos + {1, 1, 0}, C})
+						append(v, Line_Vert{world_pos + {1, 0, 0}, C})
+						// right
+						append(v, Line_Vert{world_pos + {0, 0, 1}, C})
+						append(v, Line_Vert{world_pos + {0, 1, 1}, C})
+						append(v, Line_Vert{world_pos + {1, 1, 1}, C})
+						append(v, Line_Vert{world_pos + {1, 0, 1}, C})
+
+						if .UI not_in state.window.flags &&
+						   window_get_button(state.window, .Left) == .Press &&
+						   window_get_prev_button(state.window, .Left) != .Press {
+							sync.guard(&state.world.lock)
+							chunk_update_block(&state.world, chunk, local_pos, {.Air})
+
+							if local_pos.x == 0 {
+								nb, nbok := get_world_chunk(state.world, chunk_pos + {-1, 0, 0})
+								if nbok {
+									world_mark_chunk_remesh_priority(&state.world, nb)
+								}
+							} else if local_pos.x == 15 {
+								nb, nbok := get_world_chunk(state.world, chunk_pos + {+1, 0, 0})
+								if nbok {
+									world_mark_chunk_remesh_priority(&state.world, nb)
+								}
 							}
-						} else if local_pos.x == 15 {
-							nb, nbok := get_world_chunk(state.world, chunk_pos + {+1, 0, 0})
-							if nbok {
-								world_mark_chunk_remesh_priority(&state.world, nb)
+							if local_pos.y == 0 {
+								nb, nbok := get_world_chunk(state.world, chunk_pos + {0, -1, 0})
+								if nbok {
+									world_mark_chunk_remesh_priority(&state.world, nb)
+								}
+							} else if local_pos.y == 15 {
+								nb, nbok := get_world_chunk(state.world, chunk_pos + {0, +1, 0})
+								if nbok {
+									world_mark_chunk_remesh_priority(&state.world, nb)
+								}
 							}
-						}
-						if local_pos.y == 0 {
-							nb, nbok := get_world_chunk(state.world, chunk_pos + {0, -1, 0})
-							if nbok {
-								world_mark_chunk_remesh_priority(&state.world, nb)
-							}
-						} else if local_pos.y == 15 {
-							nb, nbok := get_world_chunk(state.world, chunk_pos + {0, +1, 0})
-							if nbok {
-								world_mark_chunk_remesh_priority(&state.world, nb)
-							}
-						}
-						if local_pos.z == 0 {
-							nb, nbok := get_world_chunk(state.world, chunk_pos + {0, 0, -1})
-							if nbok {
-								world_mark_chunk_remesh_priority(&state.world, nb)
-							}
-						} else if local_pos.z == 15 {
-							nb, nbok := get_world_chunk(state.world, chunk_pos + {0, 0, +1})
-							if nbok {
-								world_mark_chunk_remesh_priority(&state.world, nb)
+							if local_pos.z == 0 {
+								nb, nbok := get_world_chunk(state.world, chunk_pos + {0, 0, -1})
+								if nbok {
+									world_mark_chunk_remesh_priority(&state.world, nb)
+								}
+							} else if local_pos.z == 15 {
+								nb, nbok := get_world_chunk(state.world, chunk_pos + {0, 0, +1})
+								if nbok {
+									world_mark_chunk_remesh_priority(&state.world, nb)
+								}
 							}
 						}
 					}
 				}
-			}
 
-			update_camera(&state, delta_time)
+				update_camera(&state, delta_time)
 
-			{
-				N := i32(1.2 * f32(state.render_distance))
-				cam_chunk_pos := world_pos_to_chunk_pos(state.camera.pos)
-				cam_chunk_pos.y = 0
+				{
+					N := i32(1.2 * f32(state.render_distance))
+					cam_chunk_pos := world_pos_to_chunk_pos(state.camera.pos)
+					cam_chunk_pos.y = 0
 
-				frustum := create_frustum(
-					state.frozen_frustum.? or_else state.camera.projection_matrix *
-					state.camera.view_matrix,
-				)
+					frustum := create_frustum(
+						state.frozen_frustum.? or_else state.camera.projection_matrix *
+						state.camera.view_matrix,
+					)
 
-				if prof.event("generate near chunks") {
-					for y in i32(0) ..= 1 {
-						for z in i32(-N) ..= N {
-							for x in i32(-N) ..= N {
-								chunk_pos := cam_chunk_pos + {x, y, z}
-								if !frustum_contains_chunk(frustum, chunk_pos) {
-									continue
-								}
-								sync.guard(&state.world.lock)
-								if !world_generate_chunk(&state.world, chunk_pos) {
-									chunk := &state.world.chunks[chunk_pos]
-									// Chunk is generated, but needs to be sent for meshing
-									if chunk.mesh == nil {
-										world_mark_chunk_remesh(&state.world, chunk)
+					if prof.event("generate near chunks") {
+						for y in i32(0) ..= 1 {
+							for z in i32(-N) ..= N {
+								for x in i32(-N) ..= N {
+									chunk_pos := cam_chunk_pos + {x, y, z}
+									if !frustum_contains_chunk(frustum, chunk_pos) {
+										continue
+									}
+									sync.guard(&state.world.lock)
+									if !world_generate_chunk(&state.world, chunk_pos) {
+										chunk := &state.world.chunks[chunk_pos]
+										// Chunk is generated, but needs to be sent for meshing
+										if chunk.mesh == nil {
+											world_mark_chunk_remesh(&state.world, chunk)
+										}
 									}
 								}
 							}
 						}
 					}
-				}
 
-				if prof.event("demesh chunks") {
-					chunks_to_demesh := &state.frame.chunks_to_demesh
-					defer clear(chunks_to_demesh)
+					if prof.event("demesh chunks") {
+						chunks_to_demesh := &state.frame.chunks_to_demesh
+						defer clear(chunks_to_demesh)
 
-					for _, &chunk in &state.world.chunks {
-						if chunk.mesh != nil &&
-						   (glm.abs(cam_chunk_pos.x - chunk.pos.x) > N ||
-								   glm.abs(cam_chunk_pos.z - chunk.pos.z) > N) {
-							append(chunks_to_demesh, &chunk)
+						for _, &chunk in &state.world.chunks {
+							if chunk.mesh != nil &&
+							   (glm.abs(cam_chunk_pos.x - chunk.pos.x) > N ||
+									   glm.abs(cam_chunk_pos.z - chunk.pos.z) > N) {
+								append(chunks_to_demesh, &chunk)
+							}
 						}
-					}
 
-					for chunk in chunks_to_demesh {
-						world_mark_chunk_demesh(&state.world, chunk)
-					}
-				}
-			}
-
-			if prof.event("update world") {
-				update_world(&state.world, state.camera.pos)
-			}
-
-			update_window(&state.window)
-		}
-
-		{
-			clear(&state.frame.memory_usage)
-			for _, chunk in state.world.chunks {
-				mesh := chunk.mesh
-				if mesh == nil {continue}
-				append(
-					&state.frame.memory_usage,
-					[7]int {
-						len(mesh.opaque) * size_of(Mesh_Face) +
-						len(mesh.opaque_indices) * size_of(Mesh_Face_Indexes),
-						cap(mesh.opaque) * size_of(Mesh_Face) +
-						cap(mesh.opaque_indices) * size_of(Mesh_Face_Indexes),
-						len(mesh.transparent) * size_of(Mesh_Face) +
-						len(mesh.transparent_indices) * size_of(Mesh_Face_Indexes),
-						cap(mesh.transparent) * size_of(Mesh_Face) +
-						cap(mesh.transparent_indices) * size_of(Mesh_Face_Indexes),
-						len(chunk.blocks) * size_of(Block),
-						len(mesh.water) * size_of(Mesh_Face) +
-						len(mesh.water_indices) * size_of(Mesh_Face_Indexes),
-						cap(mesh.water) * size_of(Mesh_Face) +
-						cap(mesh.water_indices) * size_of(Mesh_Face_Indexes),
-					},
-				)
-			}
-		}
-
-		if capture_frame {
-			log.debug("capturing frame")
-			rdoc.StartFrameCapture(rdoc_api, nil, nil)
-		}
-		defer if capture_frame {
-			ensure(rdoc_api != nil)
-			log.debug("captured frame")
-			rdoc.EndFrameCapture(rdoc_api, nil, nil)
-
-			cap_idx := rdoc.GetNumCaptures(rdoc_api) - 1
-			if cap_idx >= 0 {
-				ts: u64
-				fp := make([]u8, 512, context.temp_allocator)
-				fp_len: u32
-
-				if rdoc.GetCapture(rdoc_api, cap_idx, cast(cstring)raw_data(fp), &fp_len, &ts) !=
-				   0 {
-					ensure(int(fp_len) < len(fp))
-					cwd := os.get_current_directory(context.temp_allocator)
-
-					cap_path := filepath.join({cwd, string(fp[:fp_len])}, context.temp_allocator)
-
-					log.infof("loading capture {}", cap_path)
-
-					if rdoc.IsTargetControlConnected(rdoc_api) {
-						rdoc.ShowReplayUI(rdoc_api)
-					} else {
-						pid := rdoc.LaunchReplayUI(rdoc_api, 1, cast(cstring)raw_data(cap_path))
-						if pid != 0 {
-							log.infof("launched RenderDoc (pid={})", pid)
+						for chunk in chunks_to_demesh {
+							world_mark_chunk_demesh(&state.world, chunk)
 						}
 					}
 				}
-			}
-		}
 
-		if prof.event("render iteration") {
-			SKY_COLOUR := RGBA32{0.3, 0.6, 0.8, 1}
-			gl.Viewport(0, 0, state.window.size.x, state.window.size.y)
-			gl.ClearColor(SKY_COLOUR[0], SKY_COLOUR[1], SKY_COLOUR[2], SKY_COLOUR[3])
-			gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
+				if prof.event("update world") {
+					update_world(&state.world, state.camera.pos)
+				}
 
-			projection_matrix := state.camera.projection_matrix
-			view_matrix := state.camera.view_matrix
-			proj_view := projection_matrix * view_matrix
-			frustum: Frustum
-			{
-				cam := state.camera
-				aspect := window_aspect_ratio(state.window)
-				fovy := 2 * glm.atan(glm.tan(glm.radians(cam.fovx) / 2) / aspect)
-				proj := glm.mat4Perspective(
-					fovy,
-					aspect,
-					NEAR_PLANE,
-					f32(state.render_distance + 1) * CHUNK_SIZE,
-				)
-				frustum_matrix := state.frozen_frustum.? or_else proj * view_matrix
-				frustum = create_frustum(frustum_matrix)
+				update_window(&state.window)
 			}
 
-			// Ensure stuff is reset
-			gl.Enable(gl.CULL_FACE)
-			gl.Enable(gl.DEPTH_TEST)
-			gl.Enable(gl.SCISSOR_TEST)
+			when false {
+				{
+					clear(&state.frame.memory_usage)
+					for _, chunk in state.world.chunks {
+						mesh := chunk.mesh
+						if mesh == nil {continue}
+						append(
+							&state.frame.memory_usage,
+							[7]int {
+								len(mesh.opaque) * size_of(Mesh_Face) +
+								len(mesh.opaque_indices) * size_of(Mesh_Face_Indexes),
+								cap(mesh.opaque) * size_of(Mesh_Face) +
+								cap(mesh.opaque_indices) * size_of(Mesh_Face_Indexes),
+								len(mesh.transparent) * size_of(Mesh_Face) +
+								len(mesh.transparent_indices) * size_of(Mesh_Face_Indexes),
+								cap(mesh.transparent) * size_of(Mesh_Face) +
+								cap(mesh.transparent_indices) * size_of(Mesh_Face_Indexes),
+								len(chunk.blocks) * size_of(Block),
+								len(mesh.water) * size_of(Mesh_Face) +
+								len(mesh.water_indices) * size_of(Mesh_Face_Indexes),
+								cap(mesh.water) * size_of(Mesh_Face) +
+								cap(mesh.water_indices) * size_of(Mesh_Face_Indexes),
+							},
+						)
+					}
+				}
+			}
 
-			if prof.event("render chunks") {
-				bind_framebuffer(state.fbo, .All)
-				defer unbind_framebuffer(.All)
+			if capture_frame {
+				log.debug("capturing frame")
+				rdoc.StartFrameCapture(rdoc_api, nil, nil)
+			}
+			defer if capture_frame {
+				ensure(rdoc_api != nil)
+				log.debug("captured frame")
+				rdoc.EndFrameCapture(rdoc_api, nil, nil)
+
+				cap_idx := rdoc.GetNumCaptures(rdoc_api) - 1
+				if cap_idx >= 0 {
+					ts: u64
+					fp := make([]u8, 512, context.temp_allocator)
+					fp_len: u32
+
+					if rdoc.GetCapture(
+						   rdoc_api,
+						   cap_idx,
+						   cast(cstring)raw_data(fp),
+						   &fp_len,
+						   &ts,
+					   ) !=
+					   0 {
+						ensure(int(fp_len) < len(fp))
+						cwd := os.get_current_directory(context.temp_allocator)
+
+						cap_path := filepath.join(
+							{cwd, string(fp[:fp_len])},
+							context.temp_allocator,
+						)
+
+						log.infof("loading capture {}", cap_path)
+
+						if rdoc.IsTargetControlConnected(rdoc_api) {
+							rdoc.ShowReplayUI(rdoc_api)
+						} else {
+							pid := rdoc.LaunchReplayUI(
+								rdoc_api,
+								1,
+								cast(cstring)raw_data(cap_path),
+							)
+							if pid != 0 {
+								log.infof("launched RenderDoc (pid={})", pid)
+							}
+						}
+					}
+				}
+			}
+
+			if prof.event("render iteration") {
+				SKY_COLOUR := RGBA32{0.3, 0.6, 0.8, 1}
 				gl.Viewport(0, 0, state.window.size.x, state.window.size.y)
+				gl.ClearColor(SKY_COLOUR[0], SKY_COLOUR[1], SKY_COLOUR[2], SKY_COLOUR[3])
 				gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
 
-				set_uniforms :: proc(
-					r: Renderer,
-					state: ^State,
-					sky: RGBA32,
-					proj_view: glm.mat4,
-				) {
-					set_uniform(r.shader, "u_proj_view", proj_view)
-					set_uniform(r.shader, "u_campos", state.camera.pos)
-					set_uniform(r.shader, "u_ao", u32(state.ao))
-					set_uniform(r.shader, "u_ao_debug", u32(state.ao_debug))
+				projection_matrix := state.camera.projection_matrix
+				view_matrix := state.camera.view_matrix
+				proj_view := projection_matrix * view_matrix
+				frustum: Frustum
+				{
+					cam := state.camera
+					aspect := window_aspect_ratio(state.window)
+					fovy := 2 * glm.atan(glm.tan(glm.radians(cam.fovx) / 2) / aspect)
+					proj := glm.mat4Perspective(
+						fovy,
+						aspect,
+						NEAR_PLANE,
+						f32(state.render_distance + 1) * CHUNK_SIZE,
+					)
+					frustum_matrix := state.frozen_frustum.? or_else proj * view_matrix
+					frustum = create_frustum(frustum_matrix)
+				}
 
-					if state.fog_enabled {
-						set_uniform(
-							r.shader,
-							"u_fog_start",
-							f32(state.render_distance) * CHUNK_SIZE - CHUNK_SIZE / 4,
-						)
-						set_uniform(r.shader, "u_fog_end", f32(state.render_distance) * CHUNK_SIZE)
-						set_uniform(r.shader, "u_fog_colour", sky)
-					} else {
-						set_uniform(r.shader, "u_fog_start", max(f32))
-						set_uniform(r.shader, "u_fog_end", max(f32))
+				// Ensure stuff is reset
+				gl.Enable(gl.CULL_FACE)
+				gl.Enable(gl.DEPTH_TEST)
+				gl.Enable(gl.SCISSOR_TEST)
+
+				if prof.event("render chunks") {
+					bind_framebuffer(state.fbo, .All)
+					defer unbind_framebuffer(.All)
+					gl.Viewport(0, 0, state.window.size.x, state.window.size.y)
+					gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
+
+					set_uniforms :: proc(
+						r: Renderer,
+						state: ^State,
+						sky: RGBA32,
+						proj_view: glm.mat4,
+					) {
+						set_uniform(r.shader, "u_proj_view", proj_view)
+						set_uniform(r.shader, "u_campos", state.camera.pos)
+						set_uniform(r.shader, "u_ao", u32(state.ao))
+						set_uniform(r.shader, "u_ao_debug", u32(state.ao_debug))
+
+						if state.fog_enabled {
+							set_uniform(
+								r.shader,
+								"u_fog_start",
+								f32(state.render_distance) * CHUNK_SIZE - CHUNK_SIZE / 4,
+							)
+							set_uniform(
+								r.shader,
+								"u_fog_end",
+								f32(state.render_distance) * CHUNK_SIZE,
+							)
+							set_uniform(r.shader, "u_fog_colour", sky)
+						} else {
+							set_uniform(r.shader, "u_fog_start", max(f32))
+							set_uniform(r.shader, "u_fog_end", max(f32))
+						}
 					}
-				}
 
-				sync.shared_guard(&state.world.lock)
+					sync.shared_guard(&state.world.lock)
 
-				opaque_chunks := &state.frame.opaque_chunks
-				transparent_chunks := &state.frame.transparent_chunks
-				water_chunks := &state.frame.water_chunks
-				if prof.event("frustum culling/mesh selection") {
-					clear(opaque_chunks)
-					clear(transparent_chunks)
-					clear(water_chunks)
+					opaque_chunks := &state.frame.opaque_chunks
+					transparent_chunks := &state.frame.transparent_chunks
+					water_chunks := &state.frame.water_chunks
+					if prof.event("frustum culling/mesh selection") {
+						clear(opaque_chunks)
+						clear(transparent_chunks)
+						clear(water_chunks)
 
-					for _, &chunk in state.world.chunks {
-						if chunk.mesh == nil {
-							continue
-						}
-
-						// TODO: impl. regions & frustum cull them too
-						if !frustum_contains_chunk(frustum, chunk.pos) {
-							continue
-						}
-
-						if len(chunk.mesh.opaque) > 0 {
-							append(opaque_chunks, &chunk)
-						}
-						if len(chunk.mesh.transparent) > 0 {
-							append(transparent_chunks, &chunk)
-						}
-						if len(chunk.mesh.water) > 0 {
-							append(water_chunks, &chunk)
-						}
-					}
-				}
-
-				context.user_ptr = &state
-
-				if prof.event("sort transparent chunks") {
-					slice.sort_by(transparent_chunks[:], proc(i, j: ^Chunk) -> bool {
-						state := cast(^State)context.user_ptr
-						i_dist := glm.length(state.camera.pos - get_chunk_centre(i))
-						j_dist := glm.length(state.camera.pos - get_chunk_centre(j))
-						return i_dist > j_dist
-					})
-				}
-
-				if prof.event("sort water chunks") {
-					slice.sort_by(water_chunks[:], proc(i, j: ^Chunk) -> bool {
-						state := cast(^State)context.user_ptr
-						i_dist := glm.length(state.camera.pos - get_chunk_centre(i))
-						j_dist := glm.length(state.camera.pos - get_chunk_centre(j))
-						return i_dist > j_dist
-					})
-				}
-
-				if prof.event("sort water faces") {
-					for chunk in water_chunks {
-						mesh := chunk.mesh
-
-						slice.sort_by(mesh.water[:], proc(i, j: Mesh_Face) -> bool {
-							state := cast(^State)context.user_ptr
-
-							get_face_centre :: proc(f: Mesh_Face) -> glm.vec3 {
-								a := f[0].pos
-								b := f[2].pos
-								t := (a + b) / 2
-								if a.x == b.x {
-									return {a.x, t.y, t.z}
-								} else if a.y == b.y {
-									return {t.x, a.y, t.z}
-								} else if a.z == b.z {
-									return {t.x, t.y, a.z}
-								}
-								unreachable()
+						for _, &chunk in state.world.chunks {
+							if chunk.mesh == nil {
+								continue
 							}
 
-							i_c := get_face_centre(i)
-							j_c := get_face_centre(j)
+							// TODO: impl. regions & frustum cull them too
+							if !frustum_contains_chunk(frustum, chunk.pos) {
+								continue
+							}
 
-							i_dist := glm.length(state.camera.pos - i_c)
-							j_dist := glm.length(state.camera.pos - j_c)
+							if len(chunk.mesh.opaque) > 0 {
+								append(opaque_chunks, &chunk)
+							}
+							if len(chunk.mesh.transparent) > 0 {
+								append(transparent_chunks, &chunk)
+							}
+							if len(chunk.mesh.water) > 0 {
+								append(water_chunks, &chunk)
+							}
+						}
+					}
 
+					context.user_ptr = &state
+
+					if prof.event("sort transparent chunks") {
+						slice.sort_by(transparent_chunks[:], proc(i, j: ^Chunk) -> bool {
+							state := cast(^State)context.user_ptr
+							i_dist := glm.length(state.camera.pos - get_chunk_centre(i))
+							j_dist := glm.length(state.camera.pos - get_chunk_centre(j))
 							return i_dist > j_dist
 						})
 					}
-				}
 
-				if prof.event("render opaque meshes") {
-					bind_renderer(opaque_renderer)
-					defer unbind_renderer()
-					bind_texture(block_atlas.texture)
-					set_uniforms(opaque_renderer, &state, SKY_COLOUR, proj_view)
+					if prof.event("sort water chunks") {
+						slice.sort_by(water_chunks[:], proc(i, j: ^Chunk) -> bool {
+							state := cast(^State)context.user_ptr
+							i_dist := glm.length(state.camera.pos - get_chunk_centre(i))
+							j_dist := glm.length(state.camera.pos - get_chunk_centre(j))
+							return i_dist > j_dist
+						})
+					}
 
-					gl.Disable(gl.BLEND) // Disable blending for opaque meshes; slight performance boost
-					for &chunk in opaque_chunks {
-						pos := chunk.pos * CHUNK_SIZE
-						set_uniform(opaque_renderer.shader, "u_chunkpos", pos)
-						renderer_sub_vertices(opaque_renderer, 0, chunk.mesh.opaque[:])
-						renderer_sub_indices(opaque_renderer, 0, chunk.mesh.opaque_indices[:])
-						gl.DrawElements(
-							gl.TRIANGLES,
-							FACE_INDEX_COUNT * cast(i32)len(chunk.mesh.opaque),
-							gl.UNSIGNED_INT,
-							nil,
-						)
+					if prof.event("sort water faces") {
+						for chunk in water_chunks {
+							mesh := chunk.mesh
+
+							slice.sort_by(mesh.water[:], proc(i, j: Mesh_Face) -> bool {
+								state := cast(^State)context.user_ptr
+
+								get_face_centre :: proc(f: Mesh_Face) -> glm.vec3 {
+									a := f[0].pos
+									b := f[2].pos
+									t := (a + b) / 2
+									if a.x == b.x {
+										return {a.x, t.y, t.z}
+									} else if a.y == b.y {
+										return {t.x, a.y, t.z}
+									} else if a.z == b.z {
+										return {t.x, t.y, a.z}
+									}
+									unreachable()
+								}
+
+								i_c := get_face_centre(i)
+								j_c := get_face_centre(j)
+
+								i_dist := glm.length(state.camera.pos - i_c)
+								j_dist := glm.length(state.camera.pos - j_c)
+
+								return i_dist > j_dist
+							})
+						}
+					}
+
+					if prof.event("render opaque meshes") {
+						bind_renderer(opaque_renderer)
+						defer unbind_renderer()
+						bind_texture(block_atlas.texture)
+						set_uniforms(opaque_renderer, &state, SKY_COLOUR, proj_view)
+
+						gl.Disable(gl.BLEND) // Disable blending for opaque meshes; slight performance boost
+						for &chunk in opaque_chunks {
+							pos := chunk.pos * CHUNK_SIZE
+							set_uniform(opaque_renderer.shader, "u_chunkpos", pos)
+							renderer_sub_vertices(opaque_renderer, 0, chunk.mesh.opaque[:])
+							renderer_sub_indices(opaque_renderer, 0, chunk.mesh.opaque_indices[:])
+							gl.DrawElements(
+								gl.TRIANGLES,
+								FACE_INDEX_COUNT * cast(i32)len(chunk.mesh.opaque),
+								gl.UNSIGNED_INT,
+								nil,
+							)
+						}
+					}
+
+					gl.Enable(gl.BLEND)
+
+					if prof.event("render transparent meshes") {
+						bind_renderer(transparent_renderer)
+						defer unbind_renderer()
+						bind_texture(block_atlas.texture)
+						set_uniforms(transparent_renderer, &state, SKY_COLOUR, proj_view)
+
+						for &chunk in transparent_chunks {
+							pos := chunk.pos * CHUNK_SIZE
+							set_uniform(transparent_renderer.shader, "u_chunkpos", pos)
+							renderer_sub_vertices(
+								transparent_renderer,
+								0,
+								chunk.mesh.transparent[:],
+							)
+							renderer_sub_indices(
+								transparent_renderer,
+								0,
+								chunk.mesh.transparent_indices[:],
+							)
+							gl.DrawElements(
+								gl.TRIANGLES,
+								FACE_INDEX_COUNT * cast(i32)len(chunk.mesh.transparent),
+								gl.UNSIGNED_INT,
+								nil,
+							)
+						}
+					}
+
+					if prof.event("render water meshes") {
+						bind_renderer(water_renderer)
+						defer unbind_renderer()
+						bind_texture(block_atlas.texture)
+						set_uniforms(water_renderer, &state, SKY_COLOUR, proj_view)
+
+						for &chunk in water_chunks {
+							pos := chunk.pos * CHUNK_SIZE
+							set_uniform(water_renderer.shader, "u_chunkpos", pos)
+							renderer_sub_vertices(water_renderer, 0, chunk.mesh.water[:])
+							renderer_sub_indices(water_renderer, 0, chunk.mesh.water_indices[:])
+							gl.DrawElements(
+								gl.TRIANGLES,
+								FACE_INDEX_COUNT * cast(i32)len(chunk.mesh.water),
+								gl.UNSIGNED_INT,
+								nil,
+							)
+						}
 					}
 				}
 
-				gl.Enable(gl.BLEND)
+				gl.Disable(gl.DEPTH_TEST)
 
-				if prof.event("render transparent meshes") {
-					bind_renderer(transparent_renderer)
+				if prof.event("framebuffer blit") {
+					if .Wireframe in state.camera.flags {
+						gl.PolygonMode(gl.FRONT_AND_BACK, gl.FILL)
+					}
+					defer if .Wireframe in state.camera.flags {
+						gl.PolygonMode(gl.FRONT_AND_BACK, gl.LINE)
+					}
+
+					bind_renderer(fullscreen_renderer)
 					defer unbind_renderer()
-					bind_texture(block_atlas.texture)
-					set_uniforms(transparent_renderer, &state, SKY_COLOUR, proj_view)
 
-					for &chunk in transparent_chunks {
-						pos := chunk.pos * CHUNK_SIZE
-						set_uniform(transparent_renderer.shader, "u_chunkpos", pos)
-						renderer_sub_vertices(transparent_renderer, 0, chunk.mesh.transparent[:])
-						renderer_sub_indices(
-							transparent_renderer,
-							0,
-							chunk.mesh.transparent_indices[:],
-						)
-						gl.DrawElements(
-							gl.TRIANGLES,
-							FACE_INDEX_COUNT * cast(i32)len(chunk.mesh.transparent),
-							gl.UNSIGNED_INT,
-							nil,
-						)
+					bind_texture(fbo_colour_tex)
+					gl.DrawElements(gl.TRIANGLES, 6, gl.UNSIGNED_INT, nil)
+				}
+
+				defer clear(&state.frame.line_vertices)
+				if prof.event("render lines") {
+					if state.render_frustum {
+						frustum_vertices := get_frustum_vertices(frustum)
+						append(&state.frame.line_vertices, ..frustum_vertices[:])
+					}
+
+					if len(state.frame.line_vertices) > 0 {
+						// Remove far plane temporarily
+						old_far_plane := state.far_plane
+						state.far_plane = false
+						defer state.far_plane = old_far_plane
+						_update_camera_axes(&state)
+						projection_matrix = state.camera.projection_matrix
+						view_matrix = state.camera.view_matrix
+						proj_view = projection_matrix * view_matrix
+
+						bind_renderer(line_renderer)
+						defer unbind_renderer()
+
+						set_uniform(line_shader, "u_proj_view", proj_view)
+
+						renderer_vertices(line_renderer, state.frame.line_vertices[:])
+
+						gl.DrawArrays(gl.LINES, 0, cast(i32)len(state.frame.line_vertices))
 					}
 				}
 
-				if prof.event("render water meshes") {
-					bind_renderer(water_renderer)
-					defer unbind_renderer()
-					bind_texture(block_atlas.texture)
-					set_uniforms(water_renderer, &state, SKY_COLOUR, proj_view)
-
-					for &chunk in water_chunks {
-						pos := chunk.pos * CHUNK_SIZE
-						set_uniform(water_renderer.shader, "u_chunkpos", pos)
-						renderer_sub_vertices(water_renderer, 0, chunk.mesh.water[:])
-						renderer_sub_indices(water_renderer, 0, chunk.mesh.water_indices[:])
-						gl.DrawElements(
-							gl.TRIANGLES,
-							FACE_INDEX_COUNT * cast(i32)len(chunk.mesh.water),
-							gl.UNSIGNED_INT,
-							nil,
-						)
-					}
-				}
-			}
-
-			gl.Disable(gl.DEPTH_TEST)
-
-			if prof.event("framebuffer blit") {
-				if .Wireframe in state.camera.flags {
-					gl.PolygonMode(gl.FRONT_AND_BACK, gl.FILL)
-				}
-				defer if .Wireframe in state.camera.flags {
-					gl.PolygonMode(gl.FRONT_AND_BACK, gl.LINE)
-				}
-
-				bind_renderer(fullscreen_renderer)
-				defer unbind_renderer()
-
-				bind_texture(fbo_colour_tex)
-				gl.DrawElements(gl.TRIANGLES, 6, gl.UNSIGNED_INT, nil)
-			}
-
-			defer clear(&state.frame.line_vertices)
-			if prof.event("render lines") {
-				if state.render_frustum {
-					frustum_vertices := get_frustum_vertices(frustum)
-					append(&state.frame.line_vertices, ..frustum_vertices[:])
-				}
-
-				if len(state.frame.line_vertices) > 0 {
-					// Remove far plane temporarily
-					old_far_plane := state.far_plane
-					state.far_plane = false
-					defer state.far_plane = old_far_plane
-					_update_camera_axes(&state)
-					projection_matrix = state.camera.projection_matrix
-					view_matrix = state.camera.view_matrix
+				{ 	// TODO: Do this but better
+					projection_matrix = glm.mat4Ortho3d(
+						0,
+						f32(state.window.size.x),
+						f32(state.window.size.y),
+						0,
+						-1,
+						1,
+					)
+					view_matrix = glm.identity(glm.mat4)
 					proj_view = projection_matrix * view_matrix
 
-					bind_renderer(line_renderer)
+					CROSSHAIR_SIZE :: 16
+					C :: RGBA{0xff, 0xff, 0xff, 0xff}
+
+					uv := ui_atlas.uvs["crosshair.png"]
+
+					r := RectF {
+						x = f32(state.window.size.x - CROSSHAIR_SIZE) / 2,
+						y = f32(state.window.size.y - CROSSHAIR_SIZE) / 2,
+						w = CROSSHAIR_SIZE,
+						h = CROSSHAIR_SIZE,
+					}
+
+					bind_renderer(state.ui.renderer)
 					defer unbind_renderer()
+					bind_texture(ui_atlas.texture)
+					defer unbind_texture()
 
-					set_uniform(line_shader, "u_proj_view", proj_view)
+					set_uniform(state.ui.renderer.shader, "u_proj_view", proj_view)
 
-					renderer_vertices(line_renderer, state.frame.line_vertices[:])
+					renderer_sub_vertices(
+						state.ui.renderer,
+						0,
+						[]UI_Vert {
+							{{r.x, r.y}, uv[0], C},
+							{{r.x + r.w, r.y}, {uv[1].x, uv[0].y}, C},
+							{{r.x, r.y + r.h}, {uv[0].x, uv[1].y}, C},
+							{{r.x + r.w, r.y + r.h}, uv[1], C},
+						},
+					)
 
-					gl.DrawArrays(gl.LINES, 0, cast(i32)len(state.frame.line_vertices))
-				}
-			}
+					renderer_sub_indices(
+						state.ui.renderer,
+						0,
+						transmute([][1]u32)[]u32{2, 1, 0, 2, 3, 1},
+					)
 
-			{ 	// TODO: Do this but better
-				projection_matrix = glm.mat4Ortho3d(
-					0,
-					f32(state.window.size.x),
-					f32(state.window.size.y),
-					0,
-					-1,
-					1,
-				)
-				view_matrix = glm.identity(glm.mat4)
-				proj_view = projection_matrix * view_matrix
-
-				CROSSHAIR_SIZE :: 16
-				C :: RGBA{0xff, 0xff, 0xff, 0xff}
-
-				uv := ui_atlas.uvs["crosshair.png"]
-
-				r := RectF {
-					x = f32(state.window.size.x - CROSSHAIR_SIZE) / 2,
-					y = f32(state.window.size.y - CROSSHAIR_SIZE) / 2,
-					w = CROSSHAIR_SIZE,
-					h = CROSSHAIR_SIZE,
+					gl.DrawElements(gl.TRIANGLES, 6, gl.UNSIGNED_INT, nil)
 				}
 
-				bind_renderer(state.ui.renderer)
-				defer unbind_renderer()
-				bind_texture(ui_atlas.texture)
-				defer unbind_texture()
-
-				set_uniform(state.ui.renderer.shader, "u_proj_view", proj_view)
-
-				renderer_sub_vertices(
-					state.ui.renderer,
-					0,
-					[]UI_Vert {
-						{{r.x, r.y}, uv[0], C},
-						{{r.x + r.w, r.y}, {uv[1].x, uv[0].y}, C},
-						{{r.x, r.y + r.h}, {uv[0].x, uv[1].y}, C},
-						{{r.x + r.w, r.y + r.h}, uv[1], C},
-					},
-				)
-
-				renderer_sub_indices(
-					state.ui.renderer,
-					0,
-					transmute([][1]u32)[]u32{2, 1, 0, 2, 3, 1},
-				)
-
-				gl.DrawElements(gl.TRIANGLES, 6, gl.UNSIGNED_INT, nil)
-			}
-
-			if state.render_ui {
-				if prof.event("render ui") {
-					mu_render_ui(&state)
+				if state.render_ui {
+					if prof.event("render ui") {
+						mu_render_ui(&state)
+					}
 				}
 			}
 		}

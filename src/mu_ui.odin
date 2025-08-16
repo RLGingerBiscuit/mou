@@ -340,85 +340,91 @@ mu_update_ui :: proc(state: ^State, dt: f64) {
 			FONT_MONO,
 		)
 
-		temp_mem_usage: [7]int
-		for usage in state.frame.memory_usage {
-			temp_mem_usage += usage
-		}
+		when false {
+			temp_mem_usage: [7]int
+			for usage in state.frame.memory_usage {
+				temp_mem_usage += usage
+			}
 
-		mu.label(ctx, "Opaque Mem Usage:")
-		if temp_mem_usage[0] != 0 {
+			mu.label(ctx, "Opaque Mem Usage:")
+			if temp_mem_usage[0] != 0 {
+				mu.text(
+					ctx,
+					fmt.tprintf(
+						"{:.2f} MiB ({:.2f} MiB, {:.2f}x)",
+						f32(temp_mem_usage[0]) / mem.Megabyte,
+						f32(temp_mem_usage[1]) / mem.Megabyte,
+						(f32(temp_mem_usage[1]) / (f32(temp_mem_usage[0]))),
+					),
+					FONT_MONO,
+				)
+			} else {
+				mu.text(
+					ctx,
+					fmt.tprintf(
+						"{:.2f} MiB ({:.2f} MiB)",
+						f32(temp_mem_usage[0]) / mem.Megabyte,
+						f32(temp_mem_usage[1]) / mem.Megabyte,
+					),
+					FONT_MONO,
+				)
+			}
+
+			mu.label(ctx, "Trans. Mem Usage:")
+			if temp_mem_usage[2] != 0 {
+				mu.text(
+					ctx,
+					fmt.tprintf(
+						"{:.2f} MiB ({:.2f} MiB, {:.2f}x)",
+						f32(temp_mem_usage[2]) / mem.Megabyte,
+						f32(temp_mem_usage[3]) / mem.Megabyte,
+						(f32(temp_mem_usage[3]) / (f32(temp_mem_usage[2]))),
+					),
+					FONT_MONO,
+				)
+			} else {
+				mu.text(
+					ctx,
+					fmt.tprintf(
+						"{:.2f} MiB ({:.2f} MiB)",
+						f32(temp_mem_usage[2]) / mem.Megabyte,
+						f32(temp_mem_usage[3]) / mem.Megabyte,
+					),
+					FONT_MONO,
+				)
+			}
+
+			mu.label(ctx, "Water Mem Usage:")
+			if temp_mem_usage[2] != 0 {
+				mu.text(
+					ctx,
+					fmt.tprintf(
+						"{:.2f} MiB ({:.2f} MiB, {:.2f}x)",
+						f32(temp_mem_usage[5]) / mem.Megabyte,
+						f32(temp_mem_usage[6]) / mem.Megabyte,
+						(f32(temp_mem_usage[6]) / (f32(temp_mem_usage[5]))),
+					),
+					FONT_MONO,
+				)
+			} else {
+				mu.text(
+					ctx,
+					fmt.tprintf(
+						"{:.2f} MiB ({:.2f} MiB)",
+						f32(temp_mem_usage[5]) / mem.Megabyte,
+						f32(temp_mem_usage[6]) / mem.Megabyte,
+					),
+					FONT_MONO,
+				)
+			}
+
+			mu.label(ctx, "Block Mem Usage:")
 			mu.text(
 				ctx,
-				fmt.tprintf(
-					"{:.2f} MiB ({:.2f} MiB, {:.2f}x)",
-					f32(temp_mem_usage[0]) / mem.Megabyte,
-					f32(temp_mem_usage[1]) / mem.Megabyte,
-					(f32(temp_mem_usage[1]) / (f32(temp_mem_usage[0]))),
-				),
-				FONT_MONO,
-			)
-		} else {
-			mu.text(
-				ctx,
-				fmt.tprintf(
-					"{:.2f} MiB ({:.2f} MiB)",
-					f32(temp_mem_usage[0]) / mem.Megabyte,
-					f32(temp_mem_usage[1]) / mem.Megabyte,
-				),
+				fmt.tprintf("{:.2f} MiB", f32(temp_mem_usage[4]) / mem.Megabyte),
 				FONT_MONO,
 			)
 		}
-
-		mu.label(ctx, "Trans. Mem Usage:")
-		if temp_mem_usage[2] != 0 {
-			mu.text(
-				ctx,
-				fmt.tprintf(
-					"{:.2f} MiB ({:.2f} MiB, {:.2f}x)",
-					f32(temp_mem_usage[2]) / mem.Megabyte,
-					f32(temp_mem_usage[3]) / mem.Megabyte,
-					(f32(temp_mem_usage[3]) / (f32(temp_mem_usage[2]))),
-				),
-				FONT_MONO,
-			)
-		} else {
-			mu.text(
-				ctx,
-				fmt.tprintf(
-					"{:.2f} MiB ({:.2f} MiB)",
-					f32(temp_mem_usage[2]) / mem.Megabyte,
-					f32(temp_mem_usage[3]) / mem.Megabyte,
-				),
-				FONT_MONO,
-			)
-		}
-
-		mu.label(ctx, "Water Mem Usage:")
-		if temp_mem_usage[2] != 0 {
-			mu.text(
-				ctx,
-				fmt.tprintf(
-					"{:.2f} MiB ({:.2f} MiB, {:.2f}x)",
-					f32(temp_mem_usage[5]) / mem.Megabyte,
-					f32(temp_mem_usage[6]) / mem.Megabyte,
-					(f32(temp_mem_usage[6]) / (f32(temp_mem_usage[5]))),
-				),
-				FONT_MONO,
-			)
-		} else {
-			mu.text(
-				ctx,
-				fmt.tprintf(
-					"{:.2f} MiB ({:.2f} MiB)",
-					f32(temp_mem_usage[5]) / mem.Megabyte,
-					f32(temp_mem_usage[6]) / mem.Megabyte,
-				),
-				FONT_MONO,
-			)
-		}
-
-		mu.label(ctx, "Block Mem Usage:")
-		mu.text(ctx, fmt.tprintf("{:.2f} MiB", f32(temp_mem_usage[4]) / mem.Megabyte), FONT_MONO)
 	}
 
 	fons.EndState(&state.ui.font_ctx)
