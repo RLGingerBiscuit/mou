@@ -2,13 +2,18 @@ set shell := ['bash', '-uc']
 set windows-shell := ['cmd', '/c']
 
 name := 'mou'
-src := 'src/'
-ext := if os_family() == 'windows' { '.exe' } else { '' }
+src_dir := 'src'
 out_dir := 'bin'
 prof_dir := 'prof'
 pkg_dir := 'packaged'
+
+ext := if os_family() == 'windows' { '.exe' } else { '' }
+debug_suffix := '_debug'
 odin_exe := 'odin'
-odin_args := '-vet -vet-cast -vet-tabs -strict-style -collection:third=third/ -keep-executable'
+odin_args := '-vet -vet-cast -vet-tabs -strict-style -collection:third=third'
+build_args := odin_args + ' -keep-executable'
+debug_args := build_args + ' -debug'
+release_args := build_args + ' -o:speed -subsystem:windows'
 
 # Default recipe which runs `just build-release`
 default: build-release
@@ -38,25 +43,25 @@ _clean-unix:
 
 # Compiles with debug profile
 build-debug *args: _init
-	{{odin_exe}} build {{src}} -debug -out:{{out_dir}}/{{name}}_debug{{ext}} {{odin_args}} {{args}}
+	{{odin_exe}} build {{src_dir}} -out:{{out_dir}}/{{name}}{{debug_suffix}}{{ext}} {{debug_args}} {{args}}
 
 # Compiles with release profile
 build-release *args: _init
-	{{odin_exe}} build {{src}} -out:{{out_dir}}/{{name}}{{ext}} {{odin_args}} -o:speed {{args}}
+	{{odin_exe}} build {{src_dir}} -out:{{out_dir}}/{{name}}{{ext}} {{release_args}} {{args}}
 alias build := build-release
 
 # Runs `odin check`
 check: _init
-	{{odin_exe}} check {{src}} {{odin_args}}
+	{{odin_exe}} check {{src_dir}} {{odin_args}}
 
 # Runs the application with debug profile
 run-debug *args: _init
-	{{odin_exe}} run {{src}} -debug -out:{{out_dir}}/{{name}}_debug{{ext}} {{odin_args}} {{args}}
+	{{odin_exe}} run {{src_dir}} -out:{{out_dir}}/{{name}}{{debug_suffix}}{{ext}} {{debug_args}} {{args}}
 alias debug := run-debug
 
 # Runs the application with release profile
 run-release *args: _init
-	{{odin_exe}} run {{src}} -out:{{out_dir}}/{{name}}{{ext}} {{odin_args}} -o:speed {{args}}
+	{{odin_exe}} run {{src_dir}} -out:{{out_dir}}/{{name}}{{ext}} {{release_args}} {{args}}
 alias run := run-release
 
 # Packages a release build of the application into a 'packaged' folder
