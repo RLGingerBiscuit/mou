@@ -268,7 +268,7 @@ main :: proc() {
 
 	gl.LineWidth(4)
 
-	prev_delta_times: sa.Small_Array(240, f64)
+	prev_delta_times: sa.Small_Array(120, f64)
 	previous_time := glfw.GetTime()
 	for !window_should_close(state.window) {
 		current_time := glfw.GetTime()
