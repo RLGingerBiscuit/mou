@@ -452,7 +452,7 @@ mesh_chunk :: proc(world: ^World, chunk: ^Chunk, mesh: ^Chunk_Mesh) {
 
 @(private = "file")
 position_face :: #force_inline proc(
-	$face: Block_Face_Bit,
+	$face: Block_Face,
 	ao_mask: Block_Diag_Mask,
 	local_pos: Local_Pos,
 	block: Block,
@@ -475,7 +475,7 @@ position_face :: #force_inline proc(
 		}
 	}
 
-	side_ao :: #force_inline proc(mask: Block_Diag_Mask, n: [8]Block_Diag_Bit) -> [4]u8 {
+	side_ao :: #force_inline proc(mask: Block_Diag_Mask, n: [8]Block_Diag) -> [4]u8 {
 		ns: [8]bool
 		for x, i in n {
 			ns[i] = x in mask
@@ -558,7 +558,7 @@ VERTEX_INPUT_COUNT :: size_of(Mesh_Face)
 @(rodata, private = "file")
 AO_DATA := [?]f32{0, 0.25, 0.5, 0.75}
 @( private = "file")
-FACE_NEIGHBOURS :: [Block_Face_Bit][8]Block_Diag_Bit {
+FACE_NEIGHBOURS :: [Block_Face][8]Block_Diag {
 	.Neg_X={.NZP, .NNP, .NNZ, .NNN, .NZN, .NPN, .NPZ, .NPP},
 	.Pos_X={.PZN, .PNN, .PNZ, .PNP, .PZP, .PPP, .PPZ, .PPN},
 	.Neg_Y={.NNZ, .NNP, .ZNP, .PNP, .PNZ, .PNN, .ZNN, .NNN},
@@ -567,7 +567,7 @@ FACE_NEIGHBOURS :: [Block_Face_Bit][8]Block_Diag_Bit {
 	.Pos_Z={.PZP, .PNP, .ZNP, .NNP, .NZP, .NPP, .ZPP, .PPP},
 }
 @(private = "file")
-FACE_PLANES :: [Block_Face_Bit]Mesh_Face {
+FACE_PLANES :: [Block_Face]Mesh_Face {
 	.Neg_X={// Left
 	{{0, 1, 0},  {0, 0},  {255, 255, 255, 255}, 0},
 	{{0, 0, 0},  {0, 1},  {255, 255, 255, 255}, 0},

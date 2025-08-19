@@ -2,7 +2,7 @@ package mou
 
 import glm "core:math/linalg/glsl"
 
-Block_Face_Bit :: enum {
+Block_Face :: enum {
 	Neg_X,
 	Pos_X,
 	Neg_Y,
@@ -10,9 +10,9 @@ Block_Face_Bit :: enum {
 	Neg_Z,
 	Pos_Z,
 }
-Block_Face_Mask :: bit_set[Block_Face_Bit]
+Block_Face_Mask :: bit_set[Block_Face]
 
-Block_Diag_Bit :: enum {
+Block_Diag :: enum {
 	NNN,
 	NNZ,
 	NNP,
@@ -34,7 +34,7 @@ Block_Diag_Bit :: enum {
 	PPZ,
 	PPP,
 }
-Block_Diag_Mask :: bit_set[Block_Diag_Bit]
+Block_Diag_Mask :: bit_set[Block_Diag]
 
 Block_ID :: enum u8 {
 	Air,
@@ -70,7 +70,7 @@ block_culls_self :: proc(block: Block) -> bool {
 	}
 }
 
-block_asset_name :: proc(block: Block, face: Block_Face_Bit) -> string {
+block_asset_name :: proc(block: Block, face: Block_Face) -> string {
 	switch block.id {
 	case .Stone:
 		return "stone.png"
