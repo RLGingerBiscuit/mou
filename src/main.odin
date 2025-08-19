@@ -840,6 +840,13 @@ main :: proc() {
 				}
 
 				{ 	// TODO: Do this but better
+					if .Wireframe in state.camera.flags {
+						gl.PolygonMode(gl.FRONT_AND_BACK, gl.FILL)
+					}
+					defer if .Wireframe in state.camera.flags {
+						gl.PolygonMode(gl.FRONT_AND_BACK, gl.LINE)
+					}
+
 					projection_matrix = glm.mat4Ortho3d(
 						0,
 						f32(state.window.size.x),
