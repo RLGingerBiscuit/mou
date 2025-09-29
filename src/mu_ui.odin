@@ -128,8 +128,11 @@ mu_init_ui :: proc(state: ^State) {
 		// We need to set the texture once before we can update it
 		texture_set(state.ui.font_tex, font.textureData)
 
-		state.ui.ctx.text_width =
-		proc(user_data: mu.Font, opts: mu.Font_Options, str: string) -> i32 {
+		state.ui.ctx.text_width = proc(
+			user_data: mu.Font,
+			opts: mu.Font_Options,
+			str: string,
+		) -> i32 {
 			font := cast(^fons.FontContext)user_data
 			fons.SetFont(font, opts.index)
 			fons.SetSpacing(font, cast(f32)opts.spacing)
@@ -252,8 +255,7 @@ mu_update_ui :: proc(state: ^State, dt: f64) {
 	mu.begin(ctx)
 	defer mu.end(ctx)
 
-	// FIXME: for some reason unbeknownst to me making '435' >= 440 breaks resizing???
-	if mu.window(ctx, "Minceraft", {10, 10, 560, 435}, {.NO_CLOSE}, FONT_BOUNCY) {
+	if mu.window(ctx, "Minceraft", {10, 10, 460, 360}, {.NO_CLOSE}, FONT_BOUNCY) {
 		LABEL_WIDTH :: 160
 
 		mu.layout_row(ctx, {LABEL_WIDTH, -1})
