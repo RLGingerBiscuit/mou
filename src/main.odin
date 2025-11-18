@@ -143,6 +143,9 @@ main :: proc() {
 	chunk_shader := make_shader("assets/shaders/chunk.vert", "assets/shaders/chunk.frag")
 	defer destroy_shader(&chunk_shader)
 
+	water_shader := make_shader("assets/shaders/water.vert", "assets/shaders/water.frag")
+	defer destroy_shader(&water_shader)
+
 	fullscreen_shader := make_shader(
 		"assets/shaders/fullscreen.vert",
 		"assets/shaders/fullscreen.frag",
@@ -165,7 +168,7 @@ main :: proc() {
 	defer destroy_renderer(&opaque_renderer)
 	transparent_renderer := make_renderer(true, chunk_shader, .Dynamic)
 	defer destroy_renderer(&transparent_renderer)
-	water_renderer := make_renderer(true, chunk_shader, .Dynamic)
+	water_renderer := make_renderer(true, water_shader, .Dynamic)
 	defer destroy_renderer(&water_renderer)
 	line_renderer := make_renderer(false, line_shader, .Dynamic)
 	defer destroy_renderer(&line_renderer)
@@ -781,6 +784,9 @@ main :: proc() {
 
 						for &chunk in water_chunks {
 							pos := chunk.pos * CHUNK_SIZE
+							set_uniform(water_renderer.shader, "u_time", cast(f32)current_time)
+							set_uniform(water_renderer.shader, "u_atlas_size", ATLAS_SIZE)
+							set_uniform(water_renderer.shader, "u_atlas_block_size", cast(f32)128)
 							set_uniform(water_renderer.shader, "u_chunkpos", pos)
 							renderer_sub_vertices(water_renderer, 0, chunk.mesh.water[:])
 							renderer_sub_indices(water_renderer, 0, chunk.mesh.water_indices[:])
