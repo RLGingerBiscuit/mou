@@ -858,16 +858,17 @@ main :: proc() {
 					view_matrix = glm.identity(glm.mat4)
 					proj_view = projection_matrix * view_matrix
 
-					CROSSHAIR_SIZE :: 16
+					SCALE :: 0.5
 					C :: RGBA{0xff, 0xff, 0xff, 0xff}
 
 					uv := ui_atlas.uvs["crosshair.png"]
+					size := SCALE * (uv[1] - uv[0]) * ui_atlas.size
 
 					r := RectF {
-						x = f32(state.window.size.x - CROSSHAIR_SIZE) / 2,
-						y = f32(state.window.size.y - CROSSHAIR_SIZE) / 2,
-						w = CROSSHAIR_SIZE,
-						h = CROSSHAIR_SIZE,
+						x = (f32(state.window.size.x) - size.x) / 2,
+						y = (f32(state.window.size.y) - size.y) / 2,
+						w = size.x,
+						h = size.y,
 					}
 
 					bind_renderer(state.ui.renderer)

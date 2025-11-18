@@ -93,14 +93,7 @@ block_asset_name :: proc(block: Block, face: Block_Face) -> string {
 
 	// TODO: animated water somehow
 	case .Water:
-		#partial switch face {
-		case .Neg_Y:
-			return "water_still.png"
-		case .Pos_Y:
-			return "water_still.png"
-		case:
-			return "water_flow.png"
-		}
+		return "water.png"
 
 	case .Air:
 		fallthrough

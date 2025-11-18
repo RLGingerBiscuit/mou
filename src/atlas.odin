@@ -14,20 +14,23 @@ import stbrp "vendor:stb/rect_pack"
 _ :: fmt
 _ :: stbi
 
-ATLAS_WIDTH :: 128
-ATLAS_HEIGHT :: 128
+ATLAS_WIDTH :: 1024
+ATLAS_HEIGHT :: 512
 ATLAS_MIPS :: 5
 ATLAS_MIP_BIAS :: 0
+ATLAS_SIZE :: glm.vec2{ATLAS_WIDTH, ATLAS_HEIGHT}
 
 #assert(ATLAS_MIPS >= 1)
 
 Atlas :: struct {
 	uvs:     map[string][2]glm.vec2,
 	texture: Texture,
+	size:    glm.vec2,
 }
 
 make_atlas :: proc(asset_path: string, mips := true) -> (atlas: Atlas) {
 	atlas.uvs = make(map[string][2]glm.vec2)
+	atlas.size = ATLAS_SIZE
 
 	Packer :: struct {
 		atlas: ^Atlas,

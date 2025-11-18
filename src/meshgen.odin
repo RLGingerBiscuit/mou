@@ -10,7 +10,7 @@ import "core:thread"
 
 import "prof"
 
-MESHGEN_CHAN_CAP :: 16
+MESHGEN_CHAN_CAP :: 32
 
 Meshgen_Msg_Remesh :: struct {
 	pos: Chunk_Pos,
@@ -504,6 +504,11 @@ position_face :: #force_inline proc(
 			face_data[2] = face_data[3] // 2=3
 			face_data[3] = tmp // 3=0
 		}
+	} else {
+		face_data[0].colour.a = 0xa0
+		face_data[1].colour.a = 0xa0
+		face_data[2].colour.a = 0xa0
+		face_data[3].colour.a = 0xa0
 	}
 
 	uvs := atlas.uvs[block_asset_name(block, face)]
@@ -531,22 +536,6 @@ position_face :: #force_inline proc(
 	face_data[3].tex_coord = {
 		uvs[int(face_data[3].tex_coord.x)].x,
 		uvs[int(face_data[3].tex_coord.y)].y,
-	}
-
-	// FIXME: a nicer place to put this (atlas generates per block face data?)
-	if block.id == .Water {
-		when face == .Neg_Y || face == .Pos_Y {
-			a: u8 = 0xc0
-		} else {
-			a: u8 = 0xff
-		}
-
-		colour := RGBA{0x3f, 0x76, 0xe4, a}
-
-		face_data[0].colour = colour
-		face_data[1].colour = colour
-		face_data[2].colour = colour
-		face_data[3].colour = colour
 	}
 
 	return face_data, {0, 1, 2, 2, 3, 0}
