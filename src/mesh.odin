@@ -25,4 +25,5 @@ Chunk_Mesh :: struct {
 	transparent_indices: [dynamic]Mesh_Face_Indexes `fmt:"-"`,
 	water:               [dynamic]Mesh_Face `fmt:"-"`,
 	water_indices:       [dynamic]Mesh_Face_Indexes `fmt:"-"`,
+	gen_time:            f32,
 }

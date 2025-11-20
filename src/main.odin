@@ -30,6 +30,7 @@ DEFAULT_FOV :: 90
 DEFAULT_SENSITIVITY_MULT :: f32(1) / 700
 NEAR_PLANE :: 0.1
 HIT_DISTANCE :: 6
+CHUNK_FADE_IN_SECONDS :: 0.75
 
 when ODIN_DEBUG {
 	tracking_allocator: mem.Tracking_Allocator
@@ -455,6 +456,9 @@ main :: proc() {
 					)
 
 					if prof.event("generate near chunks") {
+						// TODO: Seems like near chunks are generating way too much
+						//       (to test, unconditionally set mesh.gen_time in update_world)
+
 						for y in i32(0) ..= 1 {
 							for z in i32(-N) ..= N {
 								for x in i32(-N) ..= N {
@@ -735,7 +739,11 @@ main :: proc() {
 						gl.Disable(gl.BLEND) // Disable blending for opaque meshes; slight performance boost
 						for &chunk in opaque_chunks {
 							pos := chunk.pos * CHUNK_SIZE
+							elapsed := f32(current_time) - chunk.mesh.gen_time
+							visibility :=
+								elapsed > CHUNK_FADE_IN_SECONDS ? 1 : elapsed / CHUNK_FADE_IN_SECONDS
 							set_uniform(opaque_renderer.shader, "u_chunkpos", pos)
+							set_uniform(opaque_renderer.shader, "u_visibility", visibility)
 							renderer_sub_vertices(opaque_renderer, 0, chunk.mesh.opaque[:])
 							renderer_sub_indices(opaque_renderer, 0, chunk.mesh.opaque_indices[:])
 							gl.DrawElements(
@@ -757,7 +765,11 @@ main :: proc() {
 
 						for &chunk in transparent_chunks {
 							pos := chunk.pos * CHUNK_SIZE
+							elapsed := f32(current_time) - chunk.mesh.gen_time
+							visibility :=
+								elapsed > CHUNK_FADE_IN_SECONDS ? 1 : elapsed / CHUNK_FADE_IN_SECONDS
 							set_uniform(transparent_renderer.shader, "u_chunkpos", pos)
+							set_uniform(transparent_renderer.shader, "u_visibility", visibility)
 							renderer_sub_vertices(
 								transparent_renderer,
 								0,
@@ -785,10 +797,14 @@ main :: proc() {
 
 						for &chunk in water_chunks {
 							pos := chunk.pos * CHUNK_SIZE
+							elapsed := f32(current_time) - chunk.mesh.gen_time
+							visibility :=
+								elapsed > CHUNK_FADE_IN_SECONDS ? 1 : elapsed / CHUNK_FADE_IN_SECONDS
 							set_uniform(water_renderer.shader, "u_time", cast(f32)current_time)
 							set_uniform(water_renderer.shader, "u_atlas_size", ATLAS_SIZE)
 							set_uniform(water_renderer.shader, "u_atlas_block_size", cast(f32)128)
 							set_uniform(water_renderer.shader, "u_chunkpos", pos)
+							set_uniform(water_renderer.shader, "u_visibility", visibility)
 							renderer_sub_vertices(water_renderer, 0, chunk.mesh.water[:])
 							renderer_sub_indices(water_renderer, 0, chunk.mesh.water_indices[:])
 							gl.DrawElements(

@@ -6,6 +6,7 @@ layout(location = 0) in vec2 position0;
 layout(location = 1) in vec2 tex_coord0;
 layout(location = 2) in uint vertex_colour0;
 
+// Per-frame
 uniform mat4 u_proj_view;
 
 out vec2 tex_coord;

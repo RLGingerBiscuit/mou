@@ -1,14 +1,13 @@
 package mou
 
-import "core:log"
-_ :: log
-
 import "core:math"
 import glm "core:math/linalg/glsl"
 import vmem "core:mem/virtual"
 import "core:slice"
 import "core:sync"
 import "core:sync/chan"
+
+import "vendor:glfw"
 
 import "noise"
 import "prof"
@@ -140,7 +139,9 @@ update_world :: proc(world: ^World, player_pos: glm.vec3) {
 				ensure(exists, "Meshed chunk doesn't exist")
 				old_mesh := chunk.mesh
 				chunk.mesh = v.mesh
-				if old_mesh != nil {
+				if old_mesh == nil {
+					chunk.mesh.gen_time = f32(glfw.GetTime())
+				} else {
 					append(&world.prio_msg_stack, Meshgen_Msg_Tombstone{old_mesh})
 				}
 
@@ -149,6 +150,7 @@ update_world :: proc(world: ^World, player_pos: glm.vec3) {
 				chunk, exists := &world.chunks[v.chunk_pos]
 				ensure(exists, "Demeshed chunk doesn't exist")
 				if chunk.mesh != nil {
+					chunk.mesh.gen_time = f32(glfw.GetTime())
 					append(&world.prio_msg_stack, Meshgen_Msg_Tombstone{chunk.mesh})
 				}
 				chunk.mesh = nil

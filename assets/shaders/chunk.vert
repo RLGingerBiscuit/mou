@@ -7,11 +7,14 @@ layout(location = 1) in vec2 tex_coord0;
 layout(location = 2) in uint vertex_colour0;
 layout(location = 3) in float ao0;
 
+// Per-frame
 uniform mat4 u_proj_view;
-uniform ivec3 u_chunkpos;
 uniform vec3 u_campos;
 uniform uint u_ao;
 uniform uint u_ao_debug;
+
+// Per-chunk
+uniform ivec3 u_chunkpos;
 
 out vec2 tex_coord;
 out vec4 vertex_colour;

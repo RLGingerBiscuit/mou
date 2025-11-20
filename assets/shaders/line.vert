@@ -5,6 +5,7 @@
 layout(location = 0) in vec3 position0;
 layout(location = 1) in uint colour0;
 
+// Per-frame
 uniform mat4 u_proj_view;
 
 out vec4 vertex_colour;
