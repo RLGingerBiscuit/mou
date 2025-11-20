@@ -115,10 +115,10 @@ make_shader :: proc(vert_path, frag_path: string) -> (shader: Shader) {
 
 	name_len, size: i32
 	type: u32
-	for i in 0 ..< uniform_count {
+	for i in 0 ..< u32(uniform_count) {
 		gl.GetActiveUniform(
 			shader.handle,
-			u32(i),
+			i,
 			max_name_len,
 			&name_len,
 			&size,
@@ -126,16 +126,17 @@ make_shader :: proc(vert_path, frag_path: string) -> (shader: Shader) {
 			raw_data(name_buf),
 		)
 
-		name, err := strings.clone_from_cstring_bounded(
-			cast(cstring)raw_data(name_buf),
-			cast(int)name_len,
-		)
+		name_cstr := cast(cstring)raw_data(name_buf)
+
+		location := gl.GetUniformLocation(shader.handle, name_cstr)
+
+		name, err := strings.clone_from_cstring_bounded(name_cstr, cast(int)name_len)
 		assert(err == nil)
 
 		shader.uniforms[name] = Uniform {
 			type     = cast(Data_Type)type,
 			size     = size,
-			location = i,
+			location = location,
 		}
 	}
 
