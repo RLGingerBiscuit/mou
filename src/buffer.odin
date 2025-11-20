@@ -19,24 +19,46 @@ Buffer :: struct {
 	usage:  Buffer_Usage,
 }
 
-make_buffer :: proc(target: Buffer_Target, usage: Buffer_Usage) -> (buffer: Buffer) {
-	gl.GenBuffers(1, &buffer.handle)
+make_buffer :: proc(
+	target: Buffer_Target,
+	usage: Buffer_Usage,
+	loc := #caller_location,
+) -> (
+	buffer: Buffer,
+) {
+	when ODIN_DEBUG {
+		gl.GenBuffers(1, &buffer.handle, loc = loc)
+	} else {
+		gl.GenBuffers(1, &buffer.handle)
+	}
 	buffer.target = target
 	buffer.usage = usage
 	return
 }
 
-destroy_buffer :: proc(buffer: ^Buffer) {
-	gl.DeleteBuffers(1, &buffer.handle)
+destroy_buffer :: proc(buffer: ^Buffer, loc := #caller_location) {
+	when ODIN_DEBUG {
+		gl.DeleteBuffers(1, &buffer.handle, loc = loc)
+	} else {
+		gl.DeleteBuffers(1, &buffer.handle)
+	}
 	buffer^ = {}
 }
 
-bind_buffer :: proc(buffer: Buffer) {
-	gl.BindBuffer(cast(u32)buffer.target, buffer.handle)
+bind_buffer :: proc(buffer: Buffer, loc := #caller_location) {
+	when ODIN_DEBUG {
+		gl.BindBuffer(cast(u32)buffer.target, buffer.handle, loc = loc)
+	} else {
+		gl.BindBuffer(cast(u32)buffer.target, buffer.handle)
+	}
 }
 
-unbind_buffer :: proc(target: Buffer_Target) {
-	gl.BindBuffer(cast(u32)target, 0)
+unbind_buffer :: proc(target: Buffer_Target, loc := #caller_location) {
+	when ODIN_DEBUG {
+		gl.BindBuffer(cast(u32)target, 0, loc = loc)
+	} else {
+		gl.BindBuffer(cast(u32)target, 0)
+	}
 }
 
 buffer_data :: proc(buffer: Buffer, data: $S/[]$T, loc := #caller_location) {

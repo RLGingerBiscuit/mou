@@ -618,6 +618,7 @@ main :: proc() {
 						sky: RGBA32,
 						proj_view: glm.mat4,
 					) {
+						bind_renderer(r)
 						set_uniform(r.shader, "u_proj_view", proj_view)
 						set_uniform(r.shader, "u_campos", state.camera.pos)
 						set_uniform(r.shader, "u_ao", u32(state.ao))

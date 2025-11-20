@@ -3,28 +3,45 @@ package mou
 import "base:intrinsics"
 import "core:fmt"
 import "core:reflect"
+import "core:strings"
 import gl "vendor:OpenGL"
 
 Vertex_Array :: struct {
 	handle: u32,
 }
 
-make_vertex_array :: proc() -> (vao: Vertex_Array) {
-	gl.GenVertexArrays(1, &vao.handle)
+make_vertex_array :: proc(loc := #caller_location) -> (vao: Vertex_Array) {
+	when ODIN_DEBUG {
+		gl.GenVertexArrays(1, &vao.handle, loc = loc)
+	} else {
+		gl.GenVertexArrays(1, &vao.handle)
+	}
 	return
 }
 
-destroy_vertex_array :: proc(vao: ^Vertex_Array) {
-	gl.DeleteVertexArrays(1, &vao.handle)
+destroy_vertex_array :: proc(vao: ^Vertex_Array, loc := #caller_location) {
+	when ODIN_DEBUG {
+		gl.DeleteVertexArrays(1, &vao.handle, loc = loc)
+	} else {
+		gl.DeleteVertexArrays(1, &vao.handle)
+	}
 	vao^ = {}
 }
 
-bind_vertex_array :: proc(vao: Vertex_Array) {
-	gl.BindVertexArray(vao.handle)
+bind_vertex_array :: proc(vao: Vertex_Array, loc := #caller_location) {
+	when ODIN_DEBUG {
+		gl.BindVertexArray(vao.handle, loc = loc)
+	} else {
+		gl.BindVertexArray(vao.handle)
+	}
 }
 
-unbind_vertex_array :: proc() {
-	gl.BindVertexArray(0)
+unbind_vertex_array :: proc(loc := #caller_location) {
+	when ODIN_DEBUG {
+		gl.BindVertexArray(0, loc = loc)
+	} else {
+		gl.BindVertexArray(0)
+	}
 }
 
 vertex_attrib_pointer :: proc(
@@ -34,9 +51,15 @@ vertex_attrib_pointer :: proc(
 	normalized: bool,
 	stride: i32,
 	pointer: uintptr,
+	loc := #caller_location,
 ) {
-	gl.VertexAttribPointer(index, size, cast(u32)type, normalized, stride, pointer)
-	gl.EnableVertexAttribArray(index)
+	when ODIN_DEBUG {
+		gl.VertexAttribPointer(index, size, cast(u32)type, normalized, stride, pointer, loc = loc)
+		gl.EnableVertexAttribArray(index, loc = loc)
+	} else {
+		gl.VertexAttribPointer(index, size, cast(u32)type, normalized, stride, pointer)
+		gl.EnableVertexAttribArray(index)
+	}
 }
 
 vertex_attrib_i_pointer :: proc(
@@ -45,12 +68,21 @@ vertex_attrib_i_pointer :: proc(
 	type: Data_Type,
 	stride: i32,
 	pointer: uintptr,
+	loc := #caller_location,
 ) {
-	gl.VertexAttribIPointer(index, size, cast(u32)type, stride, pointer)
-	gl.EnableVertexAttribArray(index)
+	when ODIN_DEBUG {
+		gl.VertexAttribIPointer(index, size, cast(u32)type, stride, pointer, loc = loc)
+		gl.EnableVertexAttribArray(index, loc = loc)
+	} else {
+		gl.VertexAttribIPointer(index, size, cast(u32)type, stride, pointer)
+		gl.EnableVertexAttribArray(index)
+	}
 }
 
-vertex_attrib_vert :: proc($T: typeid) where intrinsics.type_is_struct(T) {
+vertex_attrib_vert :: proc(
+	$T: typeid,
+	loc := #caller_location,
+) where intrinsics.type_is_struct(T) {
 	fields := reflect.struct_fields_zipped(T)
 	ti := type_info_of(T)
 	tin := ti.variant.(reflect.Type_Info_Named)
@@ -64,6 +96,8 @@ vertex_attrib_vert :: proc($T: typeid) where intrinsics.type_is_struct(T) {
 	type: Data_Type
 
 	for field, i in fields {
+		tag := reflect.struct_tag_get(field.tag, "vert")
+
 		#partial switch v in reflect.type_info_base(field.type).variant {
 		case reflect.Type_Info_Integer:
 			switch field.type.size {
@@ -80,7 +114,7 @@ vertex_attrib_vert :: proc($T: typeid) where intrinsics.type_is_struct(T) {
 				)
 			}
 
-			vertex_attrib_i_pointer(u32(i), 1, type, size_of(T), field.offset)
+			vertex_attrib_i_pointer(u32(i), 1, type, size_of(T), field.offset, loc = loc)
 
 		case reflect.Type_Info_Float:
 			switch field.type.size {
@@ -97,7 +131,7 @@ vertex_attrib_vert :: proc($T: typeid) where intrinsics.type_is_struct(T) {
 				)
 			}
 
-			vertex_attrib_pointer(u32(i), 1, type, false, size_of(T), field.offset)
+			vertex_attrib_pointer(u32(i), 1, type, false, size_of(T), field.offset, loc = loc)
 
 		case reflect.Type_Info_Array:
 			if v.count > 4 {
@@ -112,8 +146,15 @@ vertex_attrib_vert :: proc($T: typeid) where intrinsics.type_is_struct(T) {
 			}
 
 			// NOTE: Special case for RGBA colour
-			if v.count == 4 && v.elem.id == u8 {
-				vertex_attrib_i_pointer(u32(i), 1, .Unsigned_Int, size_of(T), field.offset)
+			if v.count == 4 && v.elem.id == u8 && !strings.equal_fold(tag, "raw") {
+				vertex_attrib_i_pointer(
+					u32(i),
+					1,
+					.Unsigned_Int,
+					size_of(T),
+					field.offset,
+					loc = loc,
+				)
 				continue
 			}
 
@@ -133,7 +174,14 @@ vertex_attrib_vert :: proc($T: typeid) where intrinsics.type_is_struct(T) {
 					)
 				}
 
-				vertex_attrib_i_pointer(u32(i), i32(v.count), type, size_of(T), field.offset)
+				vertex_attrib_i_pointer(
+					u32(i),
+					i32(v.count),
+					type,
+					size_of(T),
+					field.offset,
+					loc = loc,
+				)
 
 			case reflect.Type_Info_Float:
 				switch v.elem.size {
@@ -150,7 +198,15 @@ vertex_attrib_vert :: proc($T: typeid) where intrinsics.type_is_struct(T) {
 					)
 				}
 
-				vertex_attrib_pointer(u32(i), i32(v.count), type, false, size_of(T), field.offset)
+				vertex_attrib_pointer(
+					u32(i),
+					i32(v.count),
+					type,
+					false,
+					size_of(T),
+					field.offset,
+					loc = loc,
+				)
 
 			case:
 				unimplemented(

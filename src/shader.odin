@@ -22,7 +22,7 @@ Shader :: struct {
 	uniforms: map[string]Uniform,
 }
 
-make_shader :: proc(vert_path, frag_path: string) -> (shader: Shader) {
+make_shader :: proc(vert_path, frag_path: string, loc := #caller_location) -> (shader: Shader) {
 	load_shader :: proc(src_path: string, allocator := context.allocator) -> string {
 		context.allocator = allocator
 
@@ -100,7 +100,11 @@ make_shader :: proc(vert_path, frag_path: string) -> (shader: Shader) {
 	assert(ok)
 
 	uniform_count: i32
-	gl.GetProgramiv(shader.handle, gl.ACTIVE_UNIFORMS, &uniform_count)
+	when ODIN_DEBUG {
+		gl.GetProgramiv(shader.handle, gl.ACTIVE_UNIFORMS, &uniform_count, loc = loc)
+	} else {
+		gl.GetProgramiv(shader.handle, gl.ACTIVE_UNIFORMS, &uniform_count)
+	}
 	if uniform_count == 0 {
 		return
 	}
@@ -108,7 +112,11 @@ make_shader :: proc(vert_path, frag_path: string) -> (shader: Shader) {
 	shader.uniforms = make(map[string]Uniform, uniform_count)
 
 	max_name_len: i32
-	gl.GetProgramiv(shader.handle, gl.ACTIVE_UNIFORM_MAX_LENGTH, &max_name_len)
+	when ODIN_DEBUG {
+		gl.GetProgramiv(shader.handle, gl.ACTIVE_UNIFORM_MAX_LENGTH, &max_name_len, loc = loc)
+	} else {
+		gl.GetProgramiv(shader.handle, gl.ACTIVE_UNIFORM_MAX_LENGTH, &max_name_len)
+	}
 
 	name_buf := make([]u8, max_name_len, context.temp_allocator)
 	defer delete(name_buf, context.temp_allocator)
@@ -116,22 +124,39 @@ make_shader :: proc(vert_path, frag_path: string) -> (shader: Shader) {
 	name_len, size: i32
 	type: u32
 	for i in 0 ..< u32(uniform_count) {
-		gl.GetActiveUniform(
-			shader.handle,
-			i,
-			max_name_len,
-			&name_len,
-			&size,
-			&type,
-			raw_data(name_buf),
-		)
+		when ODIN_DEBUG {
+			gl.GetActiveUniform(
+				shader.handle,
+				i,
+				max_name_len,
+				&name_len,
+				&size,
+				&type,
+				raw_data(name_buf),
+				loc = loc,
+			)
+		} else {
+			gl.GetActiveUniform(
+				shader.handle,
+				i,
+				max_name_len,
+				&name_len,
+				&size,
+				&type,
+				raw_data(name_buf),
+			)
+		}
 
 		name_cstr := cast(cstring)raw_data(name_buf)
-
-		location := gl.GetUniformLocation(shader.handle, name_cstr)
-
 		name, err := strings.clone_from_cstring_bounded(name_cstr, cast(int)name_len)
 		assert(err == nil)
+
+		location: i32
+		when ODIN_DEBUG {
+			location = gl.GetUniformLocation(shader.handle, name_cstr, loc = loc)
+		} else {
+			location = gl.GetUniformLocation(shader.handle, name_cstr)
+		}
 
 		shader.uniforms[name] = Uniform {
 			type     = cast(Data_Type)type,
@@ -188,7 +213,11 @@ set_uniform_mat2 :: proc(
 		),
 		loc = loc,
 	)
-	gl.UniformMatrix2fv(uniform.location, 1, false, &val[0, 0])
+	when ODIN_DEBUG {
+		gl.UniformMatrix2fv(uniform.location, 1, false, &val[0, 0], loc = loc)
+	} else {
+		gl.UniformMatrix2fv(uniform.location, 1, false, &val[0, 0])
+	}
 	return true
 }
 
@@ -211,7 +240,11 @@ set_uniform_mat3 :: proc(
 		),
 		loc = loc,
 	)
-	gl.UniformMatrix3fv(uniform.location, 1, false, &val[0, 0])
+	when ODIN_DEBUG {
+		gl.UniformMatrix3fv(uniform.location, 1, false, &val[0, 0], loc = loc)
+	} else {
+		gl.UniformMatrix3fv(uniform.location, 1, false, &val[0, 0])
+	}
 	return true
 }
 
@@ -234,7 +267,11 @@ set_uniform_mat4 :: proc(
 		),
 		loc = loc,
 	)
-	gl.UniformMatrix4fv(uniform.location, 1, false, &val[0, 0])
+	when ODIN_DEBUG {
+		gl.UniformMatrix4fv(uniform.location, 1, false, &val[0, 0], loc = loc)
+	} else {
+		gl.UniformMatrix4fv(uniform.location, 1, false, &val[0, 0])
+	}
 	return true
 }
 
@@ -256,7 +293,11 @@ set_uniform_f32 :: proc(
 		),
 		loc = loc,
 	)
-	gl.Uniform1f(uniform.location, val)
+	when ODIN_DEBUG {
+		gl.Uniform1f(uniform.location, val, loc = loc)
+	} else {
+		gl.Uniform1f(uniform.location, val)
+	}
 	return true
 }
 
@@ -278,7 +319,11 @@ set_uniform_i32 :: proc(
 		),
 		loc = loc,
 	)
-	gl.Uniform1i(uniform.location, val)
+	when ODIN_DEBUG {
+		gl.Uniform1i(uniform.location, val, loc = loc)
+	} else {
+		gl.Uniform1i(uniform.location, val)
+	}
 	return true
 }
 
@@ -300,7 +345,11 @@ set_uniform_u32 :: proc(
 		),
 		loc = loc,
 	)
-	gl.Uniform1ui(uniform.location, val)
+	when ODIN_DEBUG {
+		gl.Uniform1ui(uniform.location, val, loc = loc)
+	} else {
+		gl.Uniform1ui(uniform.location, val)
+	}
 	return true
 }
 
@@ -322,7 +371,11 @@ set_uniform_vec2 :: proc(
 		),
 		loc = loc,
 	)
-	gl.Uniform2f(uniform.location, val.x, val.y)
+	when ODIN_DEBUG {
+		gl.Uniform2f(uniform.location, val.x, val.y, loc = loc)
+	} else {
+		gl.Uniform2f(uniform.location, val.x, val.y)
+	}
 	return true
 }
 
@@ -344,7 +397,11 @@ set_uniform_vec3 :: proc(
 		),
 		loc = loc,
 	)
-	gl.Uniform3f(uniform.location, val.x, val.y, val.z)
+	when ODIN_DEBUG {
+		gl.Uniform3f(uniform.location, val.x, val.y, val.z, loc = loc)
+	} else {
+		gl.Uniform3f(uniform.location, val.x, val.y, val.z)
+	}
 	return true
 }
 
@@ -366,7 +423,11 @@ set_uniform_vec4 :: proc(
 		),
 		loc = loc,
 	)
-	gl.Uniform4f(uniform.location, val.x, val.y, val.z, val.w)
+	when ODIN_DEBUG {
+		gl.Uniform4f(uniform.location, val.x, val.y, val.z, val.w, loc = loc)
+	} else {
+		gl.Uniform4f(uniform.location, val.x, val.y, val.z, val.w)
+	}
 	return true
 }
 
@@ -388,7 +449,11 @@ set_uniform_ivec2 :: proc(
 		),
 		loc = loc,
 	)
-	gl.Uniform2i(uniform.location, val.x, val.y)
+	when ODIN_DEBUG {
+		gl.Uniform2i(uniform.location, val.x, val.y, loc = loc)
+	} else {
+		gl.Uniform2i(uniform.location, val.x, val.y)
+	}
 	return true
 }
 
@@ -410,7 +475,11 @@ set_uniform_ivec3 :: proc(
 		),
 		loc = loc,
 	)
-	gl.Uniform3i(uniform.location, val.x, val.y, val.z)
+	when ODIN_DEBUG {
+		gl.Uniform3i(uniform.location, val.x, val.y, val.z, loc = loc)
+	} else {
+		gl.Uniform3i(uniform.location, val.x, val.y, val.z)
+	}
 	return true
 }
 
@@ -432,7 +501,11 @@ set_uniform_ivec4 :: proc(
 		),
 		loc = loc,
 	)
-	gl.Uniform4i(uniform.location, val.x, val.y, val.z, val.w)
+	when ODIN_DEBUG {
+		gl.Uniform4i(uniform.location, val.x, val.y, val.z, val.w, loc = loc)
+	} else {
+		gl.Uniform4i(uniform.location, val.x, val.y, val.z, val.w)
+	}
 	return true
 }
 
@@ -454,7 +527,11 @@ set_uniform_uvec2 :: proc(
 		),
 		loc = loc,
 	)
-	gl.Uniform2ui(uniform.location, val.x, val.y)
+	when ODIN_DEBUG {
+		gl.Uniform2ui(uniform.location, val.x, val.y, loc = loc)
+	} else {
+		gl.Uniform2ui(uniform.location, val.x, val.y)
+	}
 	return true
 }
 
@@ -476,7 +553,11 @@ set_uniform_uvec3 :: proc(
 		),
 		loc = loc,
 	)
-	gl.Uniform3ui(uniform.location, val.x, val.y, val.z)
+	when ODIN_DEBUG {
+		gl.Uniform3ui(uniform.location, val.x, val.y, val.z, loc = loc)
+	} else {
+		gl.Uniform3ui(uniform.location, val.x, val.y, val.z)
+	}
 	return true
 }
 
@@ -498,7 +579,11 @@ set_uniform_uvec4 :: proc(
 		),
 		loc = loc,
 	)
-	gl.Uniform4ui(uniform.location, val.x, val.y, val.z, val.w)
+	when ODIN_DEBUG {
+		gl.Uniform4ui(uniform.location, val.x, val.y, val.z, val.w, loc = loc)
+	} else {
+		gl.Uniform4ui(uniform.location, val.x, val.y, val.z, val.w)
+	}
 	return true
 }
 

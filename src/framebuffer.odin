@@ -29,8 +29,17 @@ Framebuffer :: struct {
 	attachments: sa.Small_Array(len(Attachment_Type), Framebuffer_Attachment),
 }
 
-make_framebuffer :: proc(attachments: []Framebuffer_Attachment) -> (fbo: Framebuffer) {
-	gl.GenFramebuffers(1, &fbo.handle)
+make_framebuffer :: proc(
+	attachments: []Framebuffer_Attachment,
+	loc := #caller_location,
+) -> (
+	fbo: Framebuffer,
+) {
+	when ODIN_DEBUG {
+		gl.GenFramebuffers(1, &fbo.handle, loc = loc)
+	} else {
+		gl.GenFramebuffers(1, &fbo.handle)
+	}
 	if len(attachments) == 0 {return}
 
 	bind_framebuffer(fbo, .All)
@@ -39,10 +48,11 @@ make_framebuffer :: proc(attachments: []Framebuffer_Attachment) -> (fbo: Framebu
 	assert(
 		len(attachments) <= len(Attachment_Type),
 		"more attachments than should be possible, what are you doing?",
+		loc = loc,
 	)
 
 	used_attachments := make(
-		map[Attachment_Type]struct {
+		map[Attachment_Type]struct{
 			// kinda hacky hashset
 		},
 		len(Attachment_Type),
@@ -54,6 +64,7 @@ make_framebuffer :: proc(attachments: []Framebuffer_Attachment) -> (fbo: Framebu
 			log.warnf(
 				"Duplicate framebuffer attachment {}, only the first one will be used",
 				a.type,
+				location = loc,
 			)
 		} else {
 			assert(sa.append(&fbo.attachments, a))
@@ -62,36 +73,59 @@ make_framebuffer :: proc(attachments: []Framebuffer_Attachment) -> (fbo: Framebu
 	}
 
 	for a in sa.slice(&fbo.attachments) {
-		gl.FramebufferTexture2D(
-			cast(u32)Framebuffer_Target.All,
-			cast(u32)a.type,
-			gl.TEXTURE_2D,
-			a.tex.handle,
-			0,
-		)
+		when ODIN_DEBUG {
+			gl.FramebufferTexture2D(
+				cast(u32)Framebuffer_Target.All,
+				cast(u32)a.type,
+				gl.TEXTURE_2D,
+				a.tex.handle,
+				0,
+				loc = loc,
+			)
+		} else {
+			gl.FramebufferTexture2D(
+				cast(u32)Framebuffer_Target.All,
+				cast(u32)a.type,
+				gl.TEXTURE_2D,
+				a.tex.handle,
+				0,
+			)
+		}
 	}
 
 	if gl.CheckFramebufferStatus(cast(u32)Framebuffer_Target.All) != gl.FRAMEBUFFER_COMPLETE {
-		log.fatal("Framebuffer did not complete")
+		log.fatal("Framebuffer did not complete", location = loc)
 		os.exit(1)
 	}
 
 	return
 }
 
-destroy_framebuffer :: proc(fbo: ^Framebuffer) {
-	gl.DeleteFramebuffers(1, &fbo.handle)
+destroy_framebuffer :: proc(fbo: ^Framebuffer, loc := #caller_location) {
+	when ODIN_DEBUG {
+		gl.DeleteFramebuffers(1, &fbo.handle, loc = loc)
+	} else {
+		gl.DeleteFramebuffers(1, &fbo.handle)
+	}
 }
 
-bind_framebuffer :: proc(fbo: Framebuffer, target: Framebuffer_Target) {
-	gl.BindFramebuffer(cast(u32)target, fbo.handle)
+bind_framebuffer :: proc(fbo: Framebuffer, target: Framebuffer_Target, loc := #caller_location) {
+	when ODIN_DEBUG {
+		gl.BindFramebuffer(cast(u32)target, fbo.handle, loc = loc)
+	} else {
+		gl.BindFramebuffer(cast(u32)target, fbo.handle)
+	}
 }
 
-unbind_framebuffer :: proc(target: Framebuffer_Target) {
-	gl.BindFramebuffer(cast(u32)target, 0)
+unbind_framebuffer :: proc(target: Framebuffer_Target, loc := #caller_location) {
+	when ODIN_DEBUG {
+		gl.BindFramebuffer(cast(u32)target, 0, loc = loc)
+	} else {
+		gl.BindFramebuffer(cast(u32)target, 0)
+	}
 }
 
-resize_framebuffer :: proc(fbo: ^Framebuffer, width, height: i32) {
+resize_framebuffer :: proc(fbo: ^Framebuffer, width, height: i32, loc := #caller_location) {
 	for a in sa.slice(&fbo.attachments) {
 		new_tex := make_texture(
 			a.tex.name,
@@ -107,13 +141,24 @@ resize_framebuffer :: proc(fbo: ^Framebuffer, width, height: i32) {
 		bind_framebuffer(fbo^, .All)
 		defer unbind_framebuffer(.All)
 
-		gl.FramebufferTexture2D(
-			cast(u32)Framebuffer_Target.All,
-			cast(u32)a.type,
-			gl.TEXTURE_2D,
-			new_tex.handle,
-			0,
-		)
+		when ODIN_DEBUG {
+			gl.FramebufferTexture2D(
+				cast(u32)Framebuffer_Target.All,
+				cast(u32)a.type,
+				gl.TEXTURE_2D,
+				new_tex.handle,
+				0,
+				loc = loc,
+			)
+		} else {
+			gl.FramebufferTexture2D(
+				cast(u32)Framebuffer_Target.All,
+				cast(u32)a.type,
+				gl.TEXTURE_2D,
+				new_tex.handle,
+				0,
+			)
+		}
 
 		if gl.CheckFramebufferStatus(cast(u32)Framebuffer_Target.All) != gl.FRAMEBUFFER_COMPLETE {
 			log.fatal("Framebuffer resize did not complete")

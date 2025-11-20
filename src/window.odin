@@ -137,7 +137,7 @@ window_center_cursor :: proc(wnd: ^Window) {
 	wnd.cursor = centre
 }
 
-resize_window :: proc(state: ^State, width, height: i32) {
+resize_window :: proc(state: ^State, width, height: i32, loc := #caller_location) {
 	wnd := &state.window
 	if width == 0 || height == 0 {
 		wnd.flags |= {.Minimised}
@@ -147,15 +147,23 @@ resize_window :: proc(state: ^State, width, height: i32) {
 	assert(width > 0, "window width must be > 0")
 	assert(height > 0, "window height must be > 0")
 	wnd.size = {width, height}
-	gl.Viewport(0, 0, width, height)
+	when ODIN_DEBUG {
+		gl.Viewport(0, 0, width, height, loc = loc)
+	} else {
+		gl.Viewport(0, 0, width, height)
+	}
 	log.debugf("Window '{}' resized to {}x{}", wnd.title, width, height)
 	resize_framebuffer(&state.fbo, width, height)
 }
 
-show_window :: proc(wnd: ^Window) {
+show_window :: proc(wnd: ^Window, loc := #caller_location) {
 	wnd.flags |= {.Visible}
 	glfw.ShowWindow(wnd.handle)
-	gl.Viewport(0, 0, wnd.size.x, wnd.size.y)
+	when ODIN_DEBUG {
+		gl.Viewport(0, 0, wnd.size.x, wnd.size.y, loc = loc)
+	} else {
+		gl.Viewport(0, 0, wnd.size.x, wnd.size.y)
+	}
 }
 hide_window :: proc(wnd: ^Window) {
 	wnd.flags &~= {.Visible}
@@ -235,6 +243,7 @@ Action :: enum u8 {
 	Press   = 1,
 	Repeat  = 2,
 }
+
 Key :: enum i32 {
 	/* The unknown key */
 	Unknown       = glfw.KEY_UNKNOWN,
