@@ -95,7 +95,7 @@ main :: proc() {
 	rdoc.SetCaptureFilePathTemplate(rdoc_api, "debug/captures/cap")
 	rdoc.SetCaptureKeys(rdoc_api, {})
 
-	prof.init()
+	prof.init("Mou")
 	defer prof.deinit()
 
 	log.info("Hellope!")

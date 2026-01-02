@@ -26,21 +26,25 @@ when PROFILING {
 		bufs:         map[int]Buffer,
 		allocator:    mem.Allocator,
 		lock:         sync.RW_Mutex,
+		main_tid:     int,
 		_initialised: bool,
 	}
-} else {
-	Prof :: struct {}
+
+	@(private)
+	prof := Prof {
+		main_tid = -1,
+	}
 }
 
-@(private)
-prof: Prof
-
-when PROFILING {
-	// Initialises profiling for the main thread.
-	init :: proc(allocator := context.allocator, loc := #caller_location) {
-		ensure(!prof._initialised, "prof.init() should only be called once")
+// Initialises profiling for the main thread, with an optional name.
+@(no_instrumentation)
+init :: proc(name := "", allocator := context.allocator, loc := #caller_location) {
+	when PROFILING {
+		assert(!prof._initialised, "prof.init() should only be called once")
 
 		context.allocator = allocator
+
+		prof.main_tid = sync.current_thread_id()
 
 		prof.bufs = make(map[int]Buffer)
 
@@ -69,22 +73,35 @@ when PROFILING {
 		prof.allocator = allocator
 
 		init_thread(loc = loc)
-	}
 
-	// Initialises profiling for threads other than the main thread.
-	init_thread :: proc(loc := #caller_location) {
+		if name != "" {
+			spall._buffer_name_process(
+				&prof.ctx,
+				&prof.bufs[sync.current_thread_id()],
+				name,
+				location = loc,
+			)
+		}
+	}
+}
+
+// Initialises profiling for a given thread, with an optional name.
+@(no_instrumentation)
+init_thread :: proc(name := "", loc := #caller_location) {
+	when PROFILING {
 		context.allocator = prof.allocator
-		tid := sync.current_thread_id()
 
 		sync.guard(&prof.lock)
 
-		ensure(
+		tid := sync.current_thread_id()
+
+		assert(
 			prof._initialised,
 			"prof.init_thread() should only be called after prof.init()",
 			loc = loc,
 		)
 		_, exists := prof.bufs[tid]
-		ensure(
+		assert(
 			!exists,
 			"prof.init_thread() should only be called once per additional thread",
 			loc = loc,
@@ -95,14 +112,26 @@ when PROFILING {
 		buf, ok := spall.buffer_create(backing, u32(tid))
 		ensure(ok, fmt.tprint("could not create profiling buffer for thread", tid), loc = loc)
 
+		if name != "" {
+			spall._buffer_name_thread(&prof.ctx, &buf, name, location = loc)
+		}
+
 		prof.bufs[sync.current_thread_id()] = buf
 	}
+}
 
-	// Deinitialises profiling for the entire application (including other threads).
-	//
-	// Should only be called from the main thread.
-	deinit :: proc(loc := #caller_location) {
-		ensure(prof._initialised, "prof.deinit() should only be called once", loc = loc)
+// Deinitialises profiling for the entire application (including other threads).
+//
+// Should only be called from the main thread.
+@(no_instrumentation)
+deinit :: proc(loc := #caller_location) {
+	when PROFILING {
+		assert(prof._initialised, "prof.deinit() should only be called once", loc = loc)
+		assert(
+			prof.main_tid == sync.current_thread_id(),
+			"prof.deinit() should only be called from the main thread",
+			loc = loc,
+		)
 
 		sync.guard(&prof.lock)
 
@@ -117,12 +146,16 @@ when PROFILING {
 		delete(prof.bufs)
 
 		prof._initialised = false
+		prof.main_tid = -1
 	}
+}
 
-	// Flushes any pending events to disk.
-	//
-	// This method is thread-safe.
-	flush :: proc(loc := #caller_location) {
+// Flushes any pending events to disk.
+//
+// This method is thread-safe.
+@(no_instrumentation)
+flush :: proc(loc := #caller_location) {
+	when PROFILING {
 		if !prof._initialised {return}
 		buf, ok := &prof.bufs[sync.current_thread_id()]
 		ensure(
@@ -132,17 +165,20 @@ when PROFILING {
 		)
 		#force_inline spall.buffer_flush(&prof.ctx, buf)
 	}
+}
 
-	// Starts an event with name `name`.
-	//
-	// This method is thread-safe.
-	//
-	// **Usage:**
-	//
-	//	event_begin("event name")
-	//	/* ... */
-	//	event_end()
-	event_begin :: proc(name: string, loc := #caller_location) {
+// Starts an event with name `name`.
+//
+// This method is thread-safe.
+//
+// **Usage:**
+//
+//	event_begin("event name")
+//	/* ... */
+//	event_end()
+@(no_instrumentation)
+event_begin :: proc(name: string, loc := #caller_location) {
+	when PROFILING {
 		if !prof._initialised {return}
 		buf, ok := &prof.bufs[sync.current_thread_id()]
 		ensure(
@@ -152,17 +188,20 @@ when PROFILING {
 		)
 		#force_inline spall._buffer_begin(&prof.ctx, buf, name, location = loc)
 	}
+}
 
-	// Ends the latest event to have begun.
-	//
-	// This method is thread-safe.
-	//
-	// **Usage:**
-	//
-	//	event_begin("event name")
-	//	/* ... */
-	//	event_end()
-	event_end :: proc(loc := #caller_location) {
+// Ends the latest event to have begun.
+//
+// This method is thread-safe.
+//
+// **Usage:**
+//
+//	event_begin("event name")
+//	/* ... */
+//	event_end()
+@(no_instrumentation)
+event_end :: proc(loc := #caller_location) {
+	when PROFILING {
 		if !prof._initialised {return}
 		buf, ok := &prof.bufs[sync.current_thread_id()]
 		ensure(
@@ -172,40 +211,33 @@ when PROFILING {
 		)
 		#force_inline spall._buffer_end(&prof.ctx, buf)
 	}
+}
 
-	// Starts an event with name `name`, and ends it at the end of the current scope.
-	//
-	// This procedure always returns `true`, which makes it easy to define a scope
-	// for the event by running this procedure inside an `if` statement.
-	//
-	// This method is thread-safe.
-	//
-	// **Usage:**
-	//
-	//	if event("event name") {
-	//	/* ... */
-	//	}
-	//	 /* Event is automagically ended */
-	@(deferred_in = _scoped_event_end)
-	event :: proc(name: string, loc := #caller_location) -> bool {
+// Starts an event with name `name`, and ends it at the end of the current scope.
+//
+// This procedure always returns `true`, which makes it easy to define a scope
+// for the event by running this procedure inside an `if` statement.
+//
+// This method is thread-safe.
+//
+// **Usage:**
+//
+//	if event("event name") {
+//	/* ... */
+//	}
+//	 /* Event is automagically ended */
+@(no_instrumentation, deferred_in = _scoped_event_end)
+event :: proc(name: string, loc := #caller_location) -> bool {
+	when PROFILING {
 		if prof._initialised {
 			#force_inline event_begin(name, loc = loc)
 		}
-		return true
 	}
+	return true
+}
 
-	_scoped_event_end :: proc(_: string, loc := #caller_location) {
-		#force_inline event_end()
-	}
-
-} else {
-	init :: proc(allocator := context.allocator, loc := #caller_location) {}
-	init_thread :: proc(loc := #caller_location) {}
-	deinit :: proc(loc := #caller_location) {}
-
-	flush :: proc(loc := #caller_location) {}
-	event_begin :: proc(name: string, loc := #caller_location) {}
-	event_end :: proc(loc := #caller_location) {}
-	event :: proc(name: string, loc := #caller_location) -> bool {return true}
-	_scoped_event_end :: proc(_: bool, loc := #caller_location) {}
+// Helper for prof.event()
+@(no_instrumentation)
+_scoped_event_end :: proc(_: string, loc := #caller_location) {
+	#force_inline event_end()
 }

@@ -64,9 +64,9 @@ init_meshgen_thread :: proc(
 
 	mg.rx = rx
 	mg.world_tx = world_tx
+	mg.world = world
 	mg.th = thread.create_and_start_with_poly_data(mg, _meshgen_thread_proc)
 	ensure(mg.th != nil)
-	mg.world = world
 
 	ensure(vmem.arena_init_growing(&mg.arena) == nil)
 
@@ -88,10 +88,10 @@ destroy_meshgen_thread :: proc(mg: ^Meshgen_Thread) {
 }
 
 _meshgen_thread_proc :: proc(mg: ^Meshgen_Thread) {
-	prof.init_thread()
-
 	// Arena here means (1) stable pointers and (2) easy clean up
 	context.allocator = vmem.arena_allocator(&mg.arena)
+
+	prof.init_thread("Meshgen-Thread")
 
 	context.logger = log.create_console_logger(
 		MIN_LOG_LEVEL,
