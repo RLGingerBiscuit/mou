@@ -92,7 +92,7 @@ main :: proc() {
 		rdoc.unload_api(rdoc_lib)
 	}
 
-	rdoc.SetCaptureFilePathTemplate(rdoc_api, "captures/cap")
+	rdoc.SetCaptureFilePathTemplate(rdoc_api, "debug/captures/cap")
 	rdoc.SetCaptureKeys(rdoc_api, {})
 
 	prof.init()

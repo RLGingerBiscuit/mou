@@ -17,7 +17,7 @@ bin/
 !third/**/*.obj
 !third/**/*.dll
 
-# Personal sublime workspace
+# Personal Sublime stuff
 *.sublime-workspace
 
 # Packaged output
@@ -25,15 +25,11 @@ bin/
 *.zip
 *.tar*
 
+## Debugging stuff
+# General debug folder
+/debug/
 # Profiling
-/prof/
 *.spall
-
-# RenderDoc captures
-/captures/
-
-# Bitmaps for debugging (e.g. font atlas)
-*.bmp
 
 # Personal notes
 [Nn]otes/

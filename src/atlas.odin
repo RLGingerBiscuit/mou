@@ -58,9 +58,10 @@ make_atlas :: proc(asset_path: string, mips := true) -> (atlas: Atlas) {
 		}
 	}
 	defer when ODIN_DEBUG {
+		os.make_directory("debug")
 		for i in 0 ..< mip_count {
 			stbi.write_bmp(
-				fmt.ctprintf("{}_atlas{}.bmp", path.base(asset_path), i),
+				fmt.ctprintf("debug/{}_atlas{}.bmp", path.base(asset_path), i),
 				atlas_mips[i].width,
 				atlas_mips[i].height,
 				atlas_mips[i].channels,

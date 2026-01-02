@@ -4,7 +4,6 @@ set windows-shell := ['cmd', '/c']
 name := 'mou'
 src_dir := 'src'
 out_dir := 'bin'
-prof_dir := 'prof'
 pkg_dir := 'packaged'
 
 ext := if os_family() == 'windows' { '.exe' } else { '' }
@@ -23,22 +22,20 @@ _init:
 
 _init-windows:
 	-mkdir {{out_dir}} >nul 2>nul
-	-mkdir {{prof_dir}} >nul 2>nul
 
 _init-unix:
 	-mkdir -p {{out_dir}} >/dev/null 2>&1
-	-mkdir -p {{prof_dir}} >/dev/null 2>&1
 
 # Cleans all output files (build directory, packaged outputs, etc.)
 clean:
 	@just _clean-{{os_family()}}
 
 _clean-windows:
-	-rmdir /S /Q {{out_dir}} {{pkg_dir}} {{prof_dir}} >nul 2>nul
+	-rmdir /S /Q {{out_dir}} {{pkg_dir}} >nul 2>nul
 	-del /F /Q *.bmp *.zip *.tar* >nul 2>nul
 
 _clean-unix:
-	-rm -fr {{out_dir}} {{pkg_dir}} {{prof_dir}} >/dev/null 2>&1
+	-rm -fr {{out_dir}} {{pkg_dir}} >/dev/null 2>&1
 	-rm -f *.bmp *.zip *.tar* >/dev/null 2>&1
 
 # Compiles with debug profile

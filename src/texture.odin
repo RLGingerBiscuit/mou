@@ -43,7 +43,7 @@ Filter :: enum i32 {
 	Linear_Mipmap_Linear   = gl.LINEAR_MIPMAP_LINEAR,
 }
 
-texture_format_bytes :: proc(format: Format) -> i32 {
+texture_format_size :: proc(format: Format) -> i32 {
 	// odinfmt:disable
 	switch format {
 	case .Depth:	return 1 // TODO: Don't use unsized variant?
@@ -130,7 +130,7 @@ make_texture :: proc(
 }
 
 texture_set :: proc(tex: Texture, data: []byte, loc := #caller_location) {
-	if len(data) < int(tex.width * tex.height * texture_format_bytes(tex.format)) {
+	if len(data) < int(tex.width * tex.height * texture_format_size(tex.format)) {
 		log.warnf("Setting texture {}: was not provided enough bytes", tex.name)
 		return
 	}
@@ -173,7 +173,7 @@ texture_set :: proc(tex: Texture, data: []byte, loc := #caller_location) {
 }
 
 texture_update :: proc(tex: Texture, data: []byte, loc := #caller_location) {
-	if len(data) < int(tex.width * tex.height * texture_format_bytes(tex.format)) {
+	if len(data) < int(tex.width * tex.height * texture_format_size(tex.format)) {
 		log.warnf("Setting texture {}: was not provided enough bytes", tex.name)
 		return
 	}

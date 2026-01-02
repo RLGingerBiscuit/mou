@@ -2,7 +2,7 @@ package prof
 
 import "core:fmt"
 import "core:mem"
-import "core:os"
+import "core:os/os2"
 import "core:prof/spall"
 import "core:strings"
 import "core:sync"
@@ -10,7 +10,7 @@ import "core:time"
 
 _ :: fmt
 _ :: mem
-_ :: os
+_ :: os2
 _ :: spall
 _ :: strings
 _ :: sync
@@ -54,7 +54,11 @@ when PROFILING {
 		now_buf[len(a) + 6] = '-'
 		now_str := cast(string)now_buf[:]
 
-		filename := strings.concatenate({"prof/prof-", now_str, ".spall"}, context.temp_allocator)
+		os2.mkdir_all("debug/prof/")
+		filename := strings.concatenate(
+			{"debug/prof/prof-", now_str, ".spall"},
+			context.temp_allocator,
+		)
 		defer delete(filename, context.temp_allocator)
 
 		ok: bool
@@ -70,6 +74,7 @@ when PROFILING {
 	// Initialises profiling for threads other than the main thread.
 	init_thread :: proc(loc := #caller_location) {
 		context.allocator = prof.allocator
+		tid := sync.current_thread_id()
 
 		sync.guard(&prof.lock)
 
@@ -78,7 +83,7 @@ when PROFILING {
 			"prof.init_thread() should only be called after prof.init()",
 			loc = loc,
 		)
-		_, exists := prof.bufs[os.current_thread_id()]
+		_, exists := prof.bufs[tid]
 		ensure(
 			!exists,
 			"prof.init_thread() should only be called once per additional thread",
@@ -87,14 +92,10 @@ when PROFILING {
 
 		backing := make([]u8, spall.BUFFER_DEFAULT_SIZE)
 
-		buf, ok := spall.buffer_create(backing, u32(os.current_thread_id()))
-		ensure(
-			ok,
-			fmt.tprint("could not create profiling buffer for thread", os.current_thread_id()),
-			loc = loc,
-		)
+		buf, ok := spall.buffer_create(backing, u32(tid))
+		ensure(ok, fmt.tprint("could not create profiling buffer for thread", tid), loc = loc)
 
-		prof.bufs[os.current_thread_id()] = buf
+		prof.bufs[sync.current_thread_id()] = buf
 	}
 
 	// Deinitialises profiling for the entire application (including other threads).
@@ -123,7 +124,7 @@ when PROFILING {
 	// This method is thread-safe.
 	flush :: proc(loc := #caller_location) {
 		if !prof._initialised {return}
-		buf, ok := &prof.bufs[os.current_thread_id()]
+		buf, ok := &prof.bufs[sync.current_thread_id()]
 		ensure(
 			ok,
 			"prof.flush() should only be called on a thread after prof.init_thread()",
@@ -143,7 +144,7 @@ when PROFILING {
 	//	event_end()
 	event_begin :: proc(name: string, loc := #caller_location) {
 		if !prof._initialised {return}
-		buf, ok := &prof.bufs[os.current_thread_id()]
+		buf, ok := &prof.bufs[sync.current_thread_id()]
 		ensure(
 			ok,
 			"prof.event_begin() should only be called on a thread after prof.init_thread()",
@@ -163,7 +164,7 @@ when PROFILING {
 	//	event_end()
 	event_end :: proc(loc := #caller_location) {
 		if !prof._initialised {return}
-		buf, ok := &prof.bufs[os.current_thread_id()]
+		buf, ok := &prof.bufs[sync.current_thread_id()]
 		ensure(
 			ok,
 			"prof.event_end() should only be called on a thread after prof.init_thread()",
@@ -183,12 +184,13 @@ when PROFILING {
 	//
 	//	if event("event name") {
 	//	/* ... */
-	//	} 
+	//	}
 	//	 /* Event is automagically ended */
 	@(deferred_in = _scoped_event_end)
 	event :: proc(name: string, loc := #caller_location) -> bool {
-		if !prof._initialised {return true}
-		#force_inline event_begin(name, loc = loc)
+		if prof._initialised {
+			#force_inline event_begin(name, loc = loc)
+		}
 		return true
 	}
 
