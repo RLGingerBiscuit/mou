@@ -6,7 +6,7 @@ import "core:fmt"
 import "core:log"
 import glm "core:math/linalg/glsl"
 import "core:mem"
-import "core:os"
+import "core:os/os2"
 import "core:path/filepath"
 import "core:slice"
 import "core:sync"
@@ -103,8 +103,7 @@ main :: proc() {
 	log.debug("Initialising GLFW")
 	if !glfw.Init() {
 		desc, code := glfw.GetError()
-		log.fatal("Error initialising GLFW ({}): {}", code, desc)
-		os.exit(1)
+		log.panicf("Error initialising GLFW ({}): {}", code, desc)
 	}
 	defer {
 		log.debug("Terminating GLFW")
@@ -132,7 +131,7 @@ main :: proc() {
 
 	window_ok := init_window(&state, WINDOW_TITLE, WINDOW_SIZE, vsync = true, visible = false)
 	if !window_ok {
-		os.exit(1)
+		log.panic("Could not create window")
 	}
 	defer destroy_window(&state.window)
 
@@ -556,7 +555,8 @@ main :: proc() {
 					   ) !=
 					   0 {
 						ensure(int(fp_len) < len(fp))
-						cwd := os.get_current_directory(context.temp_allocator)
+						cwd,err := os2.get_working_directory(context.temp_allocator)
+						assert(err == nil, "could not get current working directory")
 
 						cap_path := filepath.join(
 							{cwd, string(fp[:fp_len])},
@@ -937,7 +937,7 @@ main :: proc() {
 				log.errorf("Bad free {} at {}\n", bad_free.memory, bad_free.location)
 			}
 			if len(tracking_allocator.bad_free_array) > 0 {
-				os.exit(1)
+				os2.exit(1)
 			}
 			clear(&tracking_allocator.bad_free_array)
 		}

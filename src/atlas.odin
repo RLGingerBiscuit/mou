@@ -3,7 +3,7 @@ package mou
 import "core:fmt"
 import "core:log"
 import glm "core:math/linalg/glsl"
-import "core:os"
+import "core:os/os2"
 import path "core:path/filepath"
 import "core:slice"
 import "core:strings"
@@ -58,7 +58,7 @@ make_atlas :: proc(asset_path: string, mips := true) -> (atlas: Atlas) {
 		}
 	}
 	defer when ODIN_DEBUG {
-		os.make_directory("debug")
+		os2.mkdir_all("debug")
 		for i in 0 ..< mip_count {
 			stbi.write_bmp(
 				fmt.ctprintf("debug/{}_atlas{}.bmp", path.base(asset_path), i),
@@ -82,7 +82,24 @@ make_atlas :: proc(asset_path: string, mips := true) -> (atlas: Atlas) {
 	}
 
 	log.debugf("Collecting textures from '{}'...", asset_path)
-	path.walk(asset_path, _walk_proc, &packer)
+
+	walker := os2.walker_create(asset_path)
+	for info in os2.walker_walk(&walker) {
+		_ = os2.walker_error(&walker) or_break
+
+		#partial switch info.type {
+		case .Directory:
+			if !strings.contains(info.fullpath, "textures") {
+				os2.walker_skip_dir(&walker)
+				continue
+			}
+
+		case .Regular, .Symlink:
+			log.debugf("\tFound '{}'", info.name)
+			img := load_image(info.fullpath, false, context.temp_allocator)
+			append(&packer.imgs, img)
+		}
+	}
 
 	if len(packer.imgs) == 0 {
 		atlas.texture = make_texture(atlas_mips[0].name, 1, 1, .Red)
@@ -112,8 +129,7 @@ make_atlas :: proc(asset_path: string, mips := true) -> (atlas: Atlas) {
 	}
 
 	if 0 == stbrp.pack_rects(&ctx, raw_data(rects), i32(len(rects))) {
-		log.error("Could not pack all textures")
-		os.exit(1)
+		log.panic("Could not pack all textures")
 	}
 
 	// img[0] is always the largest
@@ -199,31 +215,6 @@ make_atlas :: proc(asset_path: string, mips := true) -> (atlas: Atlas) {
 				raw_data(mip.data),
 			)
 		}
-	}
-
-	_walk_proc :: proc(
-		info: os.File_Info,
-		in_err: os.Error,
-		data: rawptr,
-	) -> (
-		err: os.Error,
-		skip_dir: bool,
-	) {
-		packer := cast(^Packer)data
-
-		if info.is_dir {
-			if !strings.contains(info.fullpath, "textures") {
-				skip_dir = true
-			}
-			return
-		}
-
-		log.debugf("\tFound '{}'", info.name)
-
-		img := load_image(info.fullpath, false, context.temp_allocator)
-		append(&packer.imgs, img)
-
-		return
 	}
 
 	return

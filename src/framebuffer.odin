@@ -2,7 +2,6 @@ package mou
 
 import sa "core:container/small_array"
 import "core:log"
-import "core:os"
 import gl "vendor:OpenGL"
 
 Framebuffer_Target :: enum u32 {
@@ -94,8 +93,7 @@ make_framebuffer :: proc(
 	}
 
 	if gl.CheckFramebufferStatus(cast(u32)Framebuffer_Target.All) != gl.FRAMEBUFFER_COMPLETE {
-		log.fatal("Framebuffer did not complete", location = loc)
-		os.exit(1)
+		log.panic("Framebuffer did not complete", location = loc)
 	}
 
 	return
@@ -161,8 +159,7 @@ resize_framebuffer :: proc(fbo: ^Framebuffer, width, height: i32, loc := #caller
 		}
 
 		if gl.CheckFramebufferStatus(cast(u32)Framebuffer_Target.All) != gl.FRAMEBUFFER_COMPLETE {
-			log.fatal("Framebuffer resize did not complete")
-			os.exit(1)
+			log.panic("Framebuffer resize did not complete")
 		}
 
 		// NOTE: this'll replace the initial textures, which will be cleaned up in main

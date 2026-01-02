@@ -2,7 +2,7 @@ package mou
 
 import "core:log"
 import "core:mem"
-import "core:os"
+import "core:os/os2"
 import "core:strings"
 import stbi "vendor:stb/image"
 
@@ -45,10 +45,9 @@ load_image :: proc(path: string, do_log := true, allocator := context.allocator)
 	context.allocator = allocator
 
 	if do_log do log.debugf("Loading image '{}'", path)
-	data, err := os.read_entire_file_or_err(path, context.temp_allocator)
+	data, err := os2.read_entire_file(path, context.temp_allocator)
 	if err != nil {
-		log.fatalf("\tError loading image '{}': {}", path, err)
-		os.exit(1)
+		log.panicf("\tError loading image '{}': {}", path, err)
 	}
 	defer delete(data, context.temp_allocator)
 

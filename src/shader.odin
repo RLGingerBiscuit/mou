@@ -3,7 +3,7 @@ package mou
 import "core:fmt"
 import "core:log"
 import glm "core:math/linalg/glsl"
-import "core:os"
+import "core:os/os2"
 import path "core:path/filepath"
 import "core:strings"
 import gl "vendor:OpenGL"
@@ -26,8 +26,8 @@ make_shader :: proc(vert_path, frag_path: string, loc := #caller_location) -> (s
 	load_shader :: proc(src_path: string, allocator := context.allocator) -> string {
 		context.allocator = allocator
 
-		src, ok := os.read_entire_file(src_path, context.temp_allocator)
-		assert(ok)
+		src, err := os2.read_entire_file(src_path, context.temp_allocator)
+		assert(err == nil)
 		defer delete(src, context.temp_allocator)
 
 		src_str := string(src)
@@ -64,9 +64,8 @@ make_shader :: proc(vert_path, frag_path: string, loc := #caller_location) -> (s
 			inc_path = path.join({"assets/shaders/", inc_path}, context.temp_allocator)
 			defer delete(inc_path, context.temp_allocator)
 
-			if !os.exists(inc_path) {
-				log.errorf("Could not find '{}' (included from '{}')", inc_path, src_path)
-				os.exit(1)
+			if !os2.exists(inc_path) {
+				log.panicf("Could not find '{}' (included from '{}')", inc_path, src_path)
 			}
 
 			inc_src := load_shader(inc_path, context.temp_allocator)
