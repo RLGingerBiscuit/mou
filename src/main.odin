@@ -6,7 +6,7 @@ import "core:fmt"
 import "core:log"
 import glm "core:math/linalg/glsl"
 import "core:mem"
-import "core:os/os2"
+import "core:os"
 import "core:path/filepath"
 import "core:slice"
 import "core:sync"
@@ -555,13 +555,14 @@ main :: proc() {
 					   ) !=
 					   0 {
 						ensure(int(fp_len) < len(fp))
-						cwd,err := os2.get_working_directory(context.temp_allocator)
+						cwd, err := os.get_working_directory(context.temp_allocator)
 						assert(err == nil, "could not get current working directory")
 
-						cap_path := filepath.join(
+						cap_path, path_err := filepath.join(
 							{cwd, string(fp[:fp_len])},
 							context.temp_allocator,
 						)
+						assert(path_err == nil)
 
 						log.infof("loading capture {}", cap_path)
 
@@ -937,7 +938,7 @@ main :: proc() {
 				log.errorf("Bad free {} at {}\n", bad_free.memory, bad_free.location)
 			}
 			if len(tracking_allocator.bad_free_array) > 0 {
-				os2.exit(1)
+				os.exit(1)
 			}
 			clear(&tracking_allocator.bad_free_array)
 		}

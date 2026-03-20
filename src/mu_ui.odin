@@ -4,14 +4,14 @@ import "core:fmt"
 import "core:log"
 import glm "core:math/linalg/glsl"
 import "core:mem"
-import "core:os/os2"
+import "core:os"
 import mu "third:microui"
 import gl "vendor:OpenGL"
 import fons "vendor:fontstash"
 import stbi "vendor:stb/image"
 
 _ :: stbi
-_ :: os2
+_ :: os
 
 @(private = "file")
 FLUSH_ALL_UI :: #config(FLUSH_ALL_UI, false)
@@ -70,7 +70,7 @@ mu_init_ui :: proc(state: ^State) {
 			unbind_texture()
 
 			when ODIN_DEBUG {
-				os2.make_directory("debug")
+				os.make_directory("debug")
 				stbi.write_bmp(
 					"debug/font_atlas.bmp",
 					ui.font_tex.width,

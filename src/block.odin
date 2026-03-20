@@ -104,6 +104,5 @@ block_asset_name :: proc(block: Block, face: Block_Face) -> string {
 }
 
 block_pos_centre :: proc(block_pos: Block_Pos) -> glm.vec3 {
-	centre := block_pos + Block_Pos(0.5)
-	return {f32(centre.x), f32(centre.y), f32(centre.z)}
+	return block_pos_to_world_pos(block_pos) + 0.5
 }

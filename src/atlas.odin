@@ -3,8 +3,8 @@ package mou
 import "core:fmt"
 import "core:log"
 import glm "core:math/linalg/glsl"
-import "core:os/os2"
-import path "core:path/filepath"
+import "core:os"
+import "core:path/filepath"
 import "core:slice"
 import "core:strings"
 import gl "vendor:OpenGL"
@@ -45,7 +45,7 @@ make_atlas :: proc(asset_path: string, mips := true) -> (atlas: Atlas) {
 		w >>= u32(i)
 		h >>= u32(i)
 		atlas_mips[i] = create_image(
-			fmt.tprintf("::/{}_atlas{}.png", path.base(asset_path), i),
+			fmt.tprintf("::/{}_atlas{}.png", filepath.base(asset_path), i),
 			w,
 			h,
 			do_log = false,
@@ -58,10 +58,10 @@ make_atlas :: proc(asset_path: string, mips := true) -> (atlas: Atlas) {
 		}
 	}
 	defer when ODIN_DEBUG {
-		os2.mkdir_all("debug")
+		os.mkdir_all("debug")
 		for i in 0 ..< mip_count {
 			stbi.write_bmp(
-				fmt.ctprintf("debug/{}_atlas{}.bmp", path.base(asset_path), i),
+				fmt.ctprintf("debug/{}_atlas{}.bmp", filepath.base(asset_path), i),
 				atlas_mips[i].width,
 				atlas_mips[i].height,
 				atlas_mips[i].channels,
@@ -83,14 +83,14 @@ make_atlas :: proc(asset_path: string, mips := true) -> (atlas: Atlas) {
 
 	log.debugf("Collecting textures from '{}'...", asset_path)
 
-	walker := os2.walker_create(asset_path)
-	for info in os2.walker_walk(&walker) {
-		_ = os2.walker_error(&walker) or_break
+	walker := os.walker_create(asset_path)
+	for info in os.walker_walk(&walker) {
+		_ = os.walker_error(&walker) or_break
 
 		#partial switch info.type {
 		case .Directory:
 			if !strings.contains(info.fullpath, "textures") {
-				os2.walker_skip_dir(&walker)
+				os.walker_skip_dir(&walker)
 				continue
 			}
 
@@ -181,7 +181,7 @@ make_atlas :: proc(asset_path: string, mips := true) -> (atlas: Atlas) {
 		start_uv = start_uv / {ATLAS_WIDTH, ATLAS_HEIGHT}
 		end_uv = end_uv / {ATLAS_WIDTH, ATLAS_HEIGHT}
 
-		name := path.base(img.name)
+		name := filepath.base(img.name)
 		name = strings.clone(name)
 		packer.atlas.uvs[name] = {start_uv, end_uv}
 	}

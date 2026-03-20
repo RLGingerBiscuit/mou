@@ -3,8 +3,9 @@ package mou
 import "core:fmt"
 import "core:log"
 import glm "core:math/linalg/glsl"
-import "core:os/os2"
-import path "core:path/filepath"
+import "core:mem"
+import "core:os"
+import "core:path/filepath"
 import "core:strings"
 import gl "vendor:OpenGL"
 
@@ -26,7 +27,7 @@ make_shader :: proc(vert_path, frag_path: string, loc := #caller_location) -> (s
 	load_shader :: proc(src_path: string, allocator := context.allocator) -> string {
 		context.allocator = allocator
 
-		src, err := os2.read_entire_file(src_path, context.temp_allocator)
+		src, err := os.read_entire_file(src_path, context.temp_allocator)
 		assert(err == nil)
 		defer delete(src, context.temp_allocator)
 
@@ -61,10 +62,15 @@ make_shader :: proc(vert_path, frag_path: string, loc := #caller_location) -> (s
 			}
 
 			// TODO: implement proper relative paths and absolute paths
-			inc_path = path.join({"assets/shaders/", inc_path}, context.temp_allocator)
+			path_err: mem.Allocator_Error
+			inc_path, path_err = filepath.join(
+				{"assets/shaders/", inc_path},
+				context.temp_allocator,
+			)
+			ensure(path_err == nil)
 			defer delete(inc_path, context.temp_allocator)
 
-			if !os2.exists(inc_path) {
+			if !os.exists(inc_path) {
 				log.panicf("Could not find '{}' (included from '{}')", inc_path, src_path)
 			}
 

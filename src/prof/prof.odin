@@ -2,7 +2,7 @@ package prof
 
 import "core:fmt"
 import "core:mem"
-import "core:os/os2"
+import "core:os"
 import "core:prof/spall"
 import "core:strings"
 import "core:sync"
@@ -10,7 +10,7 @@ import "core:time"
 
 _ :: fmt
 _ :: mem
-_ :: os2
+_ :: os
 _ :: spall
 _ :: strings
 _ :: sync

@@ -22,7 +22,11 @@ load_api :: proc(
 ) {
 	when LOAD_RENDERDOC && ODIN_OS == .Windows {
 		INSTALL_ROOT :: `C:\Program Files\RenderDoc`
-		dll_path := filepath.join([]string{INSTALL_ROOT, "renderdoc.dll"}, context.temp_allocator)
+		dll_path, path_err := filepath.join(
+			[]string{INSTALL_ROOT, "renderdoc.dll"},
+			context.temp_allocator,
+		)
+		ensure(path_err == nil)
 		defer delete(dll_path, context.temp_allocator)
 
 		if !os.exists(INSTALL_ROOT) {
