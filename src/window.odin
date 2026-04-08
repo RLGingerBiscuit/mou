@@ -6,8 +6,8 @@ import "core:strings"
 import gl "vendor:OpenGL"
 import "vendor:glfw"
 
-GL_MAJOR :: 3
-GL_MINOR :: 3
+GL_MAJOR :: 4
+GL_MINOR :: 6
 GLFW_PROFILE :: glfw.OPENGL_CORE_PROFILE
 
 Window :: struct {

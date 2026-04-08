@@ -22,11 +22,11 @@ load_api :: proc(
 ) {
 	when LOAD_RENDERDOC && ODIN_OS == .Windows {
 		INSTALL_ROOT :: `C:\Program Files\RenderDoc`
-		dll_path, path_err := filepath.join(
+		dll_path, err := filepath.join(
 			[]string{INSTALL_ROOT, "renderdoc.dll"},
 			context.temp_allocator,
 		)
-		ensure(path_err == nil)
+		assert(err == nil)
 		defer delete(dll_path, context.temp_allocator)
 
 		if !os.exists(INSTALL_ROOT) {
@@ -103,6 +103,16 @@ SetCaptureOptionF32 :: proc "c" (rdoc_api: rawptr, opt: CaptureOption, val: f32)
 	} else {
 		return 0
 	}
+}
+
+SetCaptureOptionBool :: proc "c" (rdoc_api: rawptr, opt: CaptureOption, val: bool) -> c.int {
+	return SetCaptureOptionU32(rdoc_api, opt, val ? 1 : 0)
+}
+
+SetCaptureOption :: proc {
+	SetCaptureOptionU32,
+	SetCaptureOptionF32,
+	SetCaptureOptionBool,
 }
 
 

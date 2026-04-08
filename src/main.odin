@@ -92,8 +92,13 @@ main :: proc() {
 		rdoc.unload_api(rdoc_lib)
 	}
 
-	rdoc.SetCaptureFilePathTemplate(rdoc_api, "debug/captures/cap")
+	rdoc.SetCaptureFilePathTemplate(rdoc_api, "debug/captures/mou")
 	rdoc.SetCaptureKeys(rdoc_api, {})
+	rdoc.SetCaptureOption(rdoc_api, .CaptureCallstacks, true)
+	rdoc.SetCaptureOption(rdoc_api, .APIValidation, true)
+	rdoc.SetCaptureOption(rdoc_api, .VerifyBufferAccess, true)
+	rdoc.SetCaptureOption(rdoc_api, .VerifyMapWrites, true)
+	// rdoc.SetCaptureOption(rdoc_api, .CaptureAllCmdLists, true)
 
 	prof.init("Mou")
 	defer prof.deinit()
@@ -136,6 +141,10 @@ main :: proc() {
 	defer destroy_window(&state.window)
 
 	glfw.SetInputMode(state.window.handle, glfw.CURSOR, glfw.CURSOR_DISABLED)
+
+	when ODIN_DEBUG {
+		setup_opengl_debug()
+	}
 
 	gl.Enable(gl.CULL_FACE)
 	gl.BlendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA)
@@ -585,8 +594,10 @@ main :: proc() {
 			if prof.event("render iteration") {
 				SKY_COLOUR := RGBA32{0.3, 0.6, 0.8, 1}
 				gl.Viewport(0, 0, state.window.size.x, state.window.size.y)
-				gl.ClearColor(SKY_COLOUR[0], SKY_COLOUR[1], SKY_COLOUR[2], SKY_COLOUR[3])
-				gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
+				{debug_group("Clear")
+					gl.ClearColor(SKY_COLOUR[0], SKY_COLOUR[1], SKY_COLOUR[2], SKY_COLOUR[3])
+					gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
+				}
 
 				projection_matrix := state.camera.projection_matrix
 				view_matrix := state.camera.view_matrix
@@ -612,6 +623,7 @@ main :: proc() {
 				gl.Enable(gl.SCISSOR_TEST)
 
 				if prof.event("render chunks") {
+					debug_group("Render Chunks")
 					bind_framebuffer(state.fbo, .All)
 					defer unbind_framebuffer(.All)
 					gl.Viewport(0, 0, state.window.size.x, state.window.size.y)
@@ -821,6 +833,7 @@ main :: proc() {
 				gl.Disable(gl.DEPTH_TEST)
 
 				if prof.event("framebuffer blit") {
+					debug_group("Blit")
 					if .Wireframe in state.camera.flags {
 						gl.PolygonMode(gl.FRONT_AND_BACK, gl.FILL)
 					}
