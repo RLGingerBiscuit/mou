@@ -1,4 +1,4 @@
-#version 330 core
+#version 460 core
 
 #include <include/fog.glsl>
 #include <include/utils.glsl>
@@ -10,7 +10,7 @@ in float vertex_distance;
 layout(location = 0) out vec4 frag_colour;
 
 // Per-frame
-uniform sampler2D u_atlas;
+layout(binding = 0) uniform sampler2D u_atlas;
 uniform float u_fog_start;
 uniform float u_fog_end;
 uniform vec4 u_fog_colour;

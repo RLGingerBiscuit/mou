@@ -1,7 +1,6 @@
 package mou
 
 import "base:runtime"
-import sa "core:container/small_array"
 import "core:fmt"
 import "core:log"
 import glm "core:math/linalg/glsl"
@@ -193,38 +192,28 @@ main :: proc() {
 		defer delete(temp_indices, context.temp_allocator)
 
 		{ 	// Opaque setup
-			bind_renderer(opaque_renderer)
-			defer unbind_renderer()
 			renderer_vertices(opaque_renderer, temp_verts)
 			renderer_indices(opaque_renderer, temp_indices)
-			vertex_attrib_vert(Mesh_Vert)
+			renderer_vertex_layout(opaque_renderer, Mesh_Vert)
 		}
 		{ 	// Transparent setup
-			bind_renderer(transparent_renderer)
-			defer unbind_renderer()
 			renderer_vertices(transparent_renderer, temp_verts)
 			renderer_indices(transparent_renderer, temp_indices)
-			vertex_attrib_vert(Mesh_Vert)
+			renderer_vertex_layout(transparent_renderer, Mesh_Vert)
 		}
 		{ 	// Water setup
-			bind_renderer(water_renderer)
-			defer unbind_renderer()
 			renderer_vertices(water_renderer, temp_verts)
 			renderer_indices(water_renderer, temp_indices)
-			vertex_attrib_vert(Mesh_Vert)
+			renderer_vertex_layout(water_renderer, Mesh_Vert)
 		}
 		{ 	// Line setup
-			bind_renderer(line_renderer)
-			defer unbind_renderer()
-			vertex_attrib_vert(Line_Vert)
+			renderer_vertex_layout(line_renderer, Line_Vert)
 		}
 		{ 	// Fullscreen setup
 			Fullscreen_Vert :: struct #packed {
 				pos:       glm.vec2,
 				tex_coord: glm.vec2,
 			}
-			bind_renderer(fullscreen_renderer)
-			defer unbind_renderer()
 			@(static, rodata)
 			verts := []Fullscreen_Vert {
 				{{-1, 1}, {0, 1}},
@@ -235,26 +224,14 @@ main :: proc() {
 			@(static, rodata)
 			indices := []u32{0, 1, 2, 2, 3, 0}
 			renderer_vertices(fullscreen_renderer, verts)
-			renderer_indices(fullscreen_renderer, transmute([][1]u32)indices)
-			vertex_attrib_vert(Fullscreen_Vert)
+			renderer_indices(fullscreen_renderer, indices)
+			renderer_vertex_layout(fullscreen_renderer, Fullscreen_Vert)
 		}
 	}
 
-	fbo_colour_tex := make_texture(
-		"::/fbo_colour",
-		WINDOW_WIDTH,
-		WINDOW_HEIGHT,
-		.RGB,
-		mipmap = false,
-	)
+	fbo_colour_tex := make_texture("::/fbo_colour", WINDOW_WIDTH, WINDOW_HEIGHT, .RGB)
 	defer destroy_texture(&fbo_colour_tex)
-	fbo_depth_tex := make_texture(
-		"::/fbo_depth",
-		WINDOW_WIDTH,
-		WINDOW_HEIGHT,
-		.Depth,
-		mipmap = false,
-	)
+	fbo_depth_tex := make_texture("::/fbo_depth", WINDOW_WIDTH, WINDOW_HEIGHT, .Depth)
 	defer destroy_texture(&fbo_depth_tex)
 
 	state.fbo = make_framebuffer({{.Colour0, &fbo_colour_tex}, {.Depth, &fbo_depth_tex}})
@@ -280,7 +257,7 @@ main :: proc() {
 
 	gl.LineWidth(4)
 
-	prev_delta_times: sa.Small_Array(120, f64)
+	prev_delta_times: [dynamic; 60]f64
 	previous_time := glfw.GetTime()
 	for !window_should_close(state.window) {
 		current_time := glfw.GetTime()
@@ -292,15 +269,15 @@ main :: proc() {
 		if prof.event("frame") {
 			if prof.event("update iteration") {
 				{
-					if sa.space(prev_delta_times) == 0 {
-						sa.ordered_remove(&prev_delta_times, 0)
+					if cap(prev_delta_times) - len(prev_delta_times) == 0 {
+						ordered_remove(&prev_delta_times, 0)
 					}
-					sa.append(&prev_delta_times, delta_time)
+					append(&prev_delta_times, delta_time)
 					avg_dt: f64
-					for dt in sa.slice(&prev_delta_times) {
+					for dt in prev_delta_times {
 						avg_dt += dt
 					}
-					avg_dt /= f64(sa.len(prev_delta_times))
+					avg_dt /= f64(len(prev_delta_times))
 					set_window_title(
 						state.window,
 						fmt.ctprintf(WINDOW_TITLE + " ({:.0f} fps)", 1 / avg_dt),
@@ -568,7 +545,7 @@ main :: proc() {
 						assert(err == nil, "could not get current working directory")
 
 						cap_path, path_err := filepath.join(
-							{cwd, string(fp[:fp_len])},
+							{cwd, string(fp[:fp_len - 1])}, // includes null terminator
 							context.temp_allocator,
 						)
 						assert(path_err == nil)
@@ -744,9 +721,10 @@ main :: proc() {
 					}
 
 					if prof.event("render opaque meshes") {
+						debug_group("Opaque")
 						bind_renderer(opaque_renderer)
 						defer unbind_renderer()
-						bind_texture(block_atlas.texture)
+						bind_texture_unit(0, block_atlas.texture)
 						set_uniforms(opaque_renderer, &state, SKY_COLOUR, proj_view)
 
 						gl.Disable(gl.BLEND) // Disable blending for opaque meshes; slight performance boost
@@ -771,9 +749,10 @@ main :: proc() {
 					gl.Enable(gl.BLEND)
 
 					if prof.event("render transparent meshes") {
+						debug_group("Transparent")
 						bind_renderer(transparent_renderer)
 						defer unbind_renderer()
-						bind_texture(block_atlas.texture)
+						bind_texture_unit(0, block_atlas.texture)
 						set_uniforms(transparent_renderer, &state, SKY_COLOUR, proj_view)
 
 						for &chunk in transparent_chunks {
@@ -803,9 +782,10 @@ main :: proc() {
 					}
 
 					if prof.event("render water meshes") {
+						debug_group("Water")
 						bind_renderer(water_renderer)
 						defer unbind_renderer()
-						bind_texture(block_atlas.texture)
+						bind_texture_unit(0, block_atlas.texture)
 						set_uniforms(water_renderer, &state, SKY_COLOUR, proj_view)
 
 						for &chunk in water_chunks {
@@ -834,6 +814,7 @@ main :: proc() {
 
 				if prof.event("framebuffer blit") {
 					debug_group("Blit")
+
 					if .Wireframe in state.camera.flags {
 						gl.PolygonMode(gl.FRONT_AND_BACK, gl.FILL)
 					}
@@ -844,7 +825,7 @@ main :: proc() {
 					bind_renderer(fullscreen_renderer)
 					defer unbind_renderer()
 
-					bind_texture(fbo_colour_tex)
+					bind_texture_unit(0, fbo_colour_tex)
 					gl.DrawElements(gl.TRIANGLES, 6, gl.UNSIGNED_INT, nil)
 				}
 
@@ -910,8 +891,8 @@ main :: proc() {
 
 					bind_renderer(state.ui.renderer)
 					defer unbind_renderer()
-					bind_texture(ui_atlas.texture)
-					defer unbind_texture()
+					bind_texture_unit(0, ui_atlas.texture)
+					defer unbind_texture_unit(0)
 
 					set_uniform(state.ui.renderer.shader, "u_proj_view", proj_view)
 
@@ -926,11 +907,7 @@ main :: proc() {
 						},
 					)
 
-					renderer_sub_indices(
-						state.ui.renderer,
-						0,
-						transmute([][1]u32)[]u32{2, 1, 0, 2, 3, 1},
-					)
+					renderer_sub_indices(state.ui.renderer, 0, []u32{2, 1, 0, 2, 3, 1})
 
 					gl.DrawElements(gl.TRIANGLES, 6, gl.UNSIGNED_INT, nil)
 				}

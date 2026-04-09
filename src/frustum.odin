@@ -1,6 +1,6 @@
 package mou
 
-import sa "core:container/small_array"
+import "base:runtime"
 import glm "core:math/linalg/glsl"
 
 // FIXME: this doesn't belong here
@@ -46,7 +46,7 @@ FRUSTUM_COLOUR :: RGBA{0xff, 0xff, 0xff, 0xff}
 FRUSTUM_VERT_COUNT :: 4 * 6
 
 get_frustum_vertices :: proc(f: Frustum) -> [FRUSTUM_VERT_COUNT]Line_Vert {
-	verts: sa.Small_Array(FRUSTUM_VERT_COUNT, Line_Vert)
+	verts: [dynamic; FRUSTUM_VERT_COUNT]Line_Vert
 
 	intersect :: #force_inline proc(p0, p1, p2: Frustum_Plane) -> glm.vec3 {
 		a := glm.cross(p2.xyz, p0.xyz)
@@ -72,40 +72,40 @@ get_frustum_vertices :: proc(f: Frustum) -> [FRUSTUM_VERT_COUNT]Line_Vert {
 	flt := intersect(f.far, f.left, f.top)
 
 	// Near face
-	assert(sa.append(&verts, Line_Vert{nlb, FRUSTUM_COLOUR}))
-	assert(sa.append(&verts, Line_Vert{nrb, FRUSTUM_COLOUR}))
-	assert(sa.append(&verts, Line_Vert{nrb, FRUSTUM_COLOUR}))
-	assert(sa.append(&verts, Line_Vert{nrt, FRUSTUM_COLOUR}))
-	assert(sa.append(&verts, Line_Vert{nrt, FRUSTUM_COLOUR}))
-	assert(sa.append(&verts, Line_Vert{nlt, FRUSTUM_COLOUR}))
-	assert(sa.append(&verts, Line_Vert{nlt, FRUSTUM_COLOUR}))
-	assert(sa.append(&verts, Line_Vert{nlb, FRUSTUM_COLOUR}))
+	append(&verts, Line_Vert{nlb, FRUSTUM_COLOUR})
+	append(&verts, Line_Vert{nrb, FRUSTUM_COLOUR})
+	append(&verts, Line_Vert{nrb, FRUSTUM_COLOUR})
+	append(&verts, Line_Vert{nrt, FRUSTUM_COLOUR})
+	append(&verts, Line_Vert{nrt, FRUSTUM_COLOUR})
+	append(&verts, Line_Vert{nlt, FRUSTUM_COLOUR})
+	append(&verts, Line_Vert{nlt, FRUSTUM_COLOUR})
+	append(&verts, Line_Vert{nlb, FRUSTUM_COLOUR})
 
 	// Far face
-	assert(sa.append(&verts, Line_Vert{flb, FRUSTUM_COLOUR}))
-	assert(sa.append(&verts, Line_Vert{frb, FRUSTUM_COLOUR}))
-	assert(sa.append(&verts, Line_Vert{frb, FRUSTUM_COLOUR}))
-	assert(sa.append(&verts, Line_Vert{frt, FRUSTUM_COLOUR}))
-	assert(sa.append(&verts, Line_Vert{frt, FRUSTUM_COLOUR}))
-	assert(sa.append(&verts, Line_Vert{flt, FRUSTUM_COLOUR}))
-	assert(sa.append(&verts, Line_Vert{flt, FRUSTUM_COLOUR}))
-	assert(sa.append(&verts, Line_Vert{flb, FRUSTUM_COLOUR}))
+	append(&verts, Line_Vert{flb, FRUSTUM_COLOUR})
+	append(&verts, Line_Vert{frb, FRUSTUM_COLOUR})
+	append(&verts, Line_Vert{frb, FRUSTUM_COLOUR})
+	append(&verts, Line_Vert{frt, FRUSTUM_COLOUR})
+	append(&verts, Line_Vert{frt, FRUSTUM_COLOUR})
+	append(&verts, Line_Vert{flt, FRUSTUM_COLOUR})
+	append(&verts, Line_Vert{flt, FRUSTUM_COLOUR})
+	append(&verts, Line_Vert{flb, FRUSTUM_COLOUR})
 
 	// Left face
-	assert(sa.append(&verts, Line_Vert{nlb, FRUSTUM_COLOUR}))
-	assert(sa.append(&verts, Line_Vert{flb, FRUSTUM_COLOUR}))
-	assert(sa.append(&verts, Line_Vert{nlt, FRUSTUM_COLOUR}))
-	assert(sa.append(&verts, Line_Vert{flt, FRUSTUM_COLOUR}))
+	append(&verts, Line_Vert{nlb, FRUSTUM_COLOUR})
+	append(&verts, Line_Vert{flb, FRUSTUM_COLOUR})
+	append(&verts, Line_Vert{nlt, FRUSTUM_COLOUR})
+	append(&verts, Line_Vert{flt, FRUSTUM_COLOUR})
 
 	// Right face
-	assert(sa.append(&verts, Line_Vert{nrb, FRUSTUM_COLOUR}))
-	assert(sa.append(&verts, Line_Vert{frb, FRUSTUM_COLOUR}))
-	assert(sa.append(&verts, Line_Vert{nrt, FRUSTUM_COLOUR}))
-	assert(sa.append(&verts, Line_Vert{frt, FRUSTUM_COLOUR}))
+	append(&verts, Line_Vert{nrb, FRUSTUM_COLOUR})
+	append(&verts, Line_Vert{frb, FRUSTUM_COLOUR})
+	append(&verts, Line_Vert{nrt, FRUSTUM_COLOUR})
+	append(&verts, Line_Vert{frt, FRUSTUM_COLOUR})
 
-	assert(sa.space(verts) == 0)
+	assert(cap(verts) - len(verts) == 0)
 
-	return verts.data
+	return (transmute(runtime.Raw_Fixed_Capacity_Dynamic_Array(FRUSTUM_VERT_COUNT, Line_Vert))verts).data
 }
 
 frustum_contains_chunk :: proc(f: Frustum, chunk_pos: Chunk_Pos) -> bool {

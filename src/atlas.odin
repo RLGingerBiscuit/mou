@@ -16,11 +16,11 @@ _ :: stbi
 
 ATLAS_WIDTH :: 1024
 ATLAS_HEIGHT :: 512
-ATLAS_MIPS :: 5
+ATLAS_LEVELS :: 5 // 1 + 4 mips
 ATLAS_MIP_BIAS :: 0
 ATLAS_SIZE :: glm.vec2{ATLAS_WIDTH, ATLAS_HEIGHT}
 
-#assert(ATLAS_MIPS >= 1)
+#assert(ATLAS_LEVELS >= 1)
 
 Atlas :: struct {
 	uvs:     map[string][2]glm.vec2,
@@ -37,15 +37,20 @@ make_atlas :: proc(asset_path: string, mips := true) -> (atlas: Atlas) {
 		imgs:  [dynamic]Image,
 	}
 
-	atlas_mips: [ATLAS_MIPS]Image
-	mip_count := mips ? ATLAS_MIPS : 1
+	atlas_name := filepath.base(asset_path)
+	if atlas_name == "" {
+		atlas_name = filepath.base(filepath.dir(asset_path, context.temp_allocator))
+	}
 
-	for i in 0 ..< mip_count {
+	atlas_levels: [ATLAS_LEVELS]Image
+	level_count: i32 = mips ? ATLAS_LEVELS : 1
+
+	for i in 0 ..< level_count {
 		w, h: i32 = ATLAS_WIDTH, ATLAS_HEIGHT
 		w >>= u32(i)
 		h >>= u32(i)
-		atlas_mips[i] = create_image(
-			fmt.tprintf("::/{}_atlas{}.png", filepath.base(asset_path), i),
+		atlas_levels[i] = create_image(
+			fmt.tprintf("::/{}_atlas{}.png", atlas_name, i),
 			w,
 			h,
 			do_log = false,
@@ -53,19 +58,19 @@ make_atlas :: proc(asset_path: string, mips := true) -> (atlas: Atlas) {
 		)
 	}
 	defer {
-		for i in 0 ..< mip_count {
-			destroy_image(&atlas_mips[i], false)
+		for i in 0 ..< level_count {
+			destroy_image(&atlas_levels[i], false)
 		}
 	}
 	defer when ODIN_DEBUG {
 		os.mkdir_all("debug")
-		for i in 0 ..< mip_count {
+		for i in 0 ..< level_count {
 			stbi.write_bmp(
-				fmt.ctprintf("debug/{}_atlas{}.bmp", filepath.base(asset_path), i),
-				atlas_mips[i].width,
-				atlas_mips[i].height,
-				atlas_mips[i].channels,
-				raw_data(atlas_mips[i].data),
+				fmt.ctprintf("debug/{}_atlas{}.bmp", atlas_name, i),
+				atlas_levels[i].width,
+				atlas_levels[i].height,
+				atlas_levels[i].channels,
+				raw_data(atlas_levels[i].data),
 			)
 		}
 	}
@@ -102,7 +107,7 @@ make_atlas :: proc(asset_path: string, mips := true) -> (atlas: Atlas) {
 	}
 
 	if len(packer.imgs) == 0 {
-		atlas.texture = make_texture(atlas_mips[0].name, 1, 1, .Red)
+		atlas.texture = make_texture(atlas_levels[0].name, 1, 1, .Red)
 		texture_set(atlas.texture, []byte{0})
 		return
 	}
@@ -143,8 +148,8 @@ make_atlas :: proc(asset_path: string, mips := true) -> (atlas: Atlas) {
 	for img, i in packer.imgs {
 		rect := rects[i]
 
-		image_blit(&atlas_mips[0], img, i32(rect.x), i32(rect.y))
-		for j in 1 ..< mip_count {
+		image_blit(&atlas_levels[0], img, i32(rect.x), i32(rect.y))
+		for j in 1 ..< level_count {
 			mrect := rect
 			mrect.x >>= u32(j)
 			mrect.y >>= u32(j)
@@ -171,7 +176,7 @@ make_atlas :: proc(asset_path: string, mips := true) -> (atlas: Atlas) {
 			)
 			assert(ret == 1, "Could not resize image for mip")
 
-			image_blit(&atlas_mips[j], tmp_img, i32(mrect.x), i32(mrect.y))
+			image_blit(&atlas_levels[j], tmp_img, i32(mrect.x), i32(mrect.y))
 		}
 
 		start_uv := glm.vec2{f32(rect.x), f32(rect.y)}
@@ -187,33 +192,20 @@ make_atlas :: proc(asset_path: string, mips := true) -> (atlas: Atlas) {
 	}
 
 	atlas.texture = image_to_texture(
-		atlas_mips[0],
+		atlas_levels[0],
 		min_filter = Filter.Nearest_Mipmap_Linear if mips else Filter.Nearest,
 		wrap = Wrap.Clamp_To_Edge,
-		mipmap = false,
+		levels = level_count,
 	)
-	bind_texture(atlas.texture)
-	defer unbind_texture()
 
 	if mips {
-		// TODO: nicer API for manual mips
-		gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAX_LEVEL, ATLAS_MIPS - 1)
-		gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_LOD, 0)
-		gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAX_LOD, ATLAS_MIPS - 1)
-		gl.TexParameterf(gl.TEXTURE_2D, gl.TEXTURE_LOD_BIAS, ATLAS_MIP_BIAS)
-		for i in 1 ..< cast(i32)mip_count {
-			mip := atlas_mips[i]
-			gl.TexImage2D(
-				gl.TEXTURE_2D,
-				i,
-				cast(i32)atlas.texture.internal_format,
-				mip.width,
-				mip.height,
-				0,
-				cast(u32)atlas.texture.format,
-				gl.UNSIGNED_BYTE,
-				raw_data(mip.data),
-			)
+		texture_parameter(atlas.texture, gl.TEXTURE_MAX_LEVEL, level_count - 1)
+		texture_parameter(atlas.texture, gl.TEXTURE_MIN_LOD, i32(0))
+		texture_parameter(atlas.texture, gl.TEXTURE_MAX_LOD, level_count - 1)
+		texture_parameter(atlas.texture, gl.TEXTURE_LOD_BIAS, ATLAS_MIP_BIAS)
+		for i in 1 ..< level_count {
+			mip := atlas_levels[i]
+			texture_set_level(atlas.texture, i, mip.width, mip.height, mip.data)
 		}
 	}
 

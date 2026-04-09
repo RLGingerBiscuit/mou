@@ -1,6 +1,5 @@
 package mou
 
-import sa "core:container/small_array"
 import "core:log"
 import gl "vendor:OpenGL"
 
@@ -25,7 +24,7 @@ Framebuffer_Attachment :: struct {
 
 Framebuffer :: struct {
 	handle:      u32,
-	attachments: sa.Small_Array(len(Attachment_Type), Framebuffer_Attachment),
+	attachments: [dynamic; len(Attachment_Type)]Framebuffer_Attachment,
 }
 
 make_framebuffer :: proc(
@@ -35,14 +34,11 @@ make_framebuffer :: proc(
 	fbo: Framebuffer,
 ) {
 	when ODIN_DEBUG {
-		gl.GenFramebuffers(1, &fbo.handle, loc = loc)
+		gl.CreateFramebuffers(1, &fbo.handle, loc = loc)
 	} else {
-		gl.GenFramebuffers(1, &fbo.handle)
+		gl.CreateFramebuffers(1, &fbo.handle)
 	}
 	if len(attachments) == 0 {return}
-
-	bind_framebuffer(fbo, .All)
-	defer unbind_framebuffer(.All)
 
 	assert(
 		len(attachments) <= len(Attachment_Type),
@@ -66,33 +62,61 @@ make_framebuffer :: proc(
 				location = loc,
 			)
 		} else {
-			assert(sa.append(&fbo.attachments, a))
+			append(&fbo.attachments, a)
 			used_attachments[a.type] = {}
 		}
 	}
 
-	for a in sa.slice(&fbo.attachments) {
+	colour_attachments: [len(Attachment_Type)]u32
+	colour_attachment_count := 0
+	for a in fbo.attachments {
 		when ODIN_DEBUG {
-			gl.FramebufferTexture2D(
-				cast(u32)Framebuffer_Target.All,
-				cast(u32)a.type,
-				gl.TEXTURE_2D,
-				a.tex.handle,
-				0,
+			gl.NamedFramebufferTexture(fbo.handle, cast(u32)a.type, a.tex.handle, 0, loc = loc)
+		} else {
+			gl.NamedFramebufferTexture(fbo.handle, cast(u32)a.type, a.tex.handle, 0)
+		}
+
+		if a.type >= .Colour0 && a.type <= .Colour3 {
+			colour_attachments[colour_attachment_count] = cast(u32)a.type
+			colour_attachment_count += 1
+		}
+	}
+
+	if colour_attachment_count == 0 {
+		when ODIN_DEBUG {
+			gl.NamedFramebufferDrawBuffer(fbo.handle, gl.NONE, loc = loc)
+			gl.NamedFramebufferReadBuffer(fbo.handle, gl.NONE, loc = loc)
+		} else {
+			gl.NamedFramebufferDrawBuffer(fbo.handle, gl.NONE)
+			gl.NamedFramebufferReadBuffer(fbo.handle, gl.NONE)
+		}
+	} else if colour_attachment_count == 1 {
+		when ODIN_DEBUG {
+			gl.NamedFramebufferDrawBuffer(fbo.handle, colour_attachments[0], loc = loc)
+			gl.NamedFramebufferReadBuffer(fbo.handle, colour_attachments[0], loc = loc)
+		} else {
+			gl.NamedFramebufferDrawBuffer(fbo.handle, colour_attachments[0])
+			gl.NamedFramebufferReadBuffer(fbo.handle, colour_attachments[0])
+		}
+	} else {
+		when ODIN_DEBUG {
+			gl.NamedFramebufferDrawBuffers(
+				fbo.handle,
+				cast(i32)colour_attachment_count,
+				raw_data(colour_attachments[:]),
 				loc = loc,
 			)
 		} else {
-			gl.FramebufferTexture2D(
-				cast(u32)Framebuffer_Target.All,
-				cast(u32)a.type,
-				gl.TEXTURE_2D,
-				a.tex.handle,
-				0,
+			gl.NamedFramebufferDrawBuffers(
+				fbo.handle,
+				cast(i32)colour_attachment_count,
+				raw_data(colour_attachments[:]),
 			)
 		}
 	}
 
-	if gl.CheckFramebufferStatus(cast(u32)Framebuffer_Target.All) != gl.FRAMEBUFFER_COMPLETE {
+	if gl.CheckNamedFramebufferStatus(fbo.handle, cast(u32)Framebuffer_Target.All) !=
+	   gl.FRAMEBUFFER_COMPLETE {
 		log.panic("Framebuffer did not complete", location = loc)
 	}
 
@@ -105,6 +129,7 @@ destroy_framebuffer :: proc(fbo: ^Framebuffer, loc := #caller_location) {
 	} else {
 		gl.DeleteFramebuffers(1, &fbo.handle)
 	}
+	fbo^ = {}
 }
 
 bind_framebuffer :: proc(fbo: Framebuffer, target: Framebuffer_Target, loc := #caller_location) {
@@ -124,7 +149,7 @@ unbind_framebuffer :: proc(target: Framebuffer_Target, loc := #caller_location) 
 }
 
 resize_framebuffer :: proc(fbo: ^Framebuffer, width, height: i32, loc := #caller_location) {
-	for a in sa.slice(&fbo.attachments) {
+	for a in fbo.attachments {
 		new_tex := make_texture(
 			a.tex.name,
 			width,
@@ -133,32 +158,17 @@ resize_framebuffer :: proc(fbo: ^Framebuffer, width, height: i32, loc := #caller
 			a.tex.wrap,
 			a.tex.min_filter,
 			a.tex.mag_filter,
-			a.tex.mipmap,
+			a.tex.levels,
 		)
 
-		bind_framebuffer(fbo^, .All)
-		defer unbind_framebuffer(.All)
-
 		when ODIN_DEBUG {
-			gl.FramebufferTexture2D(
-				cast(u32)Framebuffer_Target.All,
-				cast(u32)a.type,
-				gl.TEXTURE_2D,
-				new_tex.handle,
-				0,
-				loc = loc,
-			)
+			gl.NamedFramebufferTexture(fbo.handle, cast(u32)a.type, new_tex.handle, 0, loc = loc)
 		} else {
-			gl.FramebufferTexture2D(
-				cast(u32)Framebuffer_Target.All,
-				cast(u32)a.type,
-				gl.TEXTURE_2D,
-				new_tex.handle,
-				0,
-			)
+			gl.NamedFramebufferTexture(fbo.handle, cast(u32)a.type, new_tex.handle, 0)
 		}
 
-		if gl.CheckFramebufferStatus(cast(u32)Framebuffer_Target.All) != gl.FRAMEBUFFER_COMPLETE {
+		if gl.CheckNamedFramebufferStatus(fbo.handle, cast(u32)Framebuffer_Target.All) !=
+		   gl.FRAMEBUFFER_COMPLETE {
 			log.panic("Framebuffer resize did not complete")
 		}
 

@@ -65,9 +65,7 @@ mu_init_ui :: proc(state: ^State) {
 			pixels := (cast([^]byte)texture_data)[:font.width * font.height]
 			log.debugf("Font atlas updated: {}", dirty_rect)
 			// FIXME: We should only update the dirty rect
-			bind_texture(ui.font_tex)
 			texture_update(ui.font_tex, pixels)
-			unbind_texture()
 
 			when ODIN_DEBUG {
 				os.make_directory("debug")
@@ -89,7 +87,6 @@ mu_init_ui :: proc(state: ^State) {
 			FONT_ATLAS_WIDTH,
 			FONT_ATLAS_HEIGHT,
 			.Red,
-			mipmap = false,
 		)
 
 		fons.AddFont(font, "Inter-Bold", "assets/fonts/Inter/Inter-Bold.ttf")
@@ -156,12 +153,10 @@ mu_init_ui :: proc(state: ^State) {
 	shader := make_shader("assets/shaders/ui.vert", "assets/shaders/ui.frag")
 
 	state.ui.renderer = make_renderer(true, shader, .Dynamic)
-	bind_renderer(state.ui.renderer)
-	defer unbind_renderer()
 
 	renderer_vertices(state.ui.renderer, vbo_buf[:])
-	renderer_indices(state.ui.renderer, transmute([][1]u32)ebo_buf[:])
-	vertex_attrib_vert(UI_Vert)
+	renderer_indices(state.ui.renderer, ebo_buf[:])
+	renderer_vertex_layout(state.ui.renderer, UI_Vert)
 }
 
 mu_destroy_ui :: proc(state: ^State) {
@@ -453,13 +448,13 @@ mu_render_ui :: proc(state: ^State) {
 		bind_renderer(state.ui.renderer)
 		defer unbind_renderer()
 
-		bind_texture(state.ui.font_tex)
-		defer unbind_texture()
+		bind_texture_unit(0, state.ui.font_tex)
+		defer unbind_texture_unit(0)
 
 		set_uniform(state.ui.renderer.shader, "u_proj_view", proj_view)
 
 		renderer_sub_vertices(state.ui.renderer, 0, vbo_buf[:4 * buf_idx])
-		renderer_sub_indices(state.ui.renderer, 0, transmute([][1]u32)ebo_buf[:6 * buf_idx])
+		renderer_sub_indices(state.ui.renderer, 0, ebo_buf[:6 * buf_idx])
 
 		gl.DrawElements(gl.TRIANGLES, cast(i32)buf_idx * 6, gl.UNSIGNED_INT, nil)
 
@@ -559,6 +554,8 @@ mu_render_ui :: proc(state: ^State) {
 		push_quad(state, dst, src, colour)
 		when FLUSH_ALL_UI do flush(state)
 	}
+
+	debug_group("UI")
 
 	// FIXME: doesn't update mu viewport unless move mu window to top left
 	gl.Viewport(0, 0, state.window.size.x, state.window.size.y)

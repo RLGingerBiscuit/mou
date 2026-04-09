@@ -8,9 +8,9 @@ import gl "vendor:OpenGL"
 Texture :: struct {
 	handle:          u32,
 	width, height:   i32,
-	mipmap:          bool,
+	levels:          i32,
 	format:          Format,
-	internal_format: Format,
+	internal_format: Internal_Format,
 	wrap:            Wrap,
 	min_filter:      Filter,
 	mag_filter:      Filter,
@@ -19,12 +19,18 @@ Texture :: struct {
 	allocator:       mem.Allocator,
 }
 
-Format :: enum i32 {
+Format :: enum u32 {
 	Depth = gl.DEPTH_COMPONENT,
-	R8    = gl.R8,
 	Red   = gl.RED,
 	RGB   = gl.RGB,
 	RGBA  = gl.RGBA,
+}
+
+Internal_Format :: enum u32 {
+	Depth24 = gl.DEPTH_COMPONENT24,
+	R8      = gl.R8,
+	RGB8    = gl.RGB8,
+	RGBA8   = gl.RGBA8,
 }
 
 Wrap :: enum i32 {
@@ -46,13 +52,41 @@ Filter :: enum i32 {
 texture_format_size :: proc(format: Format) -> i32 {
 	// odinfmt:disable
 	switch format {
-	case .Depth:	return 1 // TODO: Don't use unsized variant?
-	case .R8, .Red:	return 1
-	case .RGB:		return 3
-	case .RGBA:		return 4
+	case .Depth: return 1
+	case .Red:   return 1
+	case .RGB:   return 3
+	case .RGBA:  return 4
 	}
 	// odinfmt:enable
 	unreachable()
+}
+
+texture_internal_format :: proc(format: Format) -> Internal_Format {
+	// odinfmt:disable
+	switch format {
+	case .Depth: return .Depth24
+	case .Red:   return .R8
+	case .RGB:   return .RGB8
+	case .RGBA:  return .RGBA8
+	}
+	// odinfmt:enable
+	unreachable()
+}
+
+texture_mipmap_level_count :: proc(width, height: i32) -> i32 {
+	w := max(width, 1)
+	h := max(height, 1)
+	levels: i32 = 1
+	for w > 1 || h > 1 {
+		if w > 1 {
+			w /= 2
+		}
+		if h > 1 {
+			h /= 2
+		}
+		levels += 1
+	}
+	return levels
 }
 
 make_texture :: proc(
@@ -62,7 +96,8 @@ make_texture :: proc(
 	wrap := Wrap.Repeat,
 	min_filter := Filter.Nearest,
 	mag_filter := Filter.Nearest,
-	mipmap := false,
+	levels: i32 = 1,
+	gen_mips := false,
 	loc := #caller_location,
 ) -> (
 	tex: Texture,
@@ -70,147 +105,125 @@ make_texture :: proc(
 	tex.name = strings.clone(name)
 	tex.width = width
 	tex.height = height
-	tex.mipmap = mipmap
 	tex.format = format
+	tex.internal_format = texture_internal_format(format)
 	tex.wrap = wrap
 	tex.min_filter = min_filter
 	tex.mag_filter = mag_filter
-	
-	// odinfmt:disable
-	switch tex.format {
-	case .Depth:	tex.internal_format = .Depth
-	case .R8, .Red:	tex.internal_format = .Red
-	case .RGB:		tex.internal_format = .RGB
-	case .RGBA:		tex.internal_format = .RGBA
-	}
-	// odinfmt:enable
+
+	levels := levels
+	levels = max(1, min(levels, texture_mipmap_level_count(width, height)))
+	tex.levels = levels
 
 	when ODIN_DEBUG {
-		gl.GenTextures(1, &tex.handle, loc = loc)
-		gl.BindTexture(gl.TEXTURE_2D, tex.handle, loc = loc)
-		gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, cast(i32)wrap, loc = loc)
-		gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, cast(i32)wrap, loc = loc)
-		gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, cast(i32)min_filter, loc = loc)
-		gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, cast(i32)mag_filter, loc = loc)
-		gl.TexImage2D(
-			gl.TEXTURE_2D,
-			0,
-			cast(i32)tex.format,
+		gl.CreateTextures(gl.TEXTURE_2D, 1, &tex.handle, loc = loc)
+		texture_parameter(tex, gl.TEXTURE_WRAP_S, cast(i32)wrap, loc = loc)
+		texture_parameter(tex, gl.TEXTURE_WRAP_T, cast(i32)wrap, loc = loc)
+		texture_parameter(tex, gl.TEXTURE_MIN_FILTER, cast(i32)min_filter, loc = loc)
+		texture_parameter(tex, gl.TEXTURE_MAG_FILTER, cast(i32)mag_filter, loc = loc)
+		gl.TextureStorage2D(
+			tex.handle,
+			levels,
+			cast(u32)tex.internal_format,
 			tex.width,
 			tex.height,
-			0,
-			cast(u32)tex.internal_format,
-			gl.UNSIGNED_BYTE,
-			nil,
 			loc = loc,
 		)
-		gl.BindTexture(gl.TEXTURE_2D, 0, loc = loc)
 	} else {
-		gl.GenTextures(1, &tex.handle)
-		gl.BindTexture(gl.TEXTURE_2D, tex.handle)
-		gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, cast(i32)wrap)
-		gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, cast(i32)wrap)
-		gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, cast(i32)min_filter)
-		gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, cast(i32)mag_filter)
-		gl.TexImage2D(
-			gl.TEXTURE_2D,
-			0,
-			cast(i32)tex.format,
+		gl.CreateTextures(gl.TEXTURE_2D, 1, &tex.handle)
+		texture_parameter(tex, gl.TEXTURE_WRAP_S, cast(i32)wrap)
+		texture_parameter(tex, gl.TEXTURE_WRAP_T, cast(i32)wrap)
+		texture_parameter(tex, gl.TEXTURE_MIN_FILTER, cast(i32)min_filter)
+		texture_parameter(tex, gl.TEXTURE_MAG_FILTER, cast(i32)mag_filter)
+		gl.TextureStorage2D(
+			tex.handle,
+			levels,
+			cast(u32)tex.internal_format,
 			tex.width,
 			tex.height,
-			0,
-			cast(u32)tex.internal_format,
-			gl.UNSIGNED_BYTE,
-			nil,
 		)
-		gl.BindTexture(gl.TEXTURE_2D, 0)
 	}
 
 	return
 }
 
-texture_set :: proc(tex: Texture, data: []byte, loc := #caller_location) {
-	if len(data) < int(tex.width * tex.height * texture_format_size(tex.format)) {
-		log.warnf("Setting texture {}: was not provided enough bytes", tex.name)
+texture_set_level :: proc(
+	tex: Texture,
+	level: i32,
+	width, height: i32,
+	data: []byte,
+	loc := #caller_location,
+) {
+	if len(data) < int(width * height * texture_format_size(tex.format)) {
+		log.warnf("Setting texture {} level {}: was not provided enough bytes", tex.name, level)
 		return
 	}
-
-	bind_texture(tex)
 	when ODIN_DEBUG {
-		gl.TexImage2D(
-			gl.TEXTURE_2D,
+		gl.TextureSubImage2D(
+			tex.handle,
+			level,
 			0,
-			cast(i32)tex.internal_format,
-			tex.width,
-			tex.height,
 			0,
+			width,
+			height,
 			cast(u32)tex.format,
 			gl.UNSIGNED_BYTE,
 			raw_data(data),
 			loc = loc,
 		)
-		if tex.mipmap {
-			gl.GenerateMipmap(gl.TEXTURE_2D, loc = loc)
-		}
-
 	} else {
-		gl.TexImage2D(
-			gl.TEXTURE_2D,
+		gl.TextureSubImage2D(
+			tex.handle,
+			level,
 			0,
-			cast(i32)tex.internal_format,
-			tex.width,
-			tex.height,
 			0,
+			width,
+			height,
 			cast(u32)tex.format,
 			gl.UNSIGNED_BYTE,
 			raw_data(data),
 		)
-		if tex.mipmap {
-			gl.GenerateMipmap(gl.TEXTURE_2D)
-		}
-		unbind_texture()
+	}
+}
+
+generate_texture_mipmap :: proc(tex: Texture, loc := #caller_location) {
+	when ODIN_DEBUG {
+		gl.GenerateTextureMipmap(tex.handle, loc = loc)
+	} else {
+		gl.GenerateTextureMipmap(tex.handle)
+	}
+}
+
+texture_parameter_i32 :: proc(tex: Texture, pname: u32, value: i32, loc := #caller_location) {
+	when ODIN_DEBUG {
+		gl.TextureParameteri(tex.handle, pname, value, loc = loc)
+	} else {
+		gl.TextureParameteri(tex.handle, pname, value)
+	}
+}
+
+texture_parameter_f32 :: proc(tex: Texture, pname: u32, value: f32, loc := #caller_location) {
+	when ODIN_DEBUG {
+		gl.TextureParameterf(tex.handle, pname, value, loc = loc)
+	} else {
+		gl.TextureParameterf(tex.handle, pname, value)
+	}
+}
+
+texture_parameter :: proc {
+	texture_parameter_i32,
+	texture_parameter_f32,
+}
+
+texture_set :: proc(tex: Texture, data: []byte, gen_mips := false, loc := #caller_location) {
+	texture_set_level(tex, 0, tex.width, tex.height, data, loc = loc)
+	if gen_mips {
+		generate_texture_mipmap(tex, loc = loc)
 	}
 }
 
 texture_update :: proc(tex: Texture, data: []byte, loc := #caller_location) {
-	if len(data) < int(tex.width * tex.height * texture_format_size(tex.format)) {
-		log.warnf("Setting texture {}: was not provided enough bytes", tex.name)
-		return
-	}
-	bind_texture(tex)
-	when ODIN_DEBUG {
-		gl.TexSubImage2D(
-			gl.TEXTURE_2D,
-			0,
-			0,
-			0,
-			tex.width,
-			tex.height,
-			cast(u32)tex.format,
-			gl.UNSIGNED_BYTE,
-			raw_data(data),
-			loc = loc,
-		)
-		if tex.mipmap {
-			gl.GenerateMipmap(gl.TEXTURE_2D, loc = loc)
-		}
-	} else {
-		gl.TexSubImage2D(
-			gl.TEXTURE_2D,
-			0,
-			0,
-			0,
-			tex.width,
-			tex.height,
-			cast(u32)tex.format,
-			gl.UNSIGNED_BYTE,
-			raw_data(data),
-		)
-		if tex.mipmap {
-			gl.GenerateMipmap(gl.TEXTURE_2D)
-		}
-	}
-	unbind_texture()
+	texture_set(tex, data, loc = loc)
 }
 
 image_to_texture :: proc(
@@ -218,80 +231,34 @@ image_to_texture :: proc(
 	wrap := Wrap.Repeat,
 	min_filter := Filter.Nearest,
 	mag_filter := Filter.Nearest,
-	mipmap := false,
+	levels: i32 = 1,
+	gen_mips := false,
 	loc := #caller_location,
 ) -> (
 	tex: Texture,
 ) {
-	tex.name = strings.clone(img.name)
-	tex.width = img.width
-	tex.height = img.height
-	tex.mipmap = mipmap
-	tex.wrap = wrap
-	tex.min_filter = min_filter
-	tex.mag_filter = mag_filter
-
 	format: Format
-	internal_format: Format
 	// odinfmt:disable
 	switch img.channels {
-	case 1: format = .R8;   internal_format = .Red
-	case 3: format = .RGB;  internal_format = .RGB
-	case 4: format = .RGBA; internal_format = .RGBA
+	case 1: format = .Red
+	case 3: format = .RGB
+	case 4: format = .RGBA
 	}
 	// odinfmt:enable
 
-	tex.format = format
-	tex.internal_format = internal_format
-
-	when ODIN_DEBUG {
-		gl.GenTextures(1, &tex.handle, loc = loc)
-		gl.BindTexture(gl.TEXTURE_2D, tex.handle, loc = loc)
-		gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, cast(i32)wrap, loc = loc)
-		gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, cast(i32)wrap, loc = loc)
-		gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, cast(i32)min_filter, loc = loc)
-		gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, cast(i32)mag_filter, loc = loc)
-		gl.TexImage2D(
-			gl.TEXTURE_2D,
-			0,
-			cast(i32)internal_format,
-			tex.width,
-			tex.height,
-			0,
-			cast(u32)format,
-			gl.UNSIGNED_BYTE,
-			raw_data(img.data),
-			loc = loc,
-		)
-		if mipmap {
-			gl.GenerateMipmap(gl.TEXTURE_2D, loc = loc)
-		}
-		gl.BindTexture(gl.TEXTURE_2D, 0, loc = loc)
-
-	} else {
-		gl.GenTextures(1, &tex.handle)
-		gl.BindTexture(gl.TEXTURE_2D, tex.handle)
-		gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, cast(i32)wrap)
-		gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, cast(i32)wrap)
-		gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, cast(i32)min_filter)
-		gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, cast(i32)mag_filter)
-		gl.TexImage2D(
-			gl.TEXTURE_2D,
-			0,
-			cast(i32)internal_format,
-			tex.width,
-			tex.height,
-			0,
-			cast(u32)format,
-			gl.UNSIGNED_BYTE,
-			raw_data(img.data),
-		)
-		if mipmap {
-			gl.GenerateMipmap(gl.TEXTURE_2D)
-		}
-		gl.BindTexture(gl.TEXTURE_2D, 0)
-	}
-
+	tex = make_texture(
+		img.name,
+		img.width,
+		img.height,
+		format,
+		wrap,
+		min_filter,
+		mag_filter,
+		levels,
+		gen_mips,
+		loc = loc,
+	)
+	texture_set(tex, img.data, loc = loc)
 	return tex
 }
 
@@ -301,19 +268,19 @@ load_texture :: proc(path: string) -> (tex: Texture) {
 	return image_to_texture(img)
 }
 
-bind_texture :: proc(tex: Texture, loc := #caller_location) {
+bind_texture_unit :: proc(unit: u32, tex: Texture, loc := #caller_location) {
 	when ODIN_DEBUG {
-		gl.BindTexture(gl.TEXTURE_2D, tex.handle, loc = loc)
+		gl.BindTextureUnit(unit, tex.handle, loc = loc)
 	} else {
-		gl.BindTexture(gl.TEXTURE_2D, tex.handle)
+		gl.BindTextureUnit(unit, tex.handle)
 	}
 }
 
-unbind_texture :: proc(loc := #caller_location) {
+unbind_texture_unit :: proc(unit: u32, loc := #caller_location) {
 	when ODIN_DEBUG {
-		gl.BindTexture(gl.TEXTURE_2D, 0, loc = loc)
+		gl.BindTextureUnit(unit, 0, loc = loc)
 	} else {
-		gl.BindTexture(gl.TEXTURE_2D, 0)
+		gl.BindTextureUnit(unit, 0)
 	}
 }
 
