@@ -248,8 +248,8 @@ mu_update_ui :: proc(state: ^State, dt: f64) {
 	mu.begin(ctx)
 	defer mu.end(ctx)
 
-	if mu.window(ctx, "Minceraft", {10, 50, 400, 364}, {.NO_CLOSE}, FONT_BOUNCY) {
-		LABEL_WIDTH :: 160
+	if mu.window(ctx, "Minceraft", {10, 50, 340, 390}, {.NO_CLOSE}, FONT_BOUNCY) {
+		LABEL_WIDTH :: 140
 
 		mu.layout_row(ctx, {LABEL_WIDTH, -1})
 
@@ -260,7 +260,7 @@ mu_update_ui :: proc(state: ^State, dt: f64) {
 		mu.text(
 			ctx,
 			fmt.tprintf(
-				"X: {:.1f}, Y: {:.1f}, Z: {:.1f}",
+				"X={:.1f}, Y={:.1f}, Z={:.1f}",
 				state.camera.pos.x,
 				state.camera.pos.y,
 				state.camera.pos.z,
@@ -269,8 +269,18 @@ mu_update_ui :: proc(state: ^State, dt: f64) {
 		)
 
 		mu.label(ctx, "Looking At:")
-		if at, ok := state.frame.looking_at.?; ok {
-			mu.text(ctx, fmt.tprintf("X: {}, Y: {}, Z: {}", at.x, at.y, at.z), FONT_MONO)
+		if looking, ok := state.frame.looking_at.?; ok {
+			mu.text(
+				ctx,
+				fmt.tprintf(
+					"X={}, Y={}, Z={}, {}",
+					looking.at.x,
+					looking.at.y,
+					looking.at.z,
+					looking.face,
+				),
+				FONT_MONO,
+			)
 		} else {
 			mu.text(ctx, "Nothing", FONT_MONO)
 		}
@@ -279,7 +289,7 @@ mu_update_ui :: proc(state: ^State, dt: f64) {
 		mu.text(
 			ctx,
 			fmt.tprintf(
-				"Yaw: {:.1f}, Pitch: {:.1f}",
+				"Yaw={:.1f}, Pitch={:.1f}",
 				glm.mod(glm.abs(state.camera.yaw), 360),
 				state.camera.pitch,
 			),
@@ -341,6 +351,22 @@ mu_update_ui :: proc(state: ^State, dt: f64) {
 			),
 			FONT_MONO,
 		)
+
+		// Super simple dropdown
+		mu.label(ctx, "Block:")
+		if .SUBMIT in mu.button(ctx, fmt.tprintf("{}", state.block_to_place.id)) {
+			mu.open_popup(ctx, "Block Selector")
+		}
+		if mu.popup(ctx, "Block Selector") {
+			for id in Block_ID {
+				if id == .Air {continue}
+				if .SUBMIT in mu.button(ctx, fmt.tprintf("{}", id)) {
+					state.block_to_place = Block{id}
+					popup := mu.get_current_container(ctx)
+					popup.open = false
+				}
+			}
+		}
 
 		when false {
 			temp_mem_usage: [7]int

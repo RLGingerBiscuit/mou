@@ -20,8 +20,14 @@ State :: struct {
 	ao:              bool,
 	ao_debug:        bool,
 	// Other state
+	block_to_place:  Block,
 	frame:           Frame_State,
 	world:           World,
+}
+
+Looking_At :: struct {
+	at:   glm.ivec3,
+	face: Block_Face,
 }
 
 Frame_State :: struct {
@@ -32,7 +38,7 @@ Frame_State :: struct {
 	transparent_chunks: [dynamic]^Chunk,
 	water_chunks:       [dynamic]^Chunk,
 	memory_usage:       [dynamic][7]int,
-	looking_at:         Maybe(glm.ivec3),
+	looking_at:         Maybe(Looking_At),
 	line_vertices:      [dynamic]Line_Vert,
 }
 

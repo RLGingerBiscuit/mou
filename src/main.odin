@@ -145,6 +145,9 @@ main :: proc() {
 	state.far_plane = true
 	state.render_ui = true
 	state.ao = true
+	state.block_to_place = Block {
+		id = .Stone,
+	}
 	init_state(&state)
 	defer destroy_state(&state)
 
@@ -362,7 +365,7 @@ main :: proc() {
 				if !hit {
 					state.frame.looking_at = nil
 				} else {
-					state.frame.looking_at = pos
+					state.frame.looking_at = Looking_At{pos, face}
 					world_pos := block_pos_to_world_pos(pos)
 					chunk_pos := block_pos_to_chunk_pos(pos)
 					local_pos := block_pos_to_local_pos(pos)
@@ -436,7 +439,13 @@ main :: proc() {
 						if window_is_button_pressed(state.window, BUTTON_DESTROY) {
 							try_destroy_block(&state.world, chunk_pos, local_pos)
 						} else if window_is_button_pressed(state.window, BUTTON_PLACE) {
-							try_place_block(&state.world, chunk_pos, local_pos, face)
+							try_place_block(
+								&state.world,
+								state.block_to_place,
+								chunk_pos,
+								local_pos,
+								face,
+							)
 						}
 					}
 
@@ -964,6 +973,7 @@ try_destroy_block :: proc(w: ^World, chunk_pos: Chunk_Pos, local_pos: Local_Pos)
 
 try_place_block :: proc(
 	w: ^World,
+	block: Block,
 	chunk_pos: Chunk_Pos,
 	local_pos: Local_Pos,
 	face: Block_Face,
@@ -1012,7 +1022,7 @@ try_place_block :: proc(
 
 	sync.guard(&w.lock)
 	if chunk, cok := get_world_chunk(w^, chunk_pos); cok {
-		chunk_update_block(w, chunk, local_pos, {.Stone})
+		chunk_update_block(w, chunk, local_pos, block)
 		single_block_update_remesh(w, chunk_pos, local_pos)
 		return true
 	}
@@ -1026,6 +1036,7 @@ single_block_update_remesh :: proc(w: ^World, chunk_pos: Chunk_Pos, local_pos: L
 		}
 	}
 
+	// FIXME: This is probably a terrible way to do this (and doesn't even work properly sometimes). Do better.
 	remesh(w, chunk_pos)
 	if local_pos.x == 0 {
 		remesh(w, chunk_pos + {-1, 0, 0})

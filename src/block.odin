@@ -39,10 +39,10 @@ Block_Diag_Mask :: bit_set[Block_Diag]
 Block_ID :: enum u8 {
 	Air,
 	Stone,
-	Grass,
 	Dirt,
-	Glass,
+	Grass,
 	Water,
+	Glass,
 }
 
 Block :: struct {
