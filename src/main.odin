@@ -295,7 +295,7 @@ main :: proc() {
 			if prof.event("update iteration") {
 				{
 					if cap(prev_delta_times) - len(prev_delta_times) == 0 {
-						unordered_remove(&prev_delta_times, 0)
+						ordered_remove(&prev_delta_times, 0)
 					}
 					append(&prev_delta_times, delta_time)
 					avg_dt: f64

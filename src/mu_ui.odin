@@ -353,17 +353,17 @@ mu_update_ui :: proc(state: ^State, dt: f64) {
 		)
 
 		// Super simple dropdown
+		SELECTOR_NAME :: "Block Selector"
 		mu.label(ctx, "Block:")
 		if .SUBMIT in mu.button(ctx, fmt.tprintf("{}", state.block_to_place.id)) {
-			mu.open_popup(ctx, "Block Selector")
+			mu.open_popup(ctx, SELECTOR_NAME)
 		}
-		if mu.popup(ctx, "Block Selector") {
+		if mu.popup(ctx, SELECTOR_NAME) {
 			for id in Block_ID {
 				if id == .Air {continue}
 				if .SUBMIT in mu.button(ctx, fmt.tprintf("{}", id)) {
 					state.block_to_place = Block{id}
-					popup := mu.get_current_container(ctx)
-					popup.open = false
+					mu.close_current_popup(ctx)
 				}
 			}
 		}

@@ -1536,6 +1536,11 @@ open_popup :: proc(ctx: ^Context, name: string) {
 	bring_to_front(ctx, cnt)
 }
 
+close_current_popup :: proc(ctx: ^Context) {
+	cnt := get_current_container(ctx)
+	cnt.open = false
+}
+
 begin_popup :: proc(ctx: ^Context, name: string, font_opts : Maybe(Font_Options) = nil) -> bool {
 	opt := Options{.POPUP, .AUTO_SIZE, .NO_RESIZE, .NO_SCROLL, .NO_TITLE, .CLOSED}
 	return begin_window(ctx, name, Rect{}, opt, font_opts)

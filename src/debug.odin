@@ -73,27 +73,47 @@ setup_opengl_debug :: proc() {
 
 @(disabled = !ODIN_DEBUG)
 push_debug_group :: proc(message: string, loc := #caller_location) {
-	gl.PushDebugGroup(
-		gl.DEBUG_SOURCE_APPLICATION,
-		0,
-		cast(i32)len(message),
-		strings.unsafe_string_to_cstring(message),
-		loc = loc,
-	)
-
+	when ODIN_DEBUG {
+		gl.PushDebugGroup(
+			gl.DEBUG_SOURCE_APPLICATION,
+			0,
+			cast(i32)len(message),
+			strings.unsafe_string_to_cstring(message),
+			loc = loc,
+		)
+	} else {
+		gl.PushDebugGroup(
+			gl.DEBUG_SOURCE_APPLICATION,
+			0,
+			cast(i32)len(message),
+			strings.unsafe_string_to_cstring(message),
+		)
+	}
 }
 
 @(disabled = !ODIN_DEBUG)
 pop_debug_group :: proc(loc := #caller_location) {
-	gl.PopDebugGroup(loc = loc)
+	when ODIN_DEBUG {
+		gl.PopDebugGroup(loc = loc)
+	} else {
+		gl.PopDebugGroup()
+	}
 }
 
 @(disabled = !ODIN_DEBUG, deferred_in = debug_group_end)
 debug_group :: proc(message: string, loc := #caller_location) {
-	push_debug_group(message, loc = loc)
+	when ODIN_DEBUG {
+		push_debug_group(message, loc = loc)
+	} else {
+		push_debug_group(message)
+	}
 }
 
 @(disabled = !ODIN_DEBUG)
 debug_group_end :: proc(_: string, loc := #caller_location) {
-	pop_debug_group(loc = loc)
+	when ODIN_DEBUG {
+		pop_debug_group(loc = loc)
+	} else {
+		pop_debug_group()
+	}
 }
