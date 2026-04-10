@@ -2,7 +2,6 @@ package mou
 
 import glm "core:math/linalg/glsl"
 import gl "vendor:OpenGL"
-import "vendor:glfw"
 
 FAST_MODIFIER :: 2.5
 
@@ -74,14 +73,14 @@ update_camera :: proc(state: ^State, dt: f64) {
 		return
 	}
 
-	centre := glm.dvec2{cast(f64)wnd.size.x / 2, cast(f64)wnd.size.y / 2}
+	window_size := get_window_size(state.window)
+	centre := glm.dvec2{cast(f64)window_size.x / 2, cast(f64)window_size.y / 2}
 
 	x := wnd.cursor.x
 	y := wnd.cursor.y
 	x = centre.x - x
 	y = centre.y - y
-	glfw.SetCursorPos(wnd.handle, centre.x, centre.y)
-	wnd.cursor = centre
+	window_center_cursor(wnd)
 
 	sensitivity := state.camera.fovx * state.camera.sensitivity_mult
 
@@ -95,11 +94,11 @@ update_camera :: proc(state: ^State, dt: f64) {
 
 	old_pos := cam.pos
 
-	if window_get_key(wnd^, .Left_Control) == .Press {
+	if window_is_key_down(wnd^, KEY_SPRINT) {
 		cam.flags |= {.Fast}
 	}
 
-	if window_get_key(wnd^, .X) == .Press && window_get_prev_key(wnd^, .X) != .Press {
+	if window_is_key_pressed(wnd^, KEY_WIREFRAME) {
 		cam.flags ~= {.Wireframe}
 		if .Wireframe in cam.flags {
 			gl.PolygonMode(gl.FRONT_AND_BACK, gl.LINE)
@@ -117,39 +116,39 @@ update_camera :: proc(state: ^State, dt: f64) {
 	front := glm.normalize(glm.vec3{glm.cos(yaw), 0, glm.sin(yaw)})
 	right := glm.normalize(glm.cross(front, cam.global_up))
 
-	if window_get_key(wnd^, .W) == .Press {
+	if window_is_key_down(wnd^, KEY_FORWARD) {
 		cam.pos += front * velocity
 	}
-	if window_get_key(wnd^, .A) == .Press {
-		cam.pos -= right * velocity
-	}
-	if window_get_key(wnd^, .S) == .Press {
+	if window_is_key_down(wnd^, KEY_BACKWARD) {
 		cam.pos -= front * velocity
 	}
-	if window_get_key(wnd^, .D) == .Press {
+	if window_is_key_down(wnd^, KEY_LEFT) {
+		cam.pos -= right * velocity
+	}
+	if window_is_key_down(wnd^, KEY_RIGHT) {
 		cam.pos += right * velocity
 	}
-	if window_get_key(wnd^, .Space) == .Press {
+	if window_is_key_down(wnd^, KEY_UP) {
 		cam.pos += cam.global_up * velocity
 	}
-	if window_get_key(wnd^, .Left_Shift) == .Press {
+	if window_is_key_down(wnd^, KEY_DOWN) {
 		cam.pos -= cam.global_up * velocity
 	}
 
-	if window_get_key(wnd^, .Left) == .Press {
-		cam.yaw -= sensitivity * 5
-	}
-	if window_get_key(wnd^, .Right) == .Press {
-		cam.yaw += sensitivity * 5
-	}
-	if window_get_key(wnd^, .Up) == .Press {
+	if window_is_key_down(wnd^, KEY_PAN_UP) {
 		cam.pitch -= sensitivity * 5
 	}
-	if window_get_key(wnd^, .Down) == .Press {
+	if window_is_key_down(wnd^, KEY_PAN_DOWN) {
 		cam.pitch += sensitivity * 5
 	}
+	if window_is_key_down(wnd^, KEY_PAN_LEFT) {
+		cam.yaw -= sensitivity * 5
+	}
+	if window_is_key_down(wnd^, KEY_PAN_RIGHT) {
+		cam.yaw += sensitivity * 5
+	}
 
-	if cam.pos == old_pos && window_get_key(wnd^, .Left_Control) == .Release {
+	if cam.pos == old_pos && window_is_key_up(wnd^, KEY_SPRINT) {
 		cam.flags &~= {.Fast}
 	}
 }

@@ -435,15 +435,8 @@ mu_update_ui :: proc(state: ^State, dt: f64) {
 mu_render_ui :: proc(state: ^State) {
 	flush :: proc(state: ^State) {
 		if buf_idx == 0 {return}
-
-		projection_matrix := glm.mat4Ortho3d(
-			0,
-			f32(state.window.size.x),
-			f32(state.window.size.y),
-			0,
-			-1,
-			1,
-		)
+		window_size := get_window_size(state.window)
+		projection_matrix := glm.mat4Ortho3d(0, f32(window_size.x), f32(window_size.y), 0, -1, 1)
 		view_matrix := glm.identity(glm.mat4)
 		proj_view := projection_matrix * view_matrix
 
@@ -560,7 +553,8 @@ mu_render_ui :: proc(state: ^State) {
 	debug_group("UI")
 
 	// FIXME: doesn't update mu viewport unless move mu window to top left
-	gl.Viewport(0, 0, state.window.size.x, state.window.size.y)
+	window_size := get_window_size(state.window)
+	gl.Viewport(0, 0, window_size.x, window_size.y)
 
 	gl.Enable(gl.SCISSOR_TEST)
 	gl.Disable(gl.CULL_FACE)

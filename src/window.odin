@@ -10,15 +10,20 @@ GL_MAJOR :: 4
 GL_MINOR :: 6
 GLFW_PROFILE :: glfw.OPENGL_CORE_PROFILE
 
+Window_Flag :: enum {
+	Visible,
+	Minimised,
+	UI,
+}
+Window_Flags :: bit_set[Window_Flag]
+
 Window :: struct {
 	handle:       glfw.WindowHandle,
-	title:        string,
-	size:         [2]i32,
-	flags:        bit_set[enum u8 {
-		Visible,
-		UI,
-		Minimised,
-	};u8],
+	//
+	flags:        Window_Flags,
+	// Time
+	time:         f64,
+	prev_time:    f64,
 	// Input
 	cursor:       [2]f64,
 	prev_cursor:  [2]f64,
@@ -43,10 +48,6 @@ init_window :: proc(
 
 	log.debug("Creating GLFW window")
 
-	WINDOW.title = title
-	title_cstr := strings.clone_to_cstring(title, context.temp_allocator)
-	defer delete(title_cstr, context.temp_allocator)
-
 	glfw.WindowHint(glfw.CONTEXT_VERSION_MAJOR, GL_MAJOR)
 	glfw.WindowHint(glfw.CONTEXT_VERSION_MINOR, GL_MINOR)
 	glfw.WindowHint(glfw.OPENGL_PROFILE, GLFW_PROFILE)
@@ -55,12 +56,19 @@ init_window :: proc(
 		glfw.WindowHint(glfw.OPENGL_FORWARD_COMPAT, true)
 	}
 
-	WINDOW.handle = glfw.CreateWindow(size.x, size.y, title_cstr, nil, nil)
+	WINDOW.handle = glfw.CreateWindow(
+		size.x,
+		size.y,
+		strings.clone_to_cstring(title, context.temp_allocator),
+		nil,
+		nil,
+	)
 	if WINDOW.handle == nil {
 		desc, code := glfw.GetError()
 		log.fatalf("Error creating GLFW window ({}): {}", code, desc)
 		return
 	}
+	log.info("Created GLFW window:", WINDOW.handle)
 
 	glfw.MakeContextCurrent(WINDOW.handle)
 	if vsync {
@@ -71,6 +79,8 @@ init_window :: proc(
 
 	gl.load_up_to(GL_MAJOR, GL_MINOR, glfw.gl_set_proc_address)
 
+	WINDOW.time = glfw.GetTime()
+	WINDOW.prev_time = WINDOW.time
 	WINDOW.flags = visible ? {.Visible} : {}
 	resize_window(state, size.x, size.y)
 
@@ -90,41 +100,30 @@ destroy_window :: proc(wnd: ^Window) {
 	glfw.DestroyWindow(wnd.handle)
 }
 
-window_aspect_ratio :: proc(wnd: Window) -> f32 {
-	return cast(f32)wnd.size.x / cast(f32)wnd.size.y
-}
-
-update_window :: proc(wnd: ^Window) {
-	if window_get_key(wnd^, .Tab) == .Press && window_get_prev_key(wnd^, .Tab) != .Press {
-		wnd.flags ~= {.UI}
-		if .UI in wnd.flags {
-			log.debug("Opening UI")
-			glfw.SetInputMode(wnd.handle, glfw.CURSOR, glfw.CURSOR_NORMAL)
-		} else {
-			log.debug("Closing UI")
-			glfw.SetInputMode(wnd.handle, glfw.CURSOR, glfw.CURSOR_DISABLED)
-		}
-		window_center_cursor(wnd)
-	}
-
-	wnd.prev_cursor = wnd.cursor
-	wnd.prev_scroll = wnd.scroll
-	wnd.prev_keys = wnd.keys
-	wnd.prev_buttons = wnd.buttons
-
-	wnd.scroll = {}
-}
-
 window_should_close :: proc(wnd: Window) -> bool {
 	return cast(bool)glfw.WindowShouldClose(wnd.handle)
 }
 
-set_window_should_close :: proc(wnd: Window, close: bool) {
-	glfw.SetWindowShouldClose(wnd.handle, b32(close))
+set_window_should_close :: proc(wnd: ^Window, close: bool) {
+	glfw.SetWindowShouldClose(wnd.handle, cast(b32)close)
 }
 
-set_window_title :: proc(wnd: Window, title: cstring) {
-	glfw.SetWindowTitle(wnd.handle, title)
+set_window_title :: proc(wnd: ^Window, title: string) {
+	glfw.SetWindowTitle(wnd.handle, strings.clone_to_cstring(title, context.temp_allocator))
+}
+
+window_aspect_ratio :: proc(wnd: Window) -> f32 {
+	window_size := get_window_size(wnd)
+	return cast(f32)window_size.x / cast(f32)window_size.y
+}
+
+window_get_delta :: proc(wnd: Window) -> f64 {
+	return wnd.time - wnd.prev_time
+}
+
+get_window_size :: proc(wnd: Window) -> [2]i32 {
+	w, h := glfw.GetFramebufferSize(wnd.handle)
+	return {w, h}
 }
 
 window_swap_buffers :: proc(wnd: Window) {
@@ -132,7 +131,8 @@ window_swap_buffers :: proc(wnd: Window) {
 }
 
 window_center_cursor :: proc(wnd: ^Window) {
-	centre := [2]f64{cast(f64)wnd.size.x / 2, cast(f64)wnd.size.y / 2}
+	window_size := get_window_size(wnd^)
+	centre := [2]f64{cast(f64)window_size.x / 2, cast(f64)window_size.y / 2}
 	glfw.SetCursorPos(wnd.handle, centre.x, centre.y)
 	wnd.cursor = centre
 }
@@ -146,23 +146,23 @@ resize_window :: proc(state: ^State, width, height: i32, loc := #caller_location
 	wnd.flags &~= {.Minimised}
 	assert(width > 0, "window width must be > 0")
 	assert(height > 0, "window height must be > 0")
-	wnd.size = {width, height}
 	when ODIN_DEBUG {
 		gl.Viewport(0, 0, width, height, loc = loc)
 	} else {
 		gl.Viewport(0, 0, width, height)
 	}
-	log.debugf("Window '{}' resized to {}x{}", wnd.title, width, height)
+	log.debugf("Window resized to {}x{}", width, height)
 	resize_framebuffer(&state.fbo, width, height)
 }
 
 show_window :: proc(wnd: ^Window, loc := #caller_location) {
 	wnd.flags |= {.Visible}
 	glfw.ShowWindow(wnd.handle)
+	window_size := get_window_size(wnd^)
 	when ODIN_DEBUG {
-		gl.Viewport(0, 0, wnd.size.x, wnd.size.y, loc = loc)
+		gl.Viewport(0, 0, window_size.x, window_size.y, loc = loc)
 	} else {
-		gl.Viewport(0, 0, wnd.size.x, wnd.size.y)
+		gl.Viewport(0, 0, window_size.x, window_size.y)
 	}
 }
 hide_window :: proc(wnd: ^Window) {
@@ -170,26 +170,112 @@ hide_window :: proc(wnd: ^Window) {
 	glfw.HideWindow(wnd.handle)
 }
 
-window_get_key :: proc(wnd: Window, key: Key) -> Action {
-	return wnd.keys[key]
+window_disable_cursor :: proc(wnd: ^Window) {
+	glfw.SetInputMode(wnd.handle, glfw.CURSOR, glfw.CURSOR_DISABLED)
 }
-window_get_prev_key :: proc(wnd: Window, key: Key) -> Action {
-	return wnd.prev_keys[key]
-}
-
-window_get_button :: proc(wnd: Window, button: Mouse_Button) -> Action {
-	return wnd.buttons[button]
-}
-window_get_prev_button :: proc(wnd: Window, button: Mouse_Button) -> Action {
-	return wnd.prev_buttons[button]
+window_enable_cursor :: proc(wnd: ^Window) {
+	glfw.SetInputMode(wnd.handle, glfw.CURSOR, glfw.CURSOR_NORMAL)
 }
 
-window_get_scroll :: proc(wnd: Window) -> [2]f64 {
-	return wnd.scroll
+update_window :: proc(wnd: ^Window) {
+	wnd.prev_time = wnd.time
+	wnd.time = glfw.GetTime()
+
+	wnd.prev_cursor = wnd.cursor
+	wnd.prev_scroll = wnd.scroll
+	wnd.prev_keys = wnd.keys
+	wnd.prev_buttons = wnd.buttons
+	wnd.scroll = {}
+
+	glfw.PollEvents()
+
+	if window_is_key_pressed(wnd^, KEY_EXIT) {
+		log.debugf("Escape pressed, closing window")
+		set_window_should_close(wnd, true)
+	}
+
+	if window_is_key_pressed(wnd^, KEY_FREE_MOUSE) {
+		wnd.flags ~= {.UI}
+		if .UI in wnd.flags {
+			log.debug("Opening UI")
+			window_enable_cursor(wnd)
+		} else {
+			log.debug("Closing UI")
+			window_disable_cursor(wnd)
+		}
+		window_center_cursor(wnd)
+	}
 }
-window_get_prev_scroll :: proc(wnd: Window) -> [2]f64 {
-	return wnd.prev_scroll
+
+
+// Raw input functions
+
+
+window_get_key :: #force_inline proc(window: Window, key: Key) -> Action {
+	return window.keys[key]
 }
+window_get_prev_key :: #force_inline proc(window: Window, key: Key) -> Action {
+	return window.prev_keys[key]
+}
+
+window_get_button :: #force_inline proc(window: Window, button: Mouse_Button) -> Action {
+	return window.buttons[button]
+}
+window_get_prev_button :: #force_inline proc(window: Window, button: Mouse_Button) -> Action {
+	return window.prev_buttons[button]
+}
+
+window_get_scroll :: #force_inline proc(window: Window) -> [2]f64 {
+	return window.scroll
+}
+window_get_prev_scroll :: #force_inline proc(window: Window) -> [2]f64 {
+	return window.prev_scroll
+}
+
+// Input helper functions
+
+
+window_is_key_up :: #force_inline proc(window: Window, key: Key) -> bool {
+	return window_get_key(window, key) == .Release
+}
+window_is_key_down :: #force_inline proc(window: Window, key: Key) -> bool {
+	return !window_is_key_up(window, key)
+}
+window_was_key_up :: #force_inline proc(window: Window, key: Key) -> bool {
+	return window_get_prev_key(window, key) == .Release
+}
+window_was_key_down :: #force_inline proc(window: Window, key: Key) -> bool {
+	return !window_was_key_up(window, key)
+}
+window_is_key_pressed :: #force_inline proc(window: Window, key: Key) -> bool {
+	return window_is_key_down(window, key) && window_was_key_up(window, key)
+}
+window_is_key_released :: #force_inline proc(window: Window, key: Key) -> bool {
+	return window_is_key_up(window, key) && window_was_key_down(window, key)
+}
+
+window_is_button_up :: #force_inline proc(window: Window, button: Mouse_Button) -> bool {
+	return window_get_button(window, button) == .Release
+}
+window_is_button_down :: #force_inline proc(window: Window, button: Mouse_Button) -> bool {
+	return !window_is_button_up(window, button)
+}
+window_was_button_up :: #force_inline proc(window: Window, button: Mouse_Button) -> bool {
+	return window_get_prev_button(window, button) == .Release
+}
+window_was_button_down :: #force_inline proc(window: Window, button: Mouse_Button) -> bool {
+	return !window_was_button_up(window, button)
+}
+window_is_button_pressed :: #force_inline proc(window: Window, button: Mouse_Button) -> bool {
+	return window_is_button_down(window, button) && window_was_button_up(window, button)
+}
+window_is_button_released :: #force_inline proc(window: Window, button: Mouse_Button) -> bool {
+	return window_is_button_up(window, button) && window_was_button_down(window, button)
+}
+
+
+// GLFW callbacks
+
 
 _window_cursor_pos_callback :: proc "c" (handle: glfw.WindowHandle, x, y: f64) {
 	ptr := glfw.GetWindowUserPointer(handle)

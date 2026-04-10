@@ -31,6 +31,31 @@ NEAR_PLANE :: 0.1
 HIT_DISTANCE :: 6
 CHUNK_FADE_IN_SECONDS :: 0.75
 
+KEY_FORWARD :: Key.W
+KEY_BACKWARD :: Key.S
+KEY_LEFT :: Key.A
+KEY_RIGHT :: Key.D
+KEY_UP :: Key.Space
+KEY_DOWN :: Key.Left_Shift
+KEY_SPRINT :: Key.Left_Control
+
+KEY_PAN_UP :: Key.Up
+KEY_PAN_DOWN :: Key.Down
+KEY_PAN_LEFT :: Key.Left
+KEY_PAN_RIGHT :: Key.Right
+KEY_SPEED_MOD :: Key.Left_Control
+KEY_FOV_MOD :: Key.Left_Alt
+
+KEY_EXIT :: Key.Escape
+KEY_FREE_MOUSE :: Key.Tab
+KEY_UI_TOGGLE :: Key.F1
+KEY_RDOC :: Key.F2
+KEY_RELOAD :: Key.R
+KEY_WIREFRAME :: Key.X
+
+BUTTON_DESTROY :: Mouse_Button.Left
+BUTTON_PLACE :: Mouse_Button.Right
+
 when ODIN_DEBUG {
 	tracking_allocator: mem.Tracking_Allocator
 }
@@ -104,7 +129,6 @@ main :: proc() {
 
 	log.info("Hellope!")
 
-	log.debug("Initialising GLFW")
 	if !glfw.Init() {
 		desc, code := glfw.GetError()
 		log.panicf("Error initialising GLFW ({}): {}", code, desc)
@@ -113,6 +137,7 @@ main :: proc() {
 		log.debug("Terminating GLFW")
 		glfw.Terminate()
 	}
+	log.debug("Initialised GLFW")
 
 	state: State
 	state.render_distance = DEFAULT_RENDER_DISTANCE
@@ -123,6 +148,13 @@ main :: proc() {
 	init_state(&state)
 	defer destroy_state(&state)
 
+	window_ok := init_window(&state, WINDOW_TITLE, WINDOW_SIZE, vsync = true, visible = false)
+	if !window_ok {
+		log.panic("Could not create window")
+	}
+	defer destroy_window(&state.window)
+	window_disable_cursor(&state.window)
+
 	init_camera(
 		&state,
 		pos = {0, 24, 0},
@@ -132,14 +164,6 @@ main :: proc() {
 		sensitivity_mult = DEFAULT_SENSITIVITY_MULT,
 		fovx = DEFAULT_FOV,
 	)
-
-	window_ok := init_window(&state, WINDOW_TITLE, WINDOW_SIZE, vsync = true, visible = false)
-	if !window_ok {
-		log.panic("Could not create window")
-	}
-	defer destroy_window(&state.window)
-
-	glfw.SetInputMode(state.window.handle, glfw.CURSOR, glfw.CURSOR_DISABLED)
 
 	when ODIN_DEBUG {
 		setup_opengl_debug()
@@ -258,11 +282,9 @@ main :: proc() {
 	gl.LineWidth(4)
 
 	prev_delta_times: [dynamic; 60]f64
-	previous_time := glfw.GetTime()
 	for !window_should_close(state.window) {
-		current_time := glfw.GetTime()
-		delta_time := current_time - previous_time
-		previous_time = current_time
+		current_time := state.window.time
+		delta_time := window_get_delta(state.window)
 
 		capture_frame := false
 
@@ -270,7 +292,7 @@ main :: proc() {
 			if prof.event("update iteration") {
 				{
 					if cap(prev_delta_times) - len(prev_delta_times) == 0 {
-						ordered_remove(&prev_delta_times, 0)
+						unordered_remove(&prev_delta_times, 0)
 					}
 					append(&prev_delta_times, delta_time)
 					avg_dt: f64
@@ -279,13 +301,12 @@ main :: proc() {
 					}
 					avg_dt /= f64(len(prev_delta_times))
 					set_window_title(
-						state.window,
-						fmt.ctprintf(WINDOW_TITLE + " ({:.0f} fps)", 1 / avg_dt),
+						&state.window,
+						fmt.tprintf(WINDOW_TITLE + " ({:.0f} fps)", 1 / avg_dt),
 					)
 				}
 
-				if window_get_key(state.window, .Left_Alt) == .Press ||
-				   window_get_key(state.window, .Right_Alt) == .Press {
+				if window_is_key_down(state.window, KEY_FOV_MOD) {
 					state.camera.fovx = glm.clamp(
 						state.camera.fovx - 5 * f32(state.window.scroll.y),
 						5,
@@ -293,8 +314,7 @@ main :: proc() {
 					)
 				}
 
-				if window_get_key(state.window, .Left_Control) == .Press ||
-				   window_get_key(state.window, .Right_Control) == .Press {
+				if window_is_key_down(state.window, KEY_SPEED_MOD) {
 					state.camera.speed = glm.clamp(
 						state.camera.speed + f32(state.window.scroll.y),
 						1,
@@ -302,24 +322,15 @@ main :: proc() {
 					)
 				}
 
-				if window_get_key(state.window, .Escape) == .Press {
-					log.debugf("Escape pressed, closing window")
-					set_window_should_close(state.window, true)
-				}
-
-				if rdoc_api != nil &&
-				   window_get_key(state.window, .F2) == .Press &&
-				   window_get_prev_key(state.window, .F2) != .Press {
-					capture_frame = true
-				}
-
-				if window_get_key(state.window, .F1) == .Press &&
-				   window_get_prev_key(state.window, .F1) != .Press {
+				if window_is_key_pressed(state.window, KEY_UI_TOGGLE) {
 					state.render_ui = !state.render_ui
 				}
 
-				if window_get_key(state.window, .R) == .Press &&
-				   window_get_prev_key(state.window, .R) != .Press {
+				if rdoc_api != nil && window_is_key_pressed(state.window, KEY_RDOC) {
+					capture_frame = true
+				}
+
+				if window_is_key_pressed(state.window, KEY_RELOAD) {
 					sync.guard(&state.world.lock)
 					for _, &c in state.world.chunks {
 						if c.mesh == nil {continue}
@@ -422,11 +433,9 @@ main :: proc() {
 
 
 					if .UI not_in state.window.flags {
-						if window_get_button(state.window, .Left) == .Press &&
-						   window_get_prev_button(state.window, .Left) != .Press {
+						if window_is_button_pressed(state.window, BUTTON_DESTROY) {
 							try_destroy_block(&state.world, chunk_pos, local_pos)
-						} else if window_get_button(state.window, .Right) == .Press &&
-						   window_get_prev_button(state.window, .Right) != .Press {
+						} else if window_is_button_pressed(state.window, BUTTON_PLACE) {
 							try_place_block(&state.world, chunk_pos, local_pos, face)
 						}
 					}
@@ -577,7 +586,8 @@ main :: proc() {
 
 			if prof.event("render iteration") {
 				SKY_COLOUR := RGBA32{0.3, 0.6, 0.8, 1}
-				gl.Viewport(0, 0, state.window.size.x, state.window.size.y)
+				window_size := get_window_size(state.window)
+				gl.Viewport(0, 0, window_size.x, window_size.y)
 				{debug_group("Clear")
 					gl.ClearColor(SKY_COLOUR[0], SKY_COLOUR[1], SKY_COLOUR[2], SKY_COLOUR[3])
 					gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
@@ -610,7 +620,7 @@ main :: proc() {
 					debug_group("Render Chunks")
 					bind_framebuffer(state.fbo, .All)
 					defer unbind_framebuffer(.All)
-					gl.Viewport(0, 0, state.window.size.x, state.window.size.y)
+					gl.Viewport(0, 0, window_size.x, window_size.y)
 					gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
 
 					set_uniforms :: proc(
@@ -874,8 +884,8 @@ main :: proc() {
 
 					projection_matrix = glm.mat4Ortho3d(
 						0,
-						f32(state.window.size.x),
-						f32(state.window.size.y),
+						f32(window_size.x),
+						f32(window_size.y),
 						0,
 						-1,
 						1,
@@ -890,8 +900,8 @@ main :: proc() {
 					size := SCALE * (uv[1] - uv[0]) * ui_atlas.size
 
 					r := RectF {
-						x = (f32(state.window.size.x) - size.x) / 2,
-						y = (f32(state.window.size.y) - size.y) / 2,
+						x = (f32(window_size.x) - size.x) / 2,
+						y = (f32(window_size.y) - size.y) / 2,
 						w = size.x,
 						h = size.y,
 					}
@@ -928,7 +938,6 @@ main :: proc() {
 		}
 
 		window_swap_buffers(state.window)
-		glfw.PollEvents()
 
 		when ODIN_DEBUG {
 			for bad_free in tracking_allocator.bad_free_array {
