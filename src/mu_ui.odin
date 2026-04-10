@@ -82,12 +82,7 @@ mu_init_ui :: proc(state: ^State) {
 		fons.Init(font, FONT_ATLAS_WIDTH, FONT_ATLAS_HEIGHT, .TOPLEFT)
 
 		font.userData = &state.ui
-		state.ui.font_tex = make_texture(
-			"::/font.png",
-			FONT_ATLAS_WIDTH,
-			FONT_ATLAS_HEIGHT,
-			.Red,
-		)
+		state.ui.font_tex = make_texture("::/font.png", FONT_ATLAS_WIDTH, FONT_ATLAS_HEIGHT, .Red)
 
 		fons.AddFont(font, "Inter-Bold", "assets/fonts/Inter/Inter-Bold.ttf")
 		fons.AddFont(font, "Jellee-Bold", "assets/fonts/Jellee/Jellee-Bold.ttf")
@@ -253,7 +248,7 @@ mu_update_ui :: proc(state: ^State, dt: f64) {
 	mu.begin(ctx)
 	defer mu.end(ctx)
 
-	if mu.window(ctx, "Minceraft", {10, 10, 460, 360}, {.NO_CLOSE}, FONT_BOUNCY) {
+	if mu.window(ctx, "Minceraft", {10, 50, 400, 364}, {.NO_CLOSE}, FONT_BOUNCY) {
 		LABEL_WIDTH :: 160
 
 		mu.layout_row(ctx, {LABEL_WIDTH, -1})
@@ -272,6 +267,13 @@ mu_update_ui :: proc(state: ^State, dt: f64) {
 			),
 			FONT_MONO,
 		)
+
+		mu.label(ctx, "Looking At:")
+		if at, ok := state.frame.looking_at.?; ok {
+			mu.text(ctx, fmt.tprintf("X: {}, Y: {}, Z: {}", at.x, at.y, at.z), FONT_MONO)
+		} else {
+			mu.text(ctx, "Nothing", FONT_MONO)
+		}
 
 		mu.label(ctx, "Camera:")
 		mu.text(
@@ -331,7 +333,7 @@ mu_update_ui :: proc(state: ^State, dt: f64) {
 		mu.text(
 			ctx,
 			fmt.tprintf(
-				"Total={}, Opaque={}, Transparent={}, Water={}",
+				"{}, O={}, T={}, W={}",
 				len(state.world.chunks),
 				len(state.frame.opaque_chunks),
 				len(state.frame.transparent_chunks),

@@ -32,6 +32,7 @@ Frame_State :: struct {
 	transparent_chunks: [dynamic]^Chunk,
 	water_chunks:       [dynamic]^Chunk,
 	memory_usage:       [dynamic][7]int,
+	looking_at:         Maybe(glm.ivec3),
 	line_vertices:      [dynamic]Line_Vert,
 }
 

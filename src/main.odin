@@ -347,85 +347,90 @@ main :: proc() {
 					)
 				}
 
-				pos, hit := cast_ray_to_block(state.world, p, f, HIT_DISTANCE)
-				if hit {
+				pos, face, hit := cast_ray_to_block(state.world, p, f, HIT_DISTANCE)
+				if !hit {
+					state.frame.looking_at = nil
+				} else {
+					state.frame.looking_at = pos
 					world_pos := block_pos_to_world_pos(pos)
 					chunk_pos := block_pos_to_chunk_pos(pos)
 					local_pos := block_pos_to_local_pos(pos)
-					chunk, cok := get_world_chunk(state.world, chunk_pos)
-					if cok && chunk != nil {
-						v := &state.frame.line_vertices
-						C :: RGBA{0xff, 0xff, 0xff, 0xff}
-						// bottom
+					v := &state.frame.line_vertices
+					C :: RGBA{0xff, 0xff, 0xff, 0xff}
+
+					switch face {
+					case .Neg_X:
 						append(v, Line_Vert{world_pos + {0, 0, 0}, C})
-						append(v, Line_Vert{world_pos + {1, 0, 0}, C})
+						append(v, Line_Vert{world_pos + {0, 0, 1}, C})
+						append(v, Line_Vert{world_pos + {0, 1, 1}, C})
+						append(v, Line_Vert{world_pos + {0, 1, 0}, C})
+						append(v, Line_Vert{world_pos + {0, 1, 0}, C})
+						append(v, Line_Vert{world_pos + {0, 0, 0}, C})
+						append(v, Line_Vert{world_pos + {0, 0, 1}, C})
+						append(v, Line_Vert{world_pos + {0, 1, 1}, C})
+
+					case .Pos_X:
 						append(v, Line_Vert{world_pos + {1, 0, 0}, C})
 						append(v, Line_Vert{world_pos + {1, 0, 1}, C})
-						append(v, Line_Vert{world_pos + {1, 0, 1}, C})
-						append(v, Line_Vert{world_pos + {0, 0, 1}, C})
-						append(v, Line_Vert{world_pos + {0, 0, 1}, C})
-						append(v, Line_Vert{world_pos + {0, 0, 0}, C})
-						// top
-						append(v, Line_Vert{world_pos + {0, 1, 0}, C})
-						append(v, Line_Vert{world_pos + {1, 1, 0}, C})
-						append(v, Line_Vert{world_pos + {1, 1, 0}, C})
 						append(v, Line_Vert{world_pos + {1, 1, 1}, C})
-						append(v, Line_Vert{world_pos + {1, 1, 1}, C})
-						append(v, Line_Vert{world_pos + {0, 1, 1}, C})
-						append(v, Line_Vert{world_pos + {0, 1, 1}, C})
-						append(v, Line_Vert{world_pos + {0, 1, 0}, C})
-						// left
-						append(v, Line_Vert{world_pos + {0, 0, 0}, C})
-						append(v, Line_Vert{world_pos + {0, 1, 0}, C})
+						append(v, Line_Vert{world_pos + {1, 1, 0}, C})
 						append(v, Line_Vert{world_pos + {1, 1, 0}, C})
 						append(v, Line_Vert{world_pos + {1, 0, 0}, C})
-						// right
-						append(v, Line_Vert{world_pos + {0, 0, 1}, C})
-						append(v, Line_Vert{world_pos + {0, 1, 1}, C})
+						append(v, Line_Vert{world_pos + {1, 0, 1}, C})
 						append(v, Line_Vert{world_pos + {1, 1, 1}, C})
+
+					case .Neg_Y:
+						append(v, Line_Vert{world_pos + {0, 0, 0}, C})
+						append(v, Line_Vert{world_pos + {0, 0, 1}, C})
+						append(v, Line_Vert{world_pos + {1, 0, 1}, C})
+						append(v, Line_Vert{world_pos + {1, 0, 0}, C})
+						append(v, Line_Vert{world_pos + {1, 0, 0}, C})
+						append(v, Line_Vert{world_pos + {0, 0, 0}, C})
+						append(v, Line_Vert{world_pos + {0, 0, 1}, C})
 						append(v, Line_Vert{world_pos + {1, 0, 1}, C})
 
-						if .UI not_in state.window.flags &&
-						   window_get_button(state.window, .Left) == .Press &&
+					case .Pos_Y:
+						append(v, Line_Vert{world_pos + {0, 1, 0}, C})
+						append(v, Line_Vert{world_pos + {0, 1, 1}, C})
+						append(v, Line_Vert{world_pos + {1, 1, 1}, C})
+						append(v, Line_Vert{world_pos + {1, 1, 0}, C})
+						append(v, Line_Vert{world_pos + {1, 1, 0}, C})
+						append(v, Line_Vert{world_pos + {0, 1, 0}, C})
+						append(v, Line_Vert{world_pos + {0, 1, 1}, C})
+						append(v, Line_Vert{world_pos + {1, 1, 1}, C})
+
+					case .Neg_Z:
+						append(v, Line_Vert{world_pos + {0, 0, 0}, C})
+						append(v, Line_Vert{world_pos + {0, 1, 0}, C})
+						append(v, Line_Vert{world_pos + {1, 1, 0}, C})
+						append(v, Line_Vert{world_pos + {1, 0, 0}, C})
+						append(v, Line_Vert{world_pos + {1, 0, 0}, C})
+						append(v, Line_Vert{world_pos + {0, 0, 0}, C})
+						append(v, Line_Vert{world_pos + {0, 1, 0}, C})
+						append(v, Line_Vert{world_pos + {1, 1, 0}, C})
+
+					case .Pos_Z:
+						append(v, Line_Vert{world_pos + {0, 0, 1}, C})
+						append(v, Line_Vert{world_pos + {0, 1, 1}, C})
+						append(v, Line_Vert{world_pos + {1, 1, 1}, C})
+						append(v, Line_Vert{world_pos + {1, 0, 1}, C})
+						append(v, Line_Vert{world_pos + {0, 1, 1}, C})
+						append(v, Line_Vert{world_pos + {1, 1, 1}, C})
+						append(v, Line_Vert{world_pos + {1, 0, 1}, C})
+						append(v, Line_Vert{world_pos + {0, 0, 1}, C})
+					}
+
+
+					if .UI not_in state.window.flags {
+						if window_get_button(state.window, .Left) == .Press &&
 						   window_get_prev_button(state.window, .Left) != .Press {
-							sync.guard(&state.world.lock)
-							chunk_update_block(&state.world, chunk, local_pos, {.Air})
-
-							if local_pos.x == 0 {
-								nb, nbok := get_world_chunk(state.world, chunk_pos + {-1, 0, 0})
-								if nbok {
-									world_mark_chunk_remesh_priority(&state.world, nb)
-								}
-							} else if local_pos.x == 15 {
-								nb, nbok := get_world_chunk(state.world, chunk_pos + {+1, 0, 0})
-								if nbok {
-									world_mark_chunk_remesh_priority(&state.world, nb)
-								}
-							}
-							if local_pos.y == 0 {
-								nb, nbok := get_world_chunk(state.world, chunk_pos + {0, -1, 0})
-								if nbok {
-									world_mark_chunk_remesh_priority(&state.world, nb)
-								}
-							} else if local_pos.y == 15 {
-								nb, nbok := get_world_chunk(state.world, chunk_pos + {0, +1, 0})
-								if nbok {
-									world_mark_chunk_remesh_priority(&state.world, nb)
-								}
-							}
-							if local_pos.z == 0 {
-								nb, nbok := get_world_chunk(state.world, chunk_pos + {0, 0, -1})
-								if nbok {
-									world_mark_chunk_remesh_priority(&state.world, nb)
-								}
-							} else if local_pos.z == 15 {
-								nb, nbok := get_world_chunk(state.world, chunk_pos + {0, 0, +1})
-								if nbok {
-									world_mark_chunk_remesh_priority(&state.world, nb)
-								}
-							}
+							try_destroy_block(&state.world, chunk_pos, local_pos)
+						} else if window_get_button(state.window, .Right) == .Press &&
+						   window_get_prev_button(state.window, .Right) != .Press {
+							try_place_block(&state.world, chunk_pos, local_pos, face)
 						}
 					}
+
 				}
 
 				update_camera(&state, delta_time)
@@ -441,8 +446,8 @@ main :: proc() {
 					)
 
 					if prof.event("generate near chunks") {
-						// TODO: Seems like near chunks are generating way too much
-						//       (to test, unconditionally set mesh.gen_time in update_world)
+						// FIXME: Seems like near chunks are generating way too much
+						//        (to test, unconditionally set mesh.gen_time in update_world)
 
 						for y in i32(0) ..= 1 {
 							for z in i32(-N) ..= N {
@@ -455,7 +460,7 @@ main :: proc() {
 									if !world_generate_chunk(&state.world, chunk_pos) {
 										chunk := &state.world.chunks[chunk_pos]
 										// Chunk is generated, but needs to be sent for meshing
-										if chunk.mesh == nil {
+										if chunk.mesh == nil && !chunk_marked_remesh(chunk) {
 											world_mark_chunk_remesh(&state.world, chunk)
 										}
 									}
@@ -479,6 +484,8 @@ main :: proc() {
 						for chunk in chunks_to_demesh {
 							world_mark_chunk_demesh(&state.world, chunk)
 						}
+
+						// TODO: We never actually get rid of the block data... Should probably do that...
 					}
 				}
 
@@ -933,5 +940,159 @@ main :: proc() {
 			clear(&tracking_allocator.bad_free_array)
 		}
 		free_all(context.temp_allocator)
+	}
+}
+
+try_destroy_block :: proc(w: ^World, chunk_pos: Chunk_Pos, local_pos: Local_Pos) -> bool {
+	sync.guard(&w.lock)
+	if chunk, cok := get_world_chunk(w^, chunk_pos); cok {
+		chunk_update_block(w, chunk, local_pos, {.Air})
+		single_block_update_remesh(w, chunk_pos, local_pos)
+		return true
+	}
+	return false
+}
+
+try_place_block :: proc(
+	w: ^World,
+	chunk_pos: Chunk_Pos,
+	local_pos: Local_Pos,
+	face: Block_Face,
+) -> bool {
+	chunk_pos := chunk_pos
+	local_pos := local_pos
+
+	switch face {
+	case .Neg_X:
+		local_pos += {-1, 0, 0}
+		if local_pos.x < 0 {
+			local_pos.x = 15
+			chunk_pos.x -= 1
+		}
+	case .Pos_X:
+		local_pos += {+1, 0, 0}
+		if local_pos.x > 15 {
+			local_pos.x = 0
+			chunk_pos.x += 1
+		}
+	case .Neg_Y:
+		local_pos += {0, -1, 0}
+		if local_pos.y < 0 {
+			local_pos.y = 15
+			chunk_pos.y -= 1
+		}
+	case .Pos_Y:
+		local_pos += {0, +1, 0}
+		if local_pos.y > 15 {
+			local_pos.y = 0
+			chunk_pos.y += 1
+		}
+	case .Neg_Z:
+		local_pos += {0, 0, -1}
+		if local_pos.z < 0 {
+			local_pos.z = 15
+			chunk_pos.z -= 1
+		}
+	case .Pos_Z:
+		local_pos += {0, 0, +1}
+		if local_pos.z > 15 {
+			local_pos.z = 0
+			chunk_pos.z += 1
+		}
+	}
+
+	sync.guard(&w.lock)
+	if chunk, cok := get_world_chunk(w^, chunk_pos); cok {
+		chunk_update_block(w, chunk, local_pos, {.Stone})
+		single_block_update_remesh(w, chunk_pos, local_pos)
+		return true
+	}
+	return false
+}
+
+single_block_update_remesh :: proc(w: ^World, chunk_pos: Chunk_Pos, local_pos: Local_Pos) {
+	remesh :: proc(w: ^World, pos: Chunk_Pos) {
+		if nb, nbok := get_world_chunk(w^, pos); nbok {
+			world_mark_chunk_remesh_priority(w, nb)
+		}
+	}
+
+	remesh(w, chunk_pos)
+	if local_pos.x == 0 {
+		remesh(w, chunk_pos + {-1, 0, 0})
+		if local_pos.y == 0 {
+			remesh(w, chunk_pos + {-1, -1, 0})
+		} else if local_pos.y == 15 {
+			remesh(w, chunk_pos + {-1, +1, 0})
+		}
+		if local_pos.z == 0 {
+			remesh(w, chunk_pos + {-1, 0, -1})
+		} else if local_pos.z == 15 {
+			remesh(w, chunk_pos + {-1, 0, +1})
+		}
+	} else if local_pos.x == 15 {
+		remesh(w, chunk_pos + {+1, 0, 0})
+		if local_pos.y == 0 {
+			remesh(w, chunk_pos + {+1, -1, 0})
+		} else if local_pos.y == 15 {
+			remesh(w, chunk_pos + {+1, +1, 0})
+		}
+		if local_pos.z == 0 {
+			remesh(w, chunk_pos + {+1, 0, -1})
+		} else if local_pos.z == 15 {
+			remesh(w, chunk_pos + {+1, 0, +1})
+		}
+	}
+
+	if local_pos.y == 0 {
+		remesh(w, chunk_pos + {0, -1, 0})
+		if local_pos.x == 0 {
+			remesh(w, chunk_pos + {-1, -1, 0})
+		} else if local_pos.x == 15 {
+			remesh(w, chunk_pos + {+1, -1, 0})
+		}
+		if local_pos.z == 0 {
+			remesh(w, chunk_pos + {-1, -1, -1})
+		} else if local_pos.z == 15 {
+			remesh(w, chunk_pos + {+1, -1, +1})
+		}
+	} else if local_pos.y == 15 {
+		remesh(w, chunk_pos + {0, +1, 0})
+		if local_pos.x == 0 {
+			remesh(w, chunk_pos + {-1, +1, 0})
+		} else if local_pos.x == 15 {
+			remesh(w, chunk_pos + {+1, +1, 0})
+		}
+		if local_pos.z == 0 {
+			remesh(w, chunk_pos + {0, +1, -1})
+		} else if local_pos.z == 15 {
+			remesh(w, chunk_pos + {0, +1, +1})
+		}
+	}
+
+	if local_pos.z == 0 {
+		remesh(w, chunk_pos + {0, 0, -1})
+		if local_pos.x == 0 {
+			remesh(w, chunk_pos + {-1, 0, -1})
+		} else if local_pos.x == 15 {
+			remesh(w, chunk_pos + {+1, 0, -1})
+		}
+		if local_pos.y == 0 {
+			remesh(w, chunk_pos + {0, -1, -1})
+		} else if local_pos.y == 15 {
+			remesh(w, chunk_pos + {0, +1, -1})
+		}
+	} else if local_pos.z == 15 {
+		remesh(w, chunk_pos + {0, 0, +1})
+		if local_pos.x == 0 {
+			remesh(w, chunk_pos + {-1, 0, +1})
+		} else if local_pos.x == 15 {
+			remesh(w, chunk_pos + {+1, 0, +1})
+		}
+		if local_pos.y == 0 {
+			remesh(w, chunk_pos + {0, -1, +1})
+		} else if local_pos.y == 15 {
+			remesh(w, chunk_pos + {0, +1, +1})
+		}
 	}
 }

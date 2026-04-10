@@ -142,6 +142,7 @@ update_world :: proc(world: ^World, player_pos: glm.vec3) {
 				if old_mesh == nil {
 					chunk.mesh.gen_time = f32(glfw.GetTime())
 				} else {
+					chunk.mesh.gen_time = old_mesh.gen_time
 					append(&world.prio_msg_stack, Meshgen_Msg_Tombstone{old_mesh})
 				}
 

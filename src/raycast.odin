@@ -13,6 +13,7 @@ cast_ray_to_block :: proc(
 	dist: int,
 ) -> (
 	block_pos: Block_Pos,
+	face: Block_Face,
 	hit: bool,
 ) {
 	// Based on:
@@ -52,20 +53,38 @@ cast_ray_to_block :: proc(
 
 		block, block_ok := get_world_block(world, pos)
 		if block_ok && block.id != .Air {
-			return pos, true
+			return pos, face, true
 		}
 
 		if t_max.x < t_max.y && t_max.x < t_max.z {
 			pos.x += i32(step.x)
 			t_max.x += t_delta.x
+
+			if step.x > 0 {
+				face = .Neg_X
+			} else {
+				face = .Pos_X
+			}
 		} else if t_max.y < t_max.z {
 			pos.y += i32(step.y)
 			t_max.y += t_delta.y
+
+			if step.y > 0 {
+				face = .Neg_Y
+			} else {
+				face = .Pos_Y
+			}
 		} else {
 			pos.z += i32(step.z)
 			t_max.z += t_delta.z
+
+			if step.z > 0 {
+				face = .Neg_Z
+			} else {
+				face = .Pos_Z
+			}
 		}
 	}
 
-	return {}, false
+	return {}, .Neg_X, false
 }
