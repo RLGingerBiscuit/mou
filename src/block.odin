@@ -2,6 +2,8 @@ package mou
 
 import glm "core:math/linalg/glsl"
 
+TRANSPARENT_LEAVES :: false
+
 Block_Face :: enum {
 	Neg_X,
 	Pos_X,
@@ -43,6 +45,9 @@ Block_ID :: enum u8 {
 	Grass,
 	Water,
 	Glass,
+	Log,
+	Leaves,
+	Planks,
 }
 
 Block :: struct {
@@ -53,8 +58,10 @@ block_is_opaque :: proc(block: Block) -> bool {
 	switch block.id {
 	case .Air, .Glass, .Water:
 		return false
-	case .Stone, .Grass, .Dirt:
+	case .Stone, .Grass, .Dirt, .Log, .Planks:
 		return true
+	case .Leaves:
+		return !TRANSPARENT_LEAVES
 	}
 	unreachable()
 }
@@ -63,7 +70,7 @@ block_culls_self :: proc(block: Block) -> bool {
 	switch block.id {
 	case .Air:
 		return false
-	case .Stone, .Grass, .Dirt, .Glass, .Water:
+	case .Stone, .Grass, .Dirt, .Glass, .Water, .Log, .Leaves, .Planks:
 		return true
 	case:
 		unreachable()
@@ -91,9 +98,17 @@ block_asset_name :: proc(block: Block, face: Block_Face) -> string {
 	case .Glass:
 		return "glass.png"
 
-	// TODO: animated water somehow
 	case .Water:
 		return "water.png"
+
+	case .Log:
+		return face == .Pos_Y ? "log_top.png" : "log_side.png"
+
+	case .Leaves:
+		return TRANSPARENT_LEAVES ? "leaves_transparent.png" : "leaves.png"
+
+	case .Planks:
+		return "planks.png"
 
 	case .Air:
 		fallthrough
