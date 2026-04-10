@@ -282,7 +282,7 @@ main :: proc() {
 	show_window(&state.window)
 	window_center_cursor(&state.window)
 
-	gl.LineWidth(4)
+	gl.LineWidth(max(2.5, f32(get_window_size(state.window).x) / 1920 * 2.5))
 
 	prev_delta_times: [dynamic; 60]f64
 	for !window_should_close(state.window) {

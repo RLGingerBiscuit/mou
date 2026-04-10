@@ -248,7 +248,7 @@ mu_update_ui :: proc(state: ^State, dt: f64) {
 	mu.begin(ctx)
 	defer mu.end(ctx)
 
-	if mu.window(ctx, "Minceraft", {10, 50, 340, 390}, {.NO_CLOSE}, FONT_BOUNCY) {
+	if mu.window(ctx, "Minceraft", {10, 50, 350, 390}, {.NO_CLOSE}, FONT_BOUNCY) {
 		LABEL_WIDTH :: 140
 
 		mu.layout_row(ctx, {LABEL_WIDTH, -1})
