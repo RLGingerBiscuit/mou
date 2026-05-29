@@ -12,7 +12,7 @@ odin_exe := 'odin'
 odin_args := '-vet -vet-cast -vet-tabs -strict-style -collection:third=third'
 build_args := odin_args + ' -keep-executable'
 debug_args := build_args + ' -debug'
-release_args := build_args + ' -o:speed -subsystem:windows'
+release_args := build_args + ' -o:speed' + if os_family() == 'windows' { ' -subsystem:windows' } else { '' }
 
 # Default recipe which runs `just build-release`
 default: build-release

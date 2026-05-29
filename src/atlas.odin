@@ -39,7 +39,7 @@ make_atlas :: proc(asset_path: string, mips := true) -> (atlas: Atlas) {
 
 	atlas_name := filepath.base(asset_path)
 	if atlas_name == "" {
-		atlas_name = filepath.base(filepath.dir(asset_path, context.temp_allocator))
+		atlas_name = filepath.base(filepath.dir(asset_path))
 	}
 
 	atlas_levels: [ATLAS_LEVELS]Image
