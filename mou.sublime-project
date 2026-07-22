@@ -48,9 +48,14 @@
 				{
 					"cmd": ["just", "run-release"],
 					"name": "Run (Release)",
-				},				{
+				},
+				{
 					"cmd": ["just", "package"],
 					"name": "Package",
+				},
+				{
+					"cmd": ["just", "run-debug", "-define:PROFILING=true"],
+					"name": "Run (Profiled)",
 				}
 			],
 		}

@@ -58,7 +58,7 @@ init :: proc(name := "", allocator := context.allocator, loc := #caller_location
 		now_buf[len(a) + 6] = '-'
 		now_str := cast(string)now_buf[:]
 
-		os2.mkdir_all("debug/prof/")
+		os.mkdir_all("debug/prof/")
 		filename := strings.concatenate(
 			{"debug/prof/prof-", now_str, ".spall"},
 			context.temp_allocator,
