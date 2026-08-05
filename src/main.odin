@@ -247,11 +247,11 @@ main :: proc() {
 	defer destroy_framebuffer(&state.fbo)
 
 	if prof.event("initial chunk generation") {
+		sync.guard(&state.world.lock)
 		N := state.render_distance
 		for y in i32(0) ..= 1 {
 			for z in i32(-N) ..= N {
 				for x in i32(-N) ..= N {
-					sync.guard(&state.world.lock)
 					world_generate_chunk(&state.world, {x, y, z})
 				}
 			}
@@ -439,6 +439,7 @@ main :: proc() {
 						// FIXME: Seems like near chunks are generating way too much
 						//        (to test, unconditionally set mesh.gen_time in update_world)
 
+						sync.guard(&state.world.lock)
 						for y in i32(0) ..= 1 {
 							for z in i32(-N) ..= N {
 								for x in i32(-N) ..= N {
@@ -446,7 +447,6 @@ main :: proc() {
 									if !frustum_contains_chunk(frustum, chunk_pos) {
 										continue
 									}
-									sync.guard(&state.world.lock)
 									if !world_generate_chunk(&state.world, chunk_pos) {
 										chunk := &state.world.chunks[chunk_pos]
 										// Chunk is generated, but needs to be sent for meshing
