@@ -294,6 +294,21 @@ main :: proc() {
 
 	gl.LineWidth(max(2.5, f32(get_window_size(state.window).x) / 1920 * 2.5))
 
+	{
+		vendor := gl.GetString(gl.VENDOR)
+		renderer := gl.GetString(gl.RENDERER)
+		version := gl.GetString(gl.VERSION)
+		sl_ver := gl.GetString(gl.SHADING_LANGUAGE_VERSION)
+		profile: i32
+		gl.GetIntegerv(gl.CONTEXT_PROFILE_MASK, &profile)
+		log.infof("Vendor: {}", vendor)
+		log.infof("Renderer: {}", renderer)
+		log.infof("Version: {}", version)
+		log.infof("Shader Lang Version: {}", sl_ver)
+		log.infof("Profile: {}", profile)
+	}
+
+
 	prev_delta_times: [dynamic; 60]f64
 	for !window_should_close(state.window) {
 		current_time := state.window.time
@@ -522,34 +537,6 @@ main :: proc() {
 				}
 
 				update_window(&state.window)
-			}
-
-			when false {
-				{
-					clear(&state.frame.memory_usage)
-					for _, chunk in state.world.chunks {
-						mesh := chunk.mesh
-						if mesh == nil {continue}
-						append(
-							&state.frame.memory_usage,
-							[7]int {
-								len(mesh.opaque) * size_of(Mesh_Face) +
-								len(mesh.opaque_indices) * size_of(Mesh_Face_Indexes),
-								cap(mesh.opaque) * size_of(Mesh_Face) +
-								cap(mesh.opaque_indices) * size_of(Mesh_Face_Indexes),
-								len(mesh.transparent) * size_of(Mesh_Face) +
-								len(mesh.transparent_indices) * size_of(Mesh_Face_Indexes),
-								cap(mesh.transparent) * size_of(Mesh_Face) +
-								cap(mesh.transparent_indices) * size_of(Mesh_Face_Indexes),
-								len(chunk.blocks) * size_of(Block),
-								len(mesh.water) * size_of(Mesh_Face) +
-								len(mesh.water_indices) * size_of(Mesh_Face_Indexes),
-								cap(mesh.water) * size_of(Mesh_Face) +
-								cap(mesh.water_indices) * size_of(Mesh_Face_Indexes),
-							},
-						)
-					}
-				}
 			}
 
 			if capture_frame {
@@ -867,6 +854,7 @@ main :: proc() {
 
 				defer clear(&state.frame.line_vertices)
 				if prof.event("render lines") {
+					debug_group("Lines")
 					if state.render_frustum {
 						frustum_vertices := get_frustum_vertices(frustum)
 						append(&state.frame.line_vertices, ..frustum_vertices[:])
@@ -894,6 +882,7 @@ main :: proc() {
 				}
 
 				{ 	// TODO: Do this but better
+					debug_group("Crosshair")
 					if .Wireframe in state.camera.flags {
 						gl.PolygonMode(gl.FRONT_AND_BACK, gl.FILL)
 					}
