@@ -1,5 +1,3 @@
-#version 460 core
-
 #include <include/fog.glsl>
 #include <include/utils.glsl>
 

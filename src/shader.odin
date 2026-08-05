@@ -8,6 +8,7 @@ import "core:os"
 import "core:path/filepath"
 import "core:strings"
 import gl "vendor:OpenGL"
+import "vendor:glfw"
 
 // Only in debug
 _ :: fmt
@@ -18,13 +19,28 @@ Uniform :: struct {
 	location: i32,
 }
 
+Define :: struct {
+	key, value: string,
+}
+
 Shader :: struct {
 	handle:   u32,
 	uniforms: map[string]Uniform,
 }
 
-make_shader :: proc(vert_path, frag_path: string, loc := #caller_location) -> (shader: Shader) {
-	load_shader :: proc(src_path: string, allocator := context.allocator) -> string {
+make_shader :: proc(
+	vert_path, frag_path: string,
+	defines: []Define = nil,
+	loc := #caller_location,
+) -> (
+	shader: Shader,
+) {
+	load_shader :: proc(
+		src_path: string,
+		defines: []Define,
+		depth := 0,
+		allocator := context.allocator,
+	) -> string {
 		context.allocator = allocator
 
 		src, err := os.read_entire_file(src_path, context.temp_allocator)
@@ -35,6 +51,25 @@ make_shader :: proc(vert_path, frag_path: string, loc := #caller_location) -> (s
 
 		b := strings.builder_make(0, int(cast(f32)len(src_str) * 1.2))
 		// defer resize(&b.buf, len(b.buf))
+
+		if depth == 0 {
+			strings.write_string(&b, "#version ")
+			strings.write_int(&b, GL_MAJOR)
+			strings.write_int(&b, GL_MINOR)
+			strings.write_int(&b, 0)
+			if GLFW_PROFILE == glfw.OPENGL_CORE_PROFILE {
+				strings.write_string(&b, " core")
+			}
+			strings.write_byte(&b, '\n')
+		}
+
+		for def in defines {
+			strings.write_string(&b, "#define ")
+			strings.write_string(&b, def.key)
+			strings.write_byte(&b, ' ')
+			strings.write_string(&b, def.value)
+			strings.write_byte(&b, '\n')
+		}
 
 		for line in strings.split_lines_iterator(&src_str) {
 			if !strings.starts_with(line, "#include ") {
@@ -74,7 +109,8 @@ make_shader :: proc(vert_path, frag_path: string, loc := #caller_location) -> (s
 				log.panicf("Could not find '{}' (included from '{}')", inc_path, src_path)
 			}
 
-			inc_src := load_shader(inc_path, context.temp_allocator)
+			// Don't include defines multiple times
+			inc_src := load_shader(inc_path, {}, depth + 1, context.temp_allocator)
 			defer delete(inc_src, context.temp_allocator)
 
 			strings.write_string(&b, inc_src)
@@ -84,9 +120,9 @@ make_shader :: proc(vert_path, frag_path: string, loc := #caller_location) -> (s
 		return strings.to_string(b)
 	}
 
-	vert := load_shader(vert_path)
+	vert := load_shader(vert_path, defines)
 	defer delete(vert)
-	frag := load_shader(frag_path)
+	frag := load_shader(frag_path, defines)
 	defer delete(frag)
 
 	ok: bool

@@ -1,5 +1,3 @@
-#version 460 core
-
 out vec2 tex_coord;
 
 void main() {

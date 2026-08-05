@@ -1,3 +1,5 @@
+#define ALPHA_CUTOUT_THRESHOLD 0.1
+
 vec4 unpack_colour(uint colour) {
     return vec4(
         (float((colour & uint(0x000000ff)) >> 0)) / 255,

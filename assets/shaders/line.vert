@@ -1,5 +1,3 @@
-#version 460 core
-
 #include <include/utils.glsl>
 
 layout(location = 0) in vec3 position0;

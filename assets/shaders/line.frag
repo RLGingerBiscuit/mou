@@ -1,5 +1,3 @@
-#version 460 core
-
 in vec4 vertex_colour;
 
 out vec4 frag_colour;

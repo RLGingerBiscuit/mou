@@ -185,9 +185,14 @@ main :: proc() {
 	gl.Enable(gl.CULL_FACE)
 	gl.BlendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA)
 
-	chunk_shader := make_shader("assets/shaders/chunk.vert", "assets/shaders/chunk.frag")
-	defer destroy_shader(&chunk_shader)
-
+	opaque_shader := make_shader("assets/shaders/chunk.vert", "assets/shaders/chunk.frag")
+	defer destroy_shader(&opaque_shader)
+	transparent_shader := make_shader(
+		"assets/shaders/chunk.vert",
+		"assets/shaders/chunk.frag",
+		{{"ALPHA_CUTOUT", ""}},
+	)
+	defer destroy_shader(&transparent_shader)
 	water_shader := make_shader("assets/shaders/water.vert", "assets/shaders/water.frag")
 	defer destroy_shader(&water_shader)
 
@@ -209,9 +214,13 @@ main :: proc() {
 	init_world(&state.world, &block_atlas)
 	defer destroy_world(&state.world)
 
-	opaque_renderer := make_renderer(chunk_shader, .Dynamic, {.Indexed, .Owns_VBO, .Owns_EBO})
+	opaque_renderer := make_renderer(opaque_shader, .Dynamic, {.Indexed, .Owns_VBO, .Owns_EBO})
 	defer destroy_renderer(&opaque_renderer)
-	transparent_renderer := make_renderer(chunk_shader, .Dynamic, {.Indexed, .Owns_VBO, .Owns_EBO})
+	transparent_renderer := make_renderer(
+		transparent_shader,
+		.Dynamic,
+		{.Indexed, .Owns_VBO, .Owns_EBO},
+	)
 	defer destroy_renderer(&transparent_renderer)
 	water_renderer := make_renderer(water_shader, .Dynamic, {.Indexed, .Owns_VBO, .Owns_EBO})
 	defer destroy_renderer(&water_renderer)

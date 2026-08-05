@@ -1,5 +1,3 @@
-#version 460 core
-
 #include <include/fog.glsl>
 #include <include/utils.glsl>
 
@@ -26,9 +24,10 @@ void main() {
     else
         colour = texture(u_atlas, tex_coord) * vertex_colour;
 
-    if (colour.a < 0.1) {
+#ifdef ALPHA_CUTOUT
+    if (colour.a < ALPHA_CUTOUT_THRESHOLD)
         discard;
-    }
+#endif
 
     colour = mix(u_fog_colour * vec4(1, 1, 1, colour.a), colour, u_visibility);
     frag_colour = linear_fog(colour, vertex_distance, u_fog_start, u_fog_end, u_fog_colour);
