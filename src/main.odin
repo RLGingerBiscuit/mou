@@ -568,7 +568,16 @@ main :: proc() {
 				SKY_COLOUR := RGBA32{0.3, 0.6, 0.8, 1}
 				window_size := get_window_size(state.window)
 				gl.Viewport(0, 0, window_size.x, window_size.y)
-				{debug_group("Clear")
+
+				// Ensure stuff is reset
+				gl.Enable(gl.CULL_FACE)
+				gl.Enable(gl.DEPTH_TEST)
+				gl.Disable(gl.BLEND)
+				gl.Disable(gl.SCISSOR_TEST)
+				gl.DepthMask(true)
+
+				{
+					debug_group("Clear")
 					gl.ClearColor(SKY_COLOUR[0], SKY_COLOUR[1], SKY_COLOUR[2], SKY_COLOUR[3])
 					gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
 				}
@@ -577,13 +586,6 @@ main :: proc() {
 				view_matrix := state.camera.view_matrix
 				proj_view := projection_matrix * view_matrix
 				frustum := create_frustum(state.frozen_frustum.? or_else proj_view)
-
-				// Ensure stuff is reset
-				gl.Enable(gl.CULL_FACE)
-				gl.Enable(gl.DEPTH_TEST)
-				gl.Disable(gl.BLEND)
-				gl.Disable(gl.SCISSOR_TEST)
-				gl.DepthMask(true)
 
 				if prof.event("render chunks") {
 					debug_group("Render Chunks")
