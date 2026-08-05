@@ -311,11 +311,11 @@ block_pos_to_local_pos :: proc(block_pos: Block_Pos) -> Local_Pos {
 	return block_pos - block_pos_to_chunk_pos(block_pos) * CHUNK_SIZE
 }
 
-get_world_chunk :: proc(world: World, chunk_pos: Chunk_Pos) -> (c: ^Chunk, ok: bool) {
+get_world_chunk :: proc(#by_ptr world: World, chunk_pos: Chunk_Pos) -> (c: ^Chunk, ok: bool) {
 	return &world.chunks[chunk_pos]
 }
 
-get_world_block :: proc(world: World, block_pos: Block_Pos) -> (b: Block, ok: bool) {
+get_world_block :: proc(#by_ptr world: World, block_pos: Block_Pos) -> (b: Block, ok: bool) {
 	chunk_pos := block_pos_to_chunk_pos(block_pos)
 	local_pos := block_pos_to_local_pos(block_pos)
 	chunk := get_world_chunk(world, chunk_pos) or_return

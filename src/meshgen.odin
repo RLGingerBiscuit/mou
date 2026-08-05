@@ -69,13 +69,13 @@ init_meshgen_thread :: proc(
 	world_rx := chan.as_recv(mg._world_chan)
 	world_tx := chan.as_send(mg._world_chan)
 
+	ensure(vmem.arena_init_growing(&mg.arena) == nil)
+
 	mg.rx = rx
 	mg.world_tx = world_tx
 	mg.world = world
 	mg.th = thread.create_and_start_with_poly_data(mg, _meshgen_thread_proc)
 	ensure(mg.th != nil)
-
-	ensure(vmem.arena_init_growing(&mg.arena) == nil)
 
 	return tx, world_rx
 }
@@ -168,84 +168,114 @@ mesh_chunk :: proc(world: ^World, chunk: ^Chunk, mesh: ^Generated_Chunk_Mesh) {
 
 	WATER_TOP_OFFSET :: (f32(1) / CHUNK_SIZE)
 
+	MESHGEN_CHUNK_SIZE :: 18
+	Meshgen_Chunk :: [MESHGEN_CHUNK_SIZE * MESHGEN_CHUNK_SIZE * MESHGEN_CHUNK_SIZE]Block
+
+	meshgen_index :: #force_inline proc(pos: glm.ivec3) -> i32 {
+		return (pos.y + 1) * MESHGEN_CHUNK_SIZE * MESHGEN_CHUNK_SIZE + (pos.z + 1) * MESHGEN_CHUNK_SIZE + (pos.x + 1)
+	}
+	meshgen_get :: #force_inline proc(mg: ^Meshgen_Chunk, pos: glm.ivec3) -> Block {
+		return mg[meshgen_index(pos)]
+	}
+
 	chunk_block_pos := chunk_pos_to_block_pos(chunk.pos)
+
+	mg_chunk: Meshgen_Chunk
+	{
+		sync.shared_guard(&world.lock)
+
+		for py in i32(-1) ..< MESHGEN_CHUNK_SIZE - 1 {
+			for pz in i32(-1) ..< MESHGEN_CHUNK_SIZE - 1 {
+				for px in i32(-1) ..< MESHGEN_CHUNK_SIZE - 1 {
+					block_pos := Block_Pos{px, py, pz}
+					world_pos := chunk_block_pos + block_pos
+					if b, ok := get_world_block(world^, world_pos); ok {
+						mg_chunk[meshgen_index(block_pos)] = b
+					}
+				}
+			}
+		}
+	}
 
 	for y in i32(0) ..< CHUNK_SIZE {
 		for z in i32(0) ..< CHUNK_SIZE {
 			for x in i32(0) ..< CHUNK_SIZE {
-				block := chunk.blocks[local_coords_to_block_index(x, y, z)]
+				block := meshgen_get(&mg_chunk, {x, y, z})
 				if block.id == .Air {
 					continue
 				}
 
-				bnx, bnxok := get_world_block(world^, chunk_block_pos + {x - 1, y, z})
-				bpx, bpxok := get_world_block(world^, chunk_block_pos + {x + 1, y, z})
-				bny, bnyok := get_world_block(world^, chunk_block_pos + {x, y - 1, z})
-				bpy, bpyok := get_world_block(world^, chunk_block_pos + {x, y + 1, z})
-				bnz, bnzok := get_world_block(world^, chunk_block_pos + {x, y, z - 1})
-				bpz, bpzok := get_world_block(world^, chunk_block_pos + {x, y, z + 1})
+				bnx := meshgen_get(&mg_chunk, {x - 1, y, z})
+				bpx := meshgen_get(&mg_chunk, {x + 1, y, z})
+				bny := meshgen_get(&mg_chunk, {x, y - 1, z})
+				bpy := meshgen_get(&mg_chunk, {x, y + 1, z})
+				bnz := meshgen_get(&mg_chunk, {x, y, z - 1})
+				bpz := meshgen_get(&mg_chunk, {x, y, z + 1})
 
-				bnnn, bnnnok := get_world_block(world^, chunk_block_pos + {x - 1, y - 1, z - 1})
-				bnnz, bnnzok := get_world_block(world^, chunk_block_pos + {x - 1, y - 1, z + 0})
-				bnnp, bnnpok := get_world_block(world^, chunk_block_pos + {x - 1, y - 1, z + 1})
-				bnzn, bnznok := get_world_block(world^, chunk_block_pos + {x - 1, y + 0, z - 1})
-				bnzp, bnzpok := get_world_block(world^, chunk_block_pos + {x - 1, y + 0, z + 1})
-				bnpn, bnpnok := get_world_block(world^, chunk_block_pos + {x - 1, y + 1, z - 1})
-				bnpz, bnpzok := get_world_block(world^, chunk_block_pos + {x - 1, y + 1, z + 0})
-				bnpp, bnppok := get_world_block(world^, chunk_block_pos + {x - 1, y + 1, z + 1})
-				bznn, bznnok := get_world_block(world^, chunk_block_pos + {x + 0, y - 1, z - 1})
-				bznp, bznpok := get_world_block(world^, chunk_block_pos + {x + 0, y - 1, z + 1})
-				bzpn, bzpnok := get_world_block(world^, chunk_block_pos + {x + 0, y + 1, z - 1})
-				bzpp, bzppok := get_world_block(world^, chunk_block_pos + {x + 0, y + 1, z + 1})
-				bpnn, bpnnok := get_world_block(world^, chunk_block_pos + {x + 1, y - 1, z - 1})
-				bpnz, bpnzok := get_world_block(world^, chunk_block_pos + {x + 1, y - 1, z + 0})
-				bpnp, bpnpok := get_world_block(world^, chunk_block_pos + {x + 1, y - 1, z + 1})
-				bpzn, bpznok := get_world_block(world^, chunk_block_pos + {x + 1, y + 0, z - 1})
-				bpzp, bpzpok := get_world_block(world^, chunk_block_pos + {x + 1, y + 0, z + 1})
-				bppn, bppnok := get_world_block(world^, chunk_block_pos + {x + 1, y + 1, z - 1})
-				bppz, bppzok := get_world_block(world^, chunk_block_pos + {x + 1, y + 1, z + 0})
-				bppp, bpppok := get_world_block(world^, chunk_block_pos + {x + 1, y + 1, z + 1})
 
-				// Which directions SHOULD faces be placed
 				mask: Block_Face_Mask
-				ao_mask: Block_Diag_Mask
-
 				mask |=
-					bnxok && bnx.id != .Air && (block_is_opaque(bnx) || (bnx.id == block.id && block_culls_self(bnx))) ? {} : {.Neg_X}
+					bnx.id != .Air && (block_is_opaque(bnx) || (bnx.id == block.id && block_culls_self(bnx))) ? {} : {.Neg_X}
 				mask |=
-					bpxok && bpx.id != .Air && (block_is_opaque(bpx) || (bpx.id == block.id && block_culls_self(bpx))) ? {} : {.Pos_X}
+					bpx.id != .Air && (block_is_opaque(bpx) || (bpx.id == block.id && block_culls_self(bpx))) ? {} : {.Pos_X}
 				mask |=
-					bnyok && bny.id != .Air && (block_is_opaque(bny) || (bny.id == block.id && block_culls_self(bny))) ? {} : {.Neg_Y}
+					bny.id != .Air && (block_is_opaque(bny) || (bny.id == block.id && block_culls_self(bny))) ? {} : {.Neg_Y}
 				mask |=
-					bpyok && bpy.id != .Air && (block_is_opaque(bpy) || (bpy.id == block.id && block_culls_self(bpy))) ? {} : {.Pos_Y}
+					bpy.id != .Air && (block_is_opaque(bpy) || (bpy.id == block.id && block_culls_self(bpy))) ? {} : {.Pos_Y}
 				mask |=
-					bnzok && bnz.id != .Air && (block_is_opaque(bnz) || (bnz.id == block.id && block_culls_self(bnz))) ? {} : {.Neg_Z}
+					bnz.id != .Air && (block_is_opaque(bnz) || (bnz.id == block.id && block_culls_self(bnz))) ? {} : {.Neg_Z}
 				mask |=
-					bpzok && bpz.id != .Air && (block_is_opaque(bpz) || (bpz.id == block.id && block_culls_self(bpz))) ? {} : {.Pos_Z}
-
-				ao_mask |= bnnnok && bnnn.id != .Air && block_is_opaque(bnnn) ? {.NNN} : {}
-				ao_mask |= bnnzok && bnnz.id != .Air && block_is_opaque(bnnz) ? {.NNZ} : {}
-				ao_mask |= bnnpok && bnnp.id != .Air && block_is_opaque(bnnp) ? {.NNP} : {}
-				ao_mask |= bnznok && bnzn.id != .Air && block_is_opaque(bnzn) ? {.NZN} : {}
-				ao_mask |= bnzpok && bnzp.id != .Air && block_is_opaque(bnzp) ? {.NZP} : {}
-				ao_mask |= bnpnok && bnpn.id != .Air && block_is_opaque(bnpn) ? {.NPN} : {}
-				ao_mask |= bnpzok && bnpz.id != .Air && block_is_opaque(bnpz) ? {.NPZ} : {}
-				ao_mask |= bnppok && bnpp.id != .Air && block_is_opaque(bnpp) ? {.NPP} : {}
-				ao_mask |= bznnok && bznn.id != .Air && block_is_opaque(bznn) ? {.ZNN} : {}
-				ao_mask |= bznpok && bznp.id != .Air && block_is_opaque(bznp) ? {.ZNP} : {}
-				ao_mask |= bzpnok && bzpn.id != .Air && block_is_opaque(bzpn) ? {.ZPN} : {}
-				ao_mask |= bzppok && bzpp.id != .Air && block_is_opaque(bzpp) ? {.ZPP} : {}
-				ao_mask |= bpnnok && bpnn.id != .Air && block_is_opaque(bpnn) ? {.PNN} : {}
-				ao_mask |= bpnzok && bpnz.id != .Air && block_is_opaque(bpnz) ? {.PNZ} : {}
-				ao_mask |= bpnpok && bpnp.id != .Air && block_is_opaque(bpnp) ? {.PNP} : {}
-				ao_mask |= bpznok && bpzn.id != .Air && block_is_opaque(bpzn) ? {.PZN} : {}
-				ao_mask |= bpzpok && bpzp.id != .Air && block_is_opaque(bpzp) ? {.PZP} : {}
-				ao_mask |= bppnok && bppn.id != .Air && block_is_opaque(bppn) ? {.PPN} : {}
-				ao_mask |= bppzok && bppz.id != .Air && block_is_opaque(bppz) ? {.PPZ} : {}
-				ao_mask |= bpppok && bppp.id != .Air && block_is_opaque(bppp) ? {.PPP} : {}
+					bpz.id != .Air && (block_is_opaque(bpz) || (bpz.id == block.id && block_culls_self(bpz))) ? {} : {.Pos_Z}
 
 				if mask == {} {
 					continue
+				}
+
+				// Which directions SHOULD faces be placed
+				ao_mask: Block_Diag_Mask
+
+				if block.id != .Water {
+					bnnn := meshgen_get(&mg_chunk, {x - 1, y - 1, z - 1})
+					bnnz := meshgen_get(&mg_chunk, {x - 1, y - 1, z + 0})
+					bnnp := meshgen_get(&mg_chunk, {x - 1, y - 1, z + 1})
+					bnzn := meshgen_get(&mg_chunk, {x - 1, y + 0, z - 1})
+					bnzp := meshgen_get(&mg_chunk, {x - 1, y + 0, z + 1})
+					bnpn := meshgen_get(&mg_chunk, {x - 1, y + 1, z - 1})
+					bnpz := meshgen_get(&mg_chunk, {x - 1, y + 1, z + 0})
+					bnpp := meshgen_get(&mg_chunk, {x - 1, y + 1, z + 1})
+					bznn := meshgen_get(&mg_chunk, {x + 0, y - 1, z - 1})
+					bznp := meshgen_get(&mg_chunk, {x + 0, y - 1, z + 1})
+					bzpn := meshgen_get(&mg_chunk, {x + 0, y + 1, z - 1})
+					bzpp := meshgen_get(&mg_chunk, {x + 0, y + 1, z + 1})
+					bpnn := meshgen_get(&mg_chunk, {x + 1, y - 1, z - 1})
+					bpnz := meshgen_get(&mg_chunk, {x + 1, y - 1, z + 0})
+					bpnp := meshgen_get(&mg_chunk, {x + 1, y - 1, z + 1})
+					bpzn := meshgen_get(&mg_chunk, {x + 1, y + 0, z - 1})
+					bpzp := meshgen_get(&mg_chunk, {x + 1, y + 0, z + 1})
+					bppn := meshgen_get(&mg_chunk, {x + 1, y + 1, z - 1})
+					bppz := meshgen_get(&mg_chunk, {x + 1, y + 1, z + 0})
+					bppp := meshgen_get(&mg_chunk, {x + 1, y + 1, z + 1})
+
+					ao_mask |= bnnn.id != .Air && block_is_opaque(bnnn) ? {.NNN} : {}
+					ao_mask |= bnnz.id != .Air && block_is_opaque(bnnz) ? {.NNZ} : {}
+					ao_mask |= bnnp.id != .Air && block_is_opaque(bnnp) ? {.NNP} : {}
+					ao_mask |= bnzn.id != .Air && block_is_opaque(bnzn) ? {.NZN} : {}
+					ao_mask |= bnzp.id != .Air && block_is_opaque(bnzp) ? {.NZP} : {}
+					ao_mask |= bnpn.id != .Air && block_is_opaque(bnpn) ? {.NPN} : {}
+					ao_mask |= bnpz.id != .Air && block_is_opaque(bnpz) ? {.NPZ} : {}
+					ao_mask |= bnpp.id != .Air && block_is_opaque(bnpp) ? {.NPP} : {}
+					ao_mask |= bznn.id != .Air && block_is_opaque(bznn) ? {.ZNN} : {}
+					ao_mask |= bznp.id != .Air && block_is_opaque(bznp) ? {.ZNP} : {}
+					ao_mask |= bzpn.id != .Air && block_is_opaque(bzpn) ? {.ZPN} : {}
+					ao_mask |= bzpp.id != .Air && block_is_opaque(bzpp) ? {.ZPP} : {}
+					ao_mask |= bpnn.id != .Air && block_is_opaque(bpnn) ? {.PNN} : {}
+					ao_mask |= bpnz.id != .Air && block_is_opaque(bpnz) ? {.PNZ} : {}
+					ao_mask |= bpnp.id != .Air && block_is_opaque(bpnp) ? {.PNP} : {}
+					ao_mask |= bpzn.id != .Air && block_is_opaque(bpzn) ? {.PZN} : {}
+					ao_mask |= bpzp.id != .Air && block_is_opaque(bpzp) ? {.PZP} : {}
+					ao_mask |= bppn.id != .Air && block_is_opaque(bppn) ? {.PPN} : {}
+					ao_mask |= bppz.id != .Air && block_is_opaque(bppz) ? {.PPZ} : {}
+					ao_mask |= bppp.id != .Air && block_is_opaque(bppp) ? {.PPP} : {}
 				}
 
 				local_pos := Local_Pos{x, y, z}
@@ -259,34 +289,22 @@ mesh_chunk :: proc(world: ^World, chunk: ^Chunk, mesh: ^Generated_Chunk_Mesh) {
 					face_verts = position_face(.Neg_Y, ao_mask, local_pos, block, world.atlas)
 					if block.id == .Water {
 						append(vertices, face_verts)
-						face_verts = position_face(
-							.Pos_Y,
-							ao_mask,
-							local_pos + {0, -1, 0},
-							block,
-							world.atlas,
-						)
+						face_verts = position_face(.Pos_Y, ao_mask, local_pos + {0, -1, 0}, block, world.atlas)
 					}
 					append(vertices, face_verts)
 				}
 				if .Pos_Y in mask {
 					face_verts = position_face(.Pos_Y, ao_mask, local_pos, block, world.atlas)
 					if block.id == .Water {
-						if bpyok && bpy.id != .Water {
+						if bpy.id != .Water {
 							face_verts[0].pos.y -= WATER_TOP_OFFSET
 							face_verts[1].pos.y -= WATER_TOP_OFFSET
 							face_verts[2].pos.y -= WATER_TOP_OFFSET
 							face_verts[3].pos.y -= WATER_TOP_OFFSET
 						}
 						append(vertices, face_verts)
-						face_verts = position_face(
-							.Neg_Y,
-							ao_mask,
-							local_pos + {0, 1, 0},
-							block,
-							world.atlas,
-						)
-						if bpyok && bpy.id != .Water {
+						face_verts = position_face(.Neg_Y, ao_mask, local_pos + {0, 1, 0}, block, world.atlas)
+						if bpy.id != .Water {
 							face_verts[0].pos.y -= WATER_TOP_OFFSET
 							face_verts[1].pos.y -= WATER_TOP_OFFSET
 							face_verts[2].pos.y -= WATER_TOP_OFFSET
@@ -298,19 +316,13 @@ mesh_chunk :: proc(world: ^World, chunk: ^Chunk, mesh: ^Generated_Chunk_Mesh) {
 				if .Neg_Z in mask {
 					face_verts = position_face(.Neg_Z, ao_mask, local_pos, block, world.atlas)
 					if block.id == .Water {
-						if bpyok && bpy.id != .Water {
+						if bpy.id != .Water {
 							face_verts[0].pos.y -= WATER_TOP_OFFSET
 							face_verts[3].pos.y -= WATER_TOP_OFFSET
 						}
 						append(vertices, face_verts)
-						face_verts = position_face(
-							.Pos_Z,
-							ao_mask,
-							local_pos + {0, 0, -1},
-							block,
-							world.atlas,
-						)
-						if bpyok && bpy.id != .Water {
+						face_verts = position_face(.Pos_Z, ao_mask, local_pos + {0, 0, -1}, block, world.atlas)
+						if bpy.id != .Water {
 							face_verts[0].pos.y -= WATER_TOP_OFFSET
 							face_verts[3].pos.y -= WATER_TOP_OFFSET
 						}
@@ -320,19 +332,13 @@ mesh_chunk :: proc(world: ^World, chunk: ^Chunk, mesh: ^Generated_Chunk_Mesh) {
 				if .Pos_Z in mask {
 					face_verts = position_face(.Pos_Z, ao_mask, local_pos, block, world.atlas)
 					if block.id == .Water {
-						if bpyok && bpy.id != .Water {
+						if bpy.id != .Water {
 							face_verts[0].pos.y -= WATER_TOP_OFFSET
 							face_verts[3].pos.y -= WATER_TOP_OFFSET
 						}
 						append(vertices, face_verts)
-						face_verts = position_face(
-							.Neg_Z,
-							ao_mask,
-							local_pos + {0, 0, 1},
-							block,
-							world.atlas,
-						)
-						if bpyok && bpy.id != .Water {
+						face_verts = position_face(.Neg_Z, ao_mask, local_pos + {0, 0, 1}, block, world.atlas)
+						if bpy.id != .Water {
 							face_verts[0].pos.y -= WATER_TOP_OFFSET
 							face_verts[3].pos.y -= WATER_TOP_OFFSET
 						}
@@ -342,19 +348,13 @@ mesh_chunk :: proc(world: ^World, chunk: ^Chunk, mesh: ^Generated_Chunk_Mesh) {
 				if .Neg_X in mask {
 					face_verts = position_face(.Neg_X, ao_mask, local_pos, block, world.atlas)
 					if block.id == .Water {
-						if bpyok && bpy.id != .Water {
+						if bpy.id != .Water {
 							face_verts[0].pos.y -= WATER_TOP_OFFSET
 							face_verts[3].pos.y -= WATER_TOP_OFFSET
 						}
 						append(vertices, face_verts)
-						face_verts = position_face(
-							.Pos_X,
-							ao_mask,
-							local_pos + {-1, 0, 0},
-							block,
-							world.atlas,
-						)
-						if bpyok && bpy.id != .Water {
+						face_verts = position_face(.Pos_X, ao_mask, local_pos + {-1, 0, 0}, block, world.atlas)
+						if bpy.id != .Water {
 							face_verts[0].pos.y -= WATER_TOP_OFFSET
 							face_verts[3].pos.y -= WATER_TOP_OFFSET
 						}
@@ -364,19 +364,13 @@ mesh_chunk :: proc(world: ^World, chunk: ^Chunk, mesh: ^Generated_Chunk_Mesh) {
 				if .Pos_X in mask {
 					face_verts = position_face(.Pos_X, ao_mask, local_pos, block, world.atlas)
 					if block.id == .Water {
-						if bpyok && bpy.id != .Water {
+						if bpy.id != .Water {
 							face_verts[0].pos.y -= WATER_TOP_OFFSET
 							face_verts[3].pos.y -= WATER_TOP_OFFSET
 						}
 						append(vertices, face_verts)
-						face_verts = position_face(
-							.Neg_X,
-							ao_mask,
-							local_pos + {1, 0, 0},
-							block,
-							world.atlas,
-						)
-						if bpyok && bpy.id != .Water {
+						face_verts = position_face(.Neg_X, ao_mask, local_pos + {1, 0, 0}, block, world.atlas)
+						if bpy.id != .Water {
 							face_verts[0].pos.y -= WATER_TOP_OFFSET
 							face_verts[3].pos.y -= WATER_TOP_OFFSET
 						}
@@ -450,28 +444,16 @@ position_face :: #force_inline proc(
 	pos := glm.vec3{f32(local_pos.x), f32(local_pos.y), f32(local_pos.z)}
 
 	face_data[0].pos += pos
-	face_data[0].tex_coord = {
-		uvs[int(face_data[0].tex_coord.x)].x,
-		uvs[int(face_data[0].tex_coord.y)].y,
-	}
+	face_data[0].tex_coord = {uvs[int(face_data[0].tex_coord.x)].x, uvs[int(face_data[0].tex_coord.y)].y}
 
 	face_data[1].pos += pos
-	face_data[1].tex_coord = {
-		uvs[int(face_data[1].tex_coord.x)].x,
-		uvs[int(face_data[1].tex_coord.y)].y,
-	}
+	face_data[1].tex_coord = {uvs[int(face_data[1].tex_coord.x)].x, uvs[int(face_data[1].tex_coord.y)].y}
 
 	face_data[2].pos += pos
-	face_data[2].tex_coord = {
-		uvs[int(face_data[2].tex_coord.x)].x,
-		uvs[int(face_data[2].tex_coord.y)].y,
-	}
+	face_data[2].tex_coord = {uvs[int(face_data[2].tex_coord.x)].x, uvs[int(face_data[2].tex_coord.y)].y}
 
 	face_data[3].pos += pos
-	face_data[3].tex_coord = {
-		uvs[int(face_data[3].tex_coord.x)].x,
-		uvs[int(face_data[3].tex_coord.y)].y,
-	}
+	face_data[3].tex_coord = {uvs[int(face_data[3].tex_coord.x)].x, uvs[int(face_data[3].tex_coord.y)].y}
 
 	return face_data
 }

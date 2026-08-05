@@ -24,6 +24,7 @@ WINDOW_WIDTH :: 1280
 WINDOW_HEIGHT :: 720
 WINDOW_SIZE :: [2]i32{WINDOW_WIDTH, WINDOW_HEIGHT}
 WINDOW_TITLE :: "Goofin Minecraft Clone"
+VSYNC :: true
 
 DEFAULT_RENDER_DISTANCE :: 8
 MAX_RENDER_DISTANCE :: 32
@@ -163,7 +164,7 @@ main :: proc() {
 	init_state(&state)
 	defer destroy_state(&state)
 
-	window_ok := init_window(&state, WINDOW_TITLE, WINDOW_SIZE, vsync = true, visible = false)
+	window_ok := init_window(&state, WINDOW_TITLE, WINDOW_SIZE, vsync = VSYNC, visible = false)
 	if !window_ok {
 		log.panic("Could not create window")
 	}
