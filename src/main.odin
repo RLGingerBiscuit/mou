@@ -736,7 +736,7 @@ main :: proc() {
 					}
 
 					gl.Enable(gl.BLEND)
-					gl.DepthMask(false)
+
 					if prof.event("render transparent meshes") {
 						debug_group("Transparent")
 						bind_renderer(transparent_renderer)
@@ -759,6 +759,8 @@ main :: proc() {
 							)
 						}
 					}
+
+					gl.DepthMask(false)
 
 					if prof.event("render water meshes") {
 						debug_group("Water")
