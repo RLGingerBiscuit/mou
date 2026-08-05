@@ -222,11 +222,14 @@ main :: proc() {
 
 	{ 	// Renderer setup
 		MAX_VERTEX_SIZE :: CHUNK_BLOCK_COUNT * 3
-		MAX_INDEX_SIZE :: CHUNK_BLOCK_COUNT * 3
+		MAX_INDEX_SIZE :: CHUNK_BLOCK_COUNT * 6
 		temp_verts := make([]Mesh_Face, MAX_VERTEX_SIZE, context.temp_allocator)
 		defer delete(temp_verts, context.temp_allocator)
 		temp_indices := make([]Mesh_Face_Indexes, MAX_INDEX_SIZE, context.temp_allocator)
 		defer delete(temp_indices, context.temp_allocator)
+		for i in 0 ..< u32(len(temp_indices)) {
+			temp_indices[i] = {i * 4 + 0, i * 4 + 1, i * 4 + 2, i * 4 + 2, i * 4 + 3, i * 4 + 0}
+		}
 
 		{ 	// Opaque setup
 			renderer_vertices(opaque_renderer, temp_verts)
@@ -746,7 +749,6 @@ main :: proc() {
 							set_uniform(opaque_renderer.shader, "u_chunkpos", pos)
 							set_uniform(opaque_renderer.shader, "u_visibility", visibility)
 							renderer_sub_vertices(opaque_renderer, 0, chunk.mesh.opaque[:])
-							renderer_sub_indices(opaque_renderer, 0, chunk.mesh.opaque_indices[:])
 							renderer_draw_indexed(
 								opaque_renderer,
 								FACE_INDEX_COUNT * len(chunk.mesh.opaque),
@@ -775,11 +777,6 @@ main :: proc() {
 								0,
 								chunk.mesh.transparent[:],
 							)
-							renderer_sub_indices(
-								transparent_renderer,
-								0,
-								chunk.mesh.transparent_indices[:],
-							)
 							renderer_draw_indexed(
 								transparent_renderer,
 								FACE_INDEX_COUNT * len(chunk.mesh.transparent),
@@ -805,7 +802,6 @@ main :: proc() {
 							set_uniform(water_renderer.shader, "u_chunkpos", pos)
 							set_uniform(water_renderer.shader, "u_visibility", visibility)
 							renderer_sub_vertices(water_renderer, 0, chunk.mesh.water[:])
-							renderer_sub_indices(water_renderer, 0, chunk.mesh.water_indices[:])
 							renderer_draw_indexed(
 								water_renderer,
 								FACE_INDEX_COUNT * len(chunk.mesh.water),

@@ -148,11 +148,8 @@ new_chunk_mesh :: proc(mg: ^Meshgen_Thread, world: ^World) -> ^Chunk_Mesh {
 
 	// From some *very* basic tests these numbers seem to be alright for now
 	mesh.opaque = make([dynamic]Mesh_Face, 0, CHUNK_BLOCK_COUNT / 24)
-	mesh.opaque_indices = make([dynamic]Mesh_Face_Indexes, 0, CHUNK_BLOCK_COUNT / 24)
 	mesh.transparent = make([dynamic]Mesh_Face)
-	mesh.transparent_indices = make([dynamic]Mesh_Face_Indexes)
 	mesh.water = make([dynamic]Mesh_Face)
-	mesh.water_indices = make([dynamic]Mesh_Face_Indexes)
 
 	return mesh
 }
@@ -161,9 +158,6 @@ mesh_chunk :: proc(world: ^World, chunk: ^Chunk, mesh: ^Chunk_Mesh) {
 	clear(&mesh.opaque)
 	clear(&mesh.transparent)
 	clear(&mesh.water)
-	clear(&mesh.opaque_indices)
-	clear(&mesh.transparent_indices)
-	clear(&mesh.water_indices)
 
 	WATER_TOP_OFFSET :: (f32(1) / CHUNK_SIZE)
 
@@ -251,25 +245,14 @@ mesh_chunk :: proc(world: ^World, chunk: ^Chunk, mesh: ^Chunk_Mesh) {
 
 				vertices :=
 					block_is_opaque(block) ? &mesh.opaque : block.id == .Water ? &mesh.water : &mesh.transparent
-				indices :=
-					block_is_opaque(block) ? &mesh.opaque_indices : block.id == .Water ? &mesh.water_indices : &mesh.transparent_indices
 
 				face_verts: Mesh_Face
-				face_indices: Mesh_Face_Indexes
 
 				if .Neg_Y in mask {
-					face_verts, face_indices = position_face(
-						.Neg_Y,
-						ao_mask,
-						local_pos,
-						block,
-						world.atlas,
-					)
+					face_verts = position_face(.Neg_Y, ao_mask, local_pos, block, world.atlas)
 					if block.id == .Water {
 						append(vertices, face_verts)
-						face_indices += cast(u32)len(indices) * FACE_VERT_COUNT
-						append(indices, face_indices)
-						face_verts, face_indices = position_face(
+						face_verts = position_face(
 							.Pos_Y,
 							ao_mask,
 							local_pos + {0, -1, 0},
@@ -278,17 +261,9 @@ mesh_chunk :: proc(world: ^World, chunk: ^Chunk, mesh: ^Chunk_Mesh) {
 						)
 					}
 					append(vertices, face_verts)
-					face_indices += cast(u32)len(indices) * FACE_VERT_COUNT
-					append(indices, face_indices)
 				}
 				if .Pos_Y in mask {
-					face_verts, face_indices = position_face(
-						.Pos_Y,
-						ao_mask,
-						local_pos,
-						block,
-						world.atlas,
-					)
+					face_verts = position_face(.Pos_Y, ao_mask, local_pos, block, world.atlas)
 					if block.id == .Water {
 						if bpyok && bpy.id != .Water {
 							face_verts[0].pos.y -= WATER_TOP_OFFSET
@@ -297,9 +272,7 @@ mesh_chunk :: proc(world: ^World, chunk: ^Chunk, mesh: ^Chunk_Mesh) {
 							face_verts[3].pos.y -= WATER_TOP_OFFSET
 						}
 						append(vertices, face_verts)
-						face_indices += cast(u32)len(indices) * FACE_VERT_COUNT
-						append(indices, face_indices)
-						face_verts, face_indices = position_face(
+						face_verts = position_face(
 							.Neg_Y,
 							ao_mask,
 							local_pos + {0, 1, 0},
@@ -314,26 +287,16 @@ mesh_chunk :: proc(world: ^World, chunk: ^Chunk, mesh: ^Chunk_Mesh) {
 						}
 					}
 					append(vertices, face_verts)
-					face_indices += cast(u32)len(indices) * FACE_VERT_COUNT
-					append(indices, face_indices)
 				}
 				if .Neg_Z in mask {
-					face_verts, face_indices = position_face(
-						.Neg_Z,
-						ao_mask,
-						local_pos,
-						block,
-						world.atlas,
-					)
+					face_verts = position_face(.Neg_Z, ao_mask, local_pos, block, world.atlas)
 					if block.id == .Water {
 						if bpyok && bpy.id != .Water {
 							face_verts[0].pos.y -= WATER_TOP_OFFSET
 							face_verts[3].pos.y -= WATER_TOP_OFFSET
 						}
 						append(vertices, face_verts)
-						face_indices += cast(u32)len(indices) * FACE_VERT_COUNT
-						append(indices, face_indices)
-						face_verts, face_indices = position_face(
+						face_verts = position_face(
 							.Pos_Z,
 							ao_mask,
 							local_pos + {0, 0, -1},
@@ -346,26 +309,16 @@ mesh_chunk :: proc(world: ^World, chunk: ^Chunk, mesh: ^Chunk_Mesh) {
 						}
 					}
 					append(vertices, face_verts)
-					face_indices += cast(u32)len(indices) * FACE_VERT_COUNT
-					append(indices, face_indices)
 				}
 				if .Pos_Z in mask {
-					face_verts, face_indices = position_face(
-						.Pos_Z,
-						ao_mask,
-						local_pos,
-						block,
-						world.atlas,
-					)
+					face_verts = position_face(.Pos_Z, ao_mask, local_pos, block, world.atlas)
 					if block.id == .Water {
 						if bpyok && bpy.id != .Water {
 							face_verts[0].pos.y -= WATER_TOP_OFFSET
 							face_verts[3].pos.y -= WATER_TOP_OFFSET
 						}
 						append(vertices, face_verts)
-						face_indices += cast(u32)len(indices) * FACE_VERT_COUNT
-						append(indices, face_indices)
-						face_verts, face_indices = position_face(
+						face_verts = position_face(
 							.Neg_Z,
 							ao_mask,
 							local_pos + {0, 0, 1},
@@ -378,26 +331,16 @@ mesh_chunk :: proc(world: ^World, chunk: ^Chunk, mesh: ^Chunk_Mesh) {
 						}
 					}
 					append(vertices, face_verts)
-					face_indices += cast(u32)len(indices) * FACE_VERT_COUNT
-					append(indices, face_indices)
 				}
 				if .Neg_X in mask {
-					face_verts, face_indices = position_face(
-						.Neg_X,
-						ao_mask,
-						local_pos,
-						block,
-						world.atlas,
-					)
+					face_verts = position_face(.Neg_X, ao_mask, local_pos, block, world.atlas)
 					if block.id == .Water {
 						if bpyok && bpy.id != .Water {
 							face_verts[0].pos.y -= WATER_TOP_OFFSET
 							face_verts[3].pos.y -= WATER_TOP_OFFSET
 						}
 						append(vertices, face_verts)
-						face_indices += cast(u32)len(indices) * FACE_VERT_COUNT
-						append(indices, face_indices)
-						face_verts, face_indices = position_face(
+						face_verts = position_face(
 							.Pos_X,
 							ao_mask,
 							local_pos + {-1, 0, 0},
@@ -410,26 +353,16 @@ mesh_chunk :: proc(world: ^World, chunk: ^Chunk, mesh: ^Chunk_Mesh) {
 						}
 					}
 					append(vertices, face_verts)
-					face_indices += cast(u32)len(indices) * FACE_VERT_COUNT
-					append(indices, face_indices)
 				}
 				if .Pos_X in mask {
-					face_verts, face_indices = position_face(
-						.Pos_X,
-						ao_mask,
-						local_pos,
-						block,
-						world.atlas,
-					)
+					face_verts = position_face(.Pos_X, ao_mask, local_pos, block, world.atlas)
 					if block.id == .Water {
 						if bpyok && bpy.id != .Water {
 							face_verts[0].pos.y -= WATER_TOP_OFFSET
 							face_verts[3].pos.y -= WATER_TOP_OFFSET
 						}
 						append(vertices, face_verts)
-						face_indices += cast(u32)len(indices) * FACE_VERT_COUNT
-						append(indices, face_indices)
-						face_verts, face_indices = position_face(
+						face_verts = position_face(
 							.Neg_X,
 							ao_mask,
 							local_pos + {1, 0, 0},
@@ -442,8 +375,6 @@ mesh_chunk :: proc(world: ^World, chunk: ^Chunk, mesh: ^Chunk_Mesh) {
 						}
 					}
 					append(vertices, face_verts)
-					face_indices += cast(u32)len(indices) * FACE_VERT_COUNT
-					append(indices, face_indices)
 				}
 			}
 		}
@@ -457,10 +388,7 @@ position_face :: #force_inline proc(
 	local_pos: Local_Pos,
 	block: Block,
 	atlas: ^Atlas,
-) -> (
-	Mesh_Face,
-	Mesh_Face_Indexes,
-) {
+) -> Mesh_Face {
 	face_data := FACE_PLANES[face]
 
 	ao_index :: #force_inline proc(s1, s2, c: bool) -> u8 {
@@ -538,7 +466,7 @@ position_face :: #force_inline proc(
 		uvs[int(face_data[3].tex_coord.y)].y,
 	}
 
-	return face_data, {0, 1, 2, 2, 3, 0}
+	return face_data
 }
 
 // odinfmt:disable

@@ -20,10 +20,7 @@ Mesh_Face_Indexes :: [FACE_INDEX_COUNT]u32
 
 Chunk_Mesh :: struct {
 	opaque:              [dynamic]Mesh_Face `fmt:"-"`,
-	opaque_indices:      [dynamic]Mesh_Face_Indexes `fmt:"-"`,
 	transparent:         [dynamic]Mesh_Face `fmt:"-"`,
-	transparent_indices: [dynamic]Mesh_Face_Indexes `fmt:"-"`,
 	water:               [dynamic]Mesh_Face `fmt:"-"`,
-	water_indices:       [dynamic]Mesh_Face_Indexes `fmt:"-"`,
 	gen_time:            f32,
 }
