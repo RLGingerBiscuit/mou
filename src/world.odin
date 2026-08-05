@@ -20,7 +20,7 @@ WATER_LEVEL :: 12
 
 World_Msg_Meshed :: struct {
 	chunk_pos: Chunk_Pos,
-	mesh:      ^Chunk_Mesh,
+	mesh:      ^Generated_Chunk_Mesh,
 }
 
 World_Msg_Demeshed :: struct {
@@ -136,23 +136,27 @@ update_world :: proc(world: ^World, player_pos: glm.vec3) {
 				sync.guard(&world.lock)
 				chunk, exists := &world.chunks[v.chunk_pos]
 				ensure(exists, "Meshed chunk doesn't exist")
-				old_mesh := chunk.mesh
-				chunk.mesh = v.mesh
-				if old_mesh == nil {
-					chunk.mesh.gen_time = f32(glfw.GetTime())
+				assert(chunk.pos == v.chunk_pos)
+
+				gen_time: f32
+				if mesh, ok := chunk.mesh.?; ok {
+					gen_time = mesh.gen_time
 				} else {
-					chunk.mesh.gen_time = old_mesh.gen_time
-					append(&world.prio_msg_stack, Meshgen_Msg_Tombstone{old_mesh})
+					gen_time = f32(glfw.GetTime())
 				}
+
+				mesh := chunk_update_mesh(chunk, v.mesh)
+
+				mesh.gen_time = gen_time
+
+				append(&world.prio_msg_stack, Meshgen_Msg_Tombstone{v.mesh})
 
 			case World_Msg_Demeshed:
 				sync.guard(&world.lock)
 				chunk, exists := &world.chunks[v.chunk_pos]
 				ensure(exists, "Demeshed chunk doesn't exist")
-				if chunk.mesh != nil {
-					chunk.mesh.gen_time = f32(glfw.GetTime())
-					append(&world.prio_msg_stack, Meshgen_Msg_Tombstone{chunk.mesh})
-				}
+				assert(chunk.pos == v.chunk_pos)
+				chunk_destroy_mesh(chunk)
 				chunk.mesh = nil
 			}
 		}

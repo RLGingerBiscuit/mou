@@ -214,54 +214,33 @@ main :: proc() {
 	init_world(&state.world, &block_atlas)
 	defer destroy_world(&state.world)
 
-	opaque_renderer := make_renderer(opaque_shader, .Dynamic, {.Indexed, .Owns_VBO, .Owns_EBO})
+	opaque_renderer := make_renderer(opaque_shader, .Dynamic, {.Indexed, .Owns_EBO})
 	defer destroy_renderer(&opaque_renderer)
-	transparent_renderer := make_renderer(
-		transparent_shader,
-		.Dynamic,
-		{.Indexed, .Owns_VBO, .Owns_EBO},
-	)
+	transparent_renderer := make_renderer(transparent_shader, .Dynamic, {.Indexed})
 	defer destroy_renderer(&transparent_renderer)
-	water_renderer := make_renderer(water_shader, .Dynamic, {.Indexed, .Owns_VBO, .Owns_EBO})
+	water_renderer := make_renderer(water_shader, .Dynamic, {.Indexed})
 	defer destroy_renderer(&water_renderer)
 	line_renderer := make_renderer(line_shader, .Dynamic, {.Indexed, .Owns_VBO, .Owns_EBO})
 	defer destroy_renderer(&line_renderer)
-	fullscreen_renderer := make_renderer(fullscreen_shader, .Static, {.Indexed, .Owns_EBO})
+	fullscreen_renderer := make_renderer(fullscreen_shader, .Static, {.Indexed})
 	defer destroy_renderer(&fullscreen_renderer)
 
 	{ 	// Renderer setup
-		MAX_VERTEX_SIZE :: CHUNK_BLOCK_COUNT * 3
 		MAX_INDEX_SIZE :: CHUNK_BLOCK_COUNT * 6
-		temp_verts := make([]Mesh_Face, MAX_VERTEX_SIZE, context.temp_allocator)
-		defer delete(temp_verts, context.temp_allocator)
 		temp_indices := make([]Mesh_Face_Indexes, MAX_INDEX_SIZE, context.temp_allocator)
 		defer delete(temp_indices, context.temp_allocator)
 		for i in 0 ..< u32(len(temp_indices)) {
 			temp_indices[i] = {i * 4 + 0, i * 4 + 1, i * 4 + 2, i * 4 + 2, i * 4 + 3, i * 4 + 0}
 		}
+		renderer_indices(&opaque_renderer, temp_indices)
 
-		{ 	// Opaque setup
-			renderer_vertices(opaque_renderer, temp_verts)
-			renderer_indices(opaque_renderer, temp_indices)
-			renderer_vertex_layout(&opaque_renderer, Mesh_Vert)
+		for renderer in ([]^Renderer{&opaque_renderer, &transparent_renderer, &water_renderer}) {
+			renderer_bind_indices(renderer, opaque_renderer.ebo)
+			renderer_vertex_layout(renderer, Mesh_Vert)
 		}
-		{ 	// Transparent setup
-			renderer_vertices(transparent_renderer, temp_verts)
-			renderer_indices(transparent_renderer, temp_indices)
-			renderer_vertex_layout(&transparent_renderer, Mesh_Vert)
-		}
-		{ 	// Water setup
-			renderer_vertices(water_renderer, temp_verts)
-			renderer_indices(water_renderer, temp_indices)
-			renderer_vertex_layout(&water_renderer, Mesh_Vert)
-		}
+
 		{ 	// Line setup
 			renderer_vertex_layout(&line_renderer, Line_Vert)
-		}
-		{ 	// Fullscreen setup
-			@(static, rodata)
-			indices := []u32{0, 1, 2, 2, 3, 0}
-			renderer_indices(fullscreen_renderer, indices)
 		}
 	}
 
@@ -359,9 +338,6 @@ main :: proc() {
 				if window_is_key_pressed(state.window, KEY_RELOAD) {
 					sync.guard(&state.world.lock)
 					for _, &c in state.world.chunks {
-						if c.mesh == nil {continue}
-						append(&state.world.msg_stack, Meshgen_Msg_Tombstone{c.mesh})
-						c.mesh = nil
 						world_mark_chunk_remesh(&state.world, &c)
 					}
 				}
@@ -605,6 +581,7 @@ main :: proc() {
 				// Ensure stuff is reset
 				gl.Enable(gl.CULL_FACE)
 				gl.Enable(gl.DEPTH_TEST)
+				gl.Disable(gl.BLEND)
 				gl.Disable(gl.SCISSOR_TEST)
 				gl.DepthMask(true)
 
@@ -656,28 +633,34 @@ main :: proc() {
 						clear(water_chunks)
 
 						for _, &chunk in state.world.chunks {
-							if chunk.mesh == nil {
-								continue
-							}
+							if mesh, ok := chunk.mesh.?; ok {
+								// TODO: impl. regions & frustum cull them too
+								if !frustum_contains_chunk(frustum, chunk.pos) {
+									continue
+								}
 
-							// TODO: impl. regions & frustum cull them too
-							if !frustum_contains_chunk(frustum, chunk.pos) {
-								continue
-							}
-
-							if len(chunk.mesh.opaque) > 0 {
-								append(opaque_chunks, &chunk)
-							}
-							if len(chunk.mesh.transparent) > 0 {
-								append(transparent_chunks, &chunk)
-							}
-							if len(chunk.mesh.water) > 0 {
-								append(water_chunks, &chunk)
-							}
-						}
+								if mesh.opaque_index_count > 0 {
+									append(opaque_chunks, &chunk)
+								}
+								if mesh.transparent_index_count > 0 {
+									append(transparent_chunks, &chunk)
+								}
+								if mesh.water_index_count > 0 {
+									append(water_chunks, &chunk)
+								}
+							}}
 					}
 
 					context.user_ptr = &state
+
+					if prof.event("sort opaque chunks") {
+						slice.sort_by(opaque_chunks[:], proc(i, j: ^Chunk) -> bool {
+							state := cast(^State)context.user_ptr
+							i_dist := glm.length(state.camera.pos - get_chunk_centre(i))
+							j_dist := glm.length(state.camera.pos - get_chunk_centre(j))
+							return i_dist < j_dist
+						})
+					}
 
 					if prof.event("sort transparent chunks") {
 						slice.sort_by(transparent_chunks[:], proc(i, j: ^Chunk) -> bool {
@@ -697,37 +680,38 @@ main :: proc() {
 						})
 					}
 
-					if prof.event("sort water faces") {
-						for chunk in water_chunks {
-							mesh := chunk.mesh
+					// TODO: Do this but way better
+					// if prof.event("sort water faces") {
+					// 	for chunk in water_chunks {
+					// 		mesh := chunk.mesh
 
-							slice.sort_by(mesh.water[:], proc(i, j: Mesh_Face) -> bool {
-								state := cast(^State)context.user_ptr
+					// 		slice.sort_by(mesh.water[:], proc(i, j: Mesh_Face) -> bool {
+					// 			state := cast(^State)context.user_ptr
 
-								get_face_centre :: proc(f: Mesh_Face) -> glm.vec3 {
-									a := f[0].pos
-									b := f[2].pos
-									t := (a + b) / 2
-									if a.x == b.x {
-										return {a.x, t.y, t.z}
-									} else if a.y == b.y {
-										return {t.x, a.y, t.z}
-									} else if a.z == b.z {
-										return {t.x, t.y, a.z}
-									}
-									unreachable()
-								}
+					// 			get_face_centre :: proc(f: Mesh_Face) -> glm.vec3 {
+					// 				a := f[0].pos
+					// 				b := f[2].pos
+					// 				t := (a + b) / 2
+					// 				if a.x == b.x {
+					// 					return {a.x, t.y, t.z}
+					// 				} else if a.y == b.y {
+					// 					return {t.x, a.y, t.z}
+					// 				} else if a.z == b.z {
+					// 					return {t.x, t.y, a.z}
+					// 				}
+					// 				unreachable()
+					// 			}
 
-								i_c := get_face_centre(i)
-								j_c := get_face_centre(j)
+					// 			i_c := get_face_centre(i)
+					// 			j_c := get_face_centre(j)
 
-								i_dist := glm.length(state.camera.pos - i_c)
-								j_dist := glm.length(state.camera.pos - j_c)
+					// 			i_dist := glm.length(state.camera.pos - i_c)
+					// 			j_dist := glm.length(state.camera.pos - j_c)
 
-								return i_dist > j_dist
-							})
-						}
-					}
+					// 			return i_dist > j_dist
+					// 		})
+					// 	}
+					// }
 
 					if prof.event("render opaque meshes") {
 						debug_group("Opaque")
@@ -736,25 +720,21 @@ main :: proc() {
 						bind_texture_unit(0, block_atlas.texture)
 						set_uniforms(opaque_renderer, &state, SKY_COLOUR, proj_view)
 
-						gl.Disable(gl.BLEND) // Disable blending for opaque meshes; slight performance boost
 						for &chunk in opaque_chunks {
+							mesh := chunk.mesh.(Chunk_Mesh)
 							pos := chunk.pos * CHUNK_SIZE
-							elapsed := f32(current_time) - chunk.mesh.gen_time
+							elapsed := f32(current_time) - mesh.gen_time
 							visibility :=
 								elapsed > CHUNK_FADE_IN_SECONDS ? 1 : elapsed / CHUNK_FADE_IN_SECONDS
 							set_uniform(opaque_renderer.shader, "u_chunkpos", pos)
 							set_uniform(opaque_renderer.shader, "u_visibility", visibility)
-							renderer_sub_vertices(opaque_renderer, 0, chunk.mesh.opaque[:])
-							renderer_draw_indexed(
-								opaque_renderer,
-								FACE_INDEX_COUNT * len(chunk.mesh.opaque),
-							)
+							renderer_bind_vertices(&opaque_renderer, mesh.opaque_vbo)
+							renderer_draw_indexed(opaque_renderer, mesh.opaque_index_count)
 						}
 					}
 
 					gl.Enable(gl.BLEND)
 					gl.DepthMask(false)
-
 					if prof.event("render transparent meshes") {
 						debug_group("Transparent")
 						bind_renderer(transparent_renderer)
@@ -763,20 +743,17 @@ main :: proc() {
 						set_uniforms(transparent_renderer, &state, SKY_COLOUR, proj_view)
 
 						for &chunk in transparent_chunks {
+							mesh := chunk.mesh.(Chunk_Mesh)
 							pos := chunk.pos * CHUNK_SIZE
-							elapsed := f32(current_time) - chunk.mesh.gen_time
+							elapsed := f32(current_time) - mesh.gen_time
 							visibility :=
 								elapsed > CHUNK_FADE_IN_SECONDS ? 1 : elapsed / CHUNK_FADE_IN_SECONDS
 							set_uniform(transparent_renderer.shader, "u_chunkpos", pos)
 							set_uniform(transparent_renderer.shader, "u_visibility", visibility)
-							renderer_sub_vertices(
-								transparent_renderer,
-								0,
-								chunk.mesh.transparent[:],
-							)
+							renderer_bind_vertices(&transparent_renderer, mesh.transparent_vbo)
 							renderer_draw_indexed(
 								transparent_renderer,
-								FACE_INDEX_COUNT * len(chunk.mesh.transparent),
+								mesh.transparent_index_count,
 							)
 						}
 					}
@@ -787,23 +764,20 @@ main :: proc() {
 						defer unbind_renderer()
 						bind_texture_unit(0, block_atlas.texture)
 						set_uniforms(water_renderer, &state, SKY_COLOUR, proj_view)
-
 						set_uniform(water_renderer.shader, "u_time", cast(f32)current_time)
 						set_uniform(water_renderer.shader, "u_atlas_size", ATLAS_SIZE)
 						set_uniform(water_renderer.shader, "u_atlas_block_size", cast(f32)128)
 
 						for &chunk in water_chunks {
+							mesh := chunk.mesh.(Chunk_Mesh)
 							pos := chunk.pos * CHUNK_SIZE
-							elapsed := f32(current_time) - chunk.mesh.gen_time
+							elapsed := f32(current_time) - mesh.gen_time
 							visibility :=
 								elapsed > CHUNK_FADE_IN_SECONDS ? 1 : elapsed / CHUNK_FADE_IN_SECONDS
 							set_uniform(water_renderer.shader, "u_chunkpos", pos)
 							set_uniform(water_renderer.shader, "u_visibility", visibility)
-							renderer_sub_vertices(water_renderer, 0, chunk.mesh.water[:])
-							renderer_draw_indexed(
-								water_renderer,
-								FACE_INDEX_COUNT * len(chunk.mesh.water),
-							)
+							renderer_bind_vertices(&water_renderer, mesh.water_vbo)
+							renderer_draw_indexed(water_renderer, mesh.water_index_count)
 						}
 					}
 				}
@@ -824,7 +798,7 @@ main :: proc() {
 					defer unbind_renderer()
 
 					bind_texture_unit(0, fbo_colour_tex)
-					renderer_draw_indexed(fullscreen_renderer, 3)
+					renderer_draw(fullscreen_renderer, 3)
 				}
 
 				defer clear(&state.frame.line_vertices)
@@ -850,7 +824,7 @@ main :: proc() {
 
 						set_uniform(line_shader, "u_proj_view", proj_view)
 
-						renderer_vertices(line_renderer, state.frame.line_vertices[:])
+						renderer_vertices(&line_renderer, state.frame.line_vertices[:])
 
 						renderer_draw(line_renderer, len(state.frame.line_vertices), gl.LINES)
 					}
@@ -897,7 +871,7 @@ main :: proc() {
 					set_uniform(state.ui.renderer.shader, "u_proj_view", proj_view)
 
 					renderer_sub_vertices(
-						state.ui.renderer,
+						&state.ui.renderer,
 						0,
 						[]UI_Vert {
 							{{r.x, r.y}, uv[0], C},
@@ -907,7 +881,7 @@ main :: proc() {
 						},
 					)
 
-					renderer_sub_indices(state.ui.renderer, 0, []u32{2, 1, 0, 2, 3, 1})
+					renderer_sub_indices(&state.ui.renderer, 0, []u32{2, 1, 0, 2, 3, 1})
 
 					renderer_draw_indexed(state.ui.renderer, 6)
 				}

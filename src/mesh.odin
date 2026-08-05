@@ -17,10 +17,3 @@ FACE_VERT_COUNT :: 4
 FACE_INDEX_COUNT :: 6
 Mesh_Face :: [FACE_VERT_COUNT]Mesh_Vert
 Mesh_Face_Indexes :: [FACE_INDEX_COUNT]u32
-
-Chunk_Mesh :: struct {
-	opaque:              [dynamic]Mesh_Face `fmt:"-"`,
-	transparent:         [dynamic]Mesh_Face `fmt:"-"`,
-	water:               [dynamic]Mesh_Face `fmt:"-"`,
-	gen_time:            f32,
-}

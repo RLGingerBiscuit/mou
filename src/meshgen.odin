@@ -12,6 +12,13 @@ import "prof"
 
 MESHGEN_CHAN_CAP :: 32
 
+Generated_Chunk_Mesh :: struct {
+	opaque_verts:      [dynamic]Mesh_Face `fmt:"-"`,
+	transparent_verts: [dynamic]Mesh_Face `fmt:"-"`,
+	water_verts:       [dynamic]Mesh_Face `fmt:"-"`,
+	gen_time:          f32,
+}
+
 Meshgen_Msg_Remesh :: struct {
 	pos: Chunk_Pos,
 }
@@ -19,7 +26,7 @@ Meshgen_Msg_Demesh :: struct {
 	pos: Chunk_Pos,
 }
 Meshgen_Msg_Tombstone :: struct {
-	mesh: ^Chunk_Mesh,
+	mesh: ^Generated_Chunk_Mesh,
 }
 Meshgen_Msg_Terminate :: struct {}
 
@@ -37,7 +44,7 @@ Meshgen_Thread :: struct {
 	world_tx:    chan.Chan(World_Msg, chan.Direction.Send),
 	_mg_chan:    chan.Chan(Meshgen_Msg),
 	_world_chan: chan.Chan(World_Msg),
-	tombstones:  [dynamic]^Chunk_Mesh,
+	tombstones:  [dynamic]^Generated_Chunk_Mesh,
 	arena:       vmem.Arena,
 }
 
@@ -143,21 +150,21 @@ _meshgen_thread_proc :: proc(mg: ^Meshgen_Thread) {
 	}
 }
 
-new_chunk_mesh :: proc(mg: ^Meshgen_Thread, world: ^World) -> ^Chunk_Mesh {
-	mesh := new(Chunk_Mesh)
+new_chunk_mesh :: proc(mg: ^Meshgen_Thread, world: ^World) -> ^Generated_Chunk_Mesh {
+	mesh := new(Generated_Chunk_Mesh)
 
 	// From some *very* basic tests these numbers seem to be alright for now
-	mesh.opaque = make([dynamic]Mesh_Face, 0, CHUNK_BLOCK_COUNT / 24)
-	mesh.transparent = make([dynamic]Mesh_Face)
-	mesh.water = make([dynamic]Mesh_Face)
+	mesh.opaque_verts = make([dynamic]Mesh_Face, 0, CHUNK_BLOCK_COUNT / 24)
+	mesh.transparent_verts = make([dynamic]Mesh_Face)
+	mesh.water_verts = make([dynamic]Mesh_Face)
 
 	return mesh
 }
 
-mesh_chunk :: proc(world: ^World, chunk: ^Chunk, mesh: ^Chunk_Mesh) {
-	clear(&mesh.opaque)
-	clear(&mesh.transparent)
-	clear(&mesh.water)
+mesh_chunk :: proc(world: ^World, chunk: ^Chunk, mesh: ^Generated_Chunk_Mesh) {
+	clear(&mesh.opaque_verts)
+	clear(&mesh.transparent_verts)
+	clear(&mesh.water_verts)
 
 	WATER_TOP_OFFSET :: (f32(1) / CHUNK_SIZE)
 
@@ -244,7 +251,7 @@ mesh_chunk :: proc(world: ^World, chunk: ^Chunk, mesh: ^Chunk_Mesh) {
 				local_pos := Local_Pos{x, y, z}
 
 				vertices :=
-					block_is_opaque(block) ? &mesh.opaque : block.id == .Water ? &mesh.water : &mesh.transparent
+					block_is_opaque(block) ? &mesh.opaque_verts : block.id == .Water ? &mesh.water_verts : &mesh.transparent_verts
 
 				face_verts: Mesh_Face
 

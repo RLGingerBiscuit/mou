@@ -27,6 +27,12 @@ make_renderer :: proc(
 ) -> (
 	r: Renderer,
 ) {
+	assert(
+		.Owns_EBO not_in flags || .Indexed in flags,
+		#procedure + "renderer flag .Owns_EBO requires .Indexed",
+		loc = loc,
+	)
+
 	r.vao = make_vertex_array()
 	if .Owns_VBO in flags {
 		r.vbo = make_vertex_buffer(usage)
@@ -35,11 +41,6 @@ make_renderer :: proc(
 		r.ebo = make_index_buffer(usage)
 		vertex_array_index_buffer(r.vao, r.ebo)
 	}
-	assert(
-		.Owns_EBO not_in flags || .Indexed in flags,
-		#procedure + "renderer flag .Owns_EBO required .Indexed",
-		loc = loc,
-	)
 	r.shader = shader
 	r.flags = flags
 	return
@@ -65,11 +66,11 @@ unbind_renderer :: proc() {
 	unbind_vertex_array()
 }
 
-renderer_vertices :: proc(r: Renderer, verts: $S/[]$T, loc := #caller_location) {
+renderer_vertices :: proc(r: ^Renderer, verts: $S/[]$T, loc := #caller_location) {
 	vertex_buffer_data(r.vbo, verts, loc = loc)
 }
 
-renderer_indices :: proc(r: Renderer, indices: $S/[]$T, loc := #caller_location) {
+renderer_indices :: proc(r: ^Renderer, indices: $S/[]$T, loc := #caller_location) {
 	assert(
 		.Indexed in r.flags && .Owns_EBO in r.flags,
 		#procedure + " called on un-indexed renderer",
@@ -77,11 +78,16 @@ renderer_indices :: proc(r: Renderer, indices: $S/[]$T, loc := #caller_location)
 	index_buffer_data(r.ebo, indices, loc = loc)
 }
 
-renderer_sub_vertices :: proc(r: Renderer, offset: int, verts: $S/[]$T, loc := #caller_location) {
+renderer_sub_vertices :: proc(r: ^Renderer, offset: int, verts: $S/[]$T, loc := #caller_location) {
 	vertex_buffer_sub_data(r.vbo, offset, verts, loc = loc)
 }
 
-renderer_sub_indices :: proc(r: Renderer, offset: int, indices: $S/[]$T, loc := #caller_location) {
+renderer_sub_indices :: proc(
+	r: ^Renderer,
+	offset: int,
+	indices: $S/[]$T,
+	loc := #caller_location,
+) {
 	assert(
 		.Indexed in r.flags && .Owns_EBO in r.flags,
 		#procedure + " called on un-indexed renderer",
@@ -98,8 +104,12 @@ renderer_vertex_layout :: proc(
 	r.stride = size_of(T)
 }
 
-renderer_bind_vertices :: proc(r: Renderer, vbo: Vertex_Buffer) {
+renderer_bind_vertices :: proc(r: ^Renderer, vbo: Vertex_Buffer) {
 	vertex_array_vertex_buffer(r.vao, 0, vbo, 0, r.stride)
+}
+
+renderer_bind_indices :: proc(r: ^Renderer, ebo: Index_Buffer) {
+	vertex_array_index_buffer(r.vao, ebo)
 }
 
 renderer_draw_indexed :: proc(
