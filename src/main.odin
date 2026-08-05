@@ -7,7 +7,9 @@ import glm "core:math/linalg/glsl"
 import "core:mem"
 import "core:os"
 import "core:path/filepath"
+import "core:reflect"
 import "core:slice"
+import "core:strings"
 import "core:sync"
 import gl "vendor:OpenGL"
 import "vendor:glfw"
@@ -60,16 +62,26 @@ when ODIN_DEBUG {
 	tracking_allocator: mem.Tracking_Allocator
 }
 
-when ODIN_DEBUG {
-	MIN_LOG_LEVEL :: log.Level.Debug
-} else {
-	MIN_LOG_LEVEL :: log.Level.Warning
-}
+DEFAULT_LOG_LEVEL: log.Level = .Debug when ODIN_DEBUG else .Warning
+LOG_LEVEL := DEFAULT_LOG_LEVEL
 
 logger: log.Logger
 init_logger :: proc() -> log.Logger {
+	if level_str := os.get_env("ODIN_LOG", context.temp_allocator); level_str != "" {
+		level_str = strings.to_lower(level_str, context.temp_allocator)
+		ti := reflect.type_info_base(type_info_of(log.Level))
+		if eti, eti_ok := ti.variant.(reflect.Type_Info_Enum); eti_ok {
+			for value_name, i in eti.names {
+				if strings.to_lower(value_name, context.temp_allocator) == level_str {
+					LOG_LEVEL = log.Level(eti.values[i])
+					break
+				}
+			}
+		}
+	}
+
 	logger = log.create_console_logger(
-		MIN_LOG_LEVEL,
+		LOG_LEVEL,
 		ident = "logl",
 		opt = log.Default_Console_Logger_Opts ~ {.Terminal_Color},
 	)

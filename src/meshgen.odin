@@ -94,7 +94,7 @@ _meshgen_thread_proc :: proc(mg: ^Meshgen_Thread) {
 	prof.init_thread("Meshgen-Thread")
 
 	context.logger = log.create_console_logger(
-		MIN_LOG_LEVEL,
+		LOG_LEVEL,
 		ident = "logl-meshgen",
 		opt = log.Default_Console_Logger_Opts ~ {.Terminal_Color},
 	)
