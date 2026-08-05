@@ -209,15 +209,15 @@ main :: proc() {
 	init_world(&state.world, &block_atlas)
 	defer destroy_world(&state.world)
 
-	opaque_renderer := make_renderer(true, chunk_shader, .Dynamic)
+	opaque_renderer := make_renderer(chunk_shader, .Dynamic, {.Indexed, .Owns_VBO, .Owns_EBO})
 	defer destroy_renderer(&opaque_renderer)
-	transparent_renderer := make_renderer(true, chunk_shader, .Dynamic)
+	transparent_renderer := make_renderer(chunk_shader, .Dynamic, {.Indexed, .Owns_VBO, .Owns_EBO})
 	defer destroy_renderer(&transparent_renderer)
-	water_renderer := make_renderer(true, water_shader, .Dynamic)
+	water_renderer := make_renderer(water_shader, .Dynamic, {.Indexed, .Owns_VBO, .Owns_EBO})
 	defer destroy_renderer(&water_renderer)
-	line_renderer := make_renderer(false, line_shader, .Dynamic)
+	line_renderer := make_renderer(line_shader, .Dynamic, {.Indexed, .Owns_VBO, .Owns_EBO})
 	defer destroy_renderer(&line_renderer)
-	fullscreen_renderer := make_renderer(true, fullscreen_shader, .Static)
+	fullscreen_renderer := make_renderer(fullscreen_shader, .Static, {.Indexed, .Owns_EBO})
 	defer destroy_renderer(&fullscreen_renderer)
 
 	{ 	// Renderer setup
@@ -231,38 +231,25 @@ main :: proc() {
 		{ 	// Opaque setup
 			renderer_vertices(opaque_renderer, temp_verts)
 			renderer_indices(opaque_renderer, temp_indices)
-			renderer_vertex_layout(opaque_renderer, Mesh_Vert)
+			renderer_vertex_layout(&opaque_renderer, Mesh_Vert)
 		}
 		{ 	// Transparent setup
 			renderer_vertices(transparent_renderer, temp_verts)
 			renderer_indices(transparent_renderer, temp_indices)
-			renderer_vertex_layout(transparent_renderer, Mesh_Vert)
+			renderer_vertex_layout(&transparent_renderer, Mesh_Vert)
 		}
 		{ 	// Water setup
 			renderer_vertices(water_renderer, temp_verts)
 			renderer_indices(water_renderer, temp_indices)
-			renderer_vertex_layout(water_renderer, Mesh_Vert)
+			renderer_vertex_layout(&water_renderer, Mesh_Vert)
 		}
 		{ 	// Line setup
-			renderer_vertex_layout(line_renderer, Line_Vert)
+			renderer_vertex_layout(&line_renderer, Line_Vert)
 		}
 		{ 	// Fullscreen setup
-			Fullscreen_Vert :: struct #packed {
-				pos:       glm.vec2,
-				tex_coord: glm.vec2,
-			}
-			@(static, rodata)
-			verts := []Fullscreen_Vert {
-				{{-1, 1}, {0, 1}},
-				{{-1, -1}, {0, 0}},
-				{{1, -1}, {1, 0}},
-				{{1, 1}, {1, 1}},
-			}
 			@(static, rodata)
 			indices := []u32{0, 1, 2, 2, 3, 0}
-			renderer_vertices(fullscreen_renderer, verts)
 			renderer_indices(fullscreen_renderer, indices)
-			renderer_vertex_layout(fullscreen_renderer, Fullscreen_Vert)
 		}
 	}
 
@@ -760,11 +747,9 @@ main :: proc() {
 							set_uniform(opaque_renderer.shader, "u_visibility", visibility)
 							renderer_sub_vertices(opaque_renderer, 0, chunk.mesh.opaque[:])
 							renderer_sub_indices(opaque_renderer, 0, chunk.mesh.opaque_indices[:])
-							gl.DrawElements(
-								gl.TRIANGLES,
-								FACE_INDEX_COUNT * cast(i32)len(chunk.mesh.opaque),
-								gl.UNSIGNED_INT,
-								nil,
+							renderer_draw_indexed(
+								opaque_renderer,
+								FACE_INDEX_COUNT * len(chunk.mesh.opaque),
 							)
 						}
 					}
@@ -795,11 +780,9 @@ main :: proc() {
 								0,
 								chunk.mesh.transparent_indices[:],
 							)
-							gl.DrawElements(
-								gl.TRIANGLES,
-								FACE_INDEX_COUNT * cast(i32)len(chunk.mesh.transparent),
-								gl.UNSIGNED_INT,
-								nil,
+							renderer_draw_indexed(
+								transparent_renderer,
+								FACE_INDEX_COUNT * len(chunk.mesh.transparent),
 							)
 						}
 					}
@@ -823,11 +806,9 @@ main :: proc() {
 							set_uniform(water_renderer.shader, "u_visibility", visibility)
 							renderer_sub_vertices(water_renderer, 0, chunk.mesh.water[:])
 							renderer_sub_indices(water_renderer, 0, chunk.mesh.water_indices[:])
-							gl.DrawElements(
-								gl.TRIANGLES,
-								FACE_INDEX_COUNT * cast(i32)len(chunk.mesh.water),
-								gl.UNSIGNED_INT,
-								nil,
+							renderer_draw_indexed(
+								water_renderer,
+								FACE_INDEX_COUNT * len(chunk.mesh.water),
 							)
 						}
 					}
@@ -849,7 +830,7 @@ main :: proc() {
 					defer unbind_renderer()
 
 					bind_texture_unit(0, fbo_colour_tex)
-					gl.DrawElements(gl.TRIANGLES, 6, gl.UNSIGNED_INT, nil)
+					renderer_draw_indexed(fullscreen_renderer, 3)
 				}
 
 				defer clear(&state.frame.line_vertices)
@@ -877,7 +858,7 @@ main :: proc() {
 
 						renderer_vertices(line_renderer, state.frame.line_vertices[:])
 
-						gl.DrawArrays(gl.LINES, 0, cast(i32)len(state.frame.line_vertices))
+						renderer_draw(line_renderer, len(state.frame.line_vertices), gl.LINES)
 					}
 				}
 
@@ -934,7 +915,7 @@ main :: proc() {
 
 					renderer_sub_indices(state.ui.renderer, 0, []u32{2, 1, 0, 2, 3, 1})
 
-					gl.DrawElements(gl.TRIANGLES, 6, gl.UNSIGNED_INT, nil)
+					renderer_draw_indexed(state.ui.renderer, 6)
 				}
 
 				if state.render_ui {

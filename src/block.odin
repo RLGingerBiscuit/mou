@@ -2,7 +2,7 @@ package mou
 
 import glm "core:math/linalg/glsl"
 
-TRANSPARENT_LEAVES :: false
+TRANSPARENT_LEAVES :: true
 
 Block_Face :: enum {
 	Neg_X,
