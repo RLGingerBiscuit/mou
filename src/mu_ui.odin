@@ -82,7 +82,7 @@ mu_init_ui :: proc(state: ^State) {
 		fons.Init(font, FONT_ATLAS_WIDTH, FONT_ATLAS_HEIGHT, .TOPLEFT)
 
 		font.userData = &state.ui
-		state.ui.font_tex = make_texture("::/font.png", FONT_ATLAS_WIDTH, FONT_ATLAS_HEIGHT, .Red)
+		state.ui.font_tex = make_texture("::/font", FONT_ATLAS_WIDTH, FONT_ATLAS_HEIGHT, .Red)
 
 		fons.AddFont(font, "Inter-Bold", "assets/fonts/Inter/Inter-Bold.ttf")
 		fons.AddFont(font, "Jellee-Bold", "assets/fonts/Jellee/Jellee-Bold.ttf")

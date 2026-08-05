@@ -50,7 +50,7 @@ make_atlas :: proc(asset_path: string, mips := true) -> (atlas: Atlas) {
 		w >>= u32(i)
 		h >>= u32(i)
 		atlas_levels[i] = create_image(
-			fmt.tprintf("::/{}_atlas{}.png", atlas_name, i),
+			fmt.tprintf("::/{}_atlas{}", atlas_name, i),
 			w,
 			h,
 			do_log = false,
