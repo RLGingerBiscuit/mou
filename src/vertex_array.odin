@@ -53,24 +53,13 @@ vertex_array_vertex_buffer :: proc(
 	loc := #caller_location,
 ) {
 	when ODIN_DEBUG {
-		gl.VertexArrayVertexBuffer(
-			vao.handle,
-			binding_index,
-			buffer.handle,
-			offset,
-			stride,
-			loc = loc,
-		)
+		gl.VertexArrayVertexBuffer(vao.handle, binding_index, buffer.handle, offset, stride, loc = loc)
 	} else {
 		gl.VertexArrayVertexBuffer(vao.handle, binding_index, buffer.handle, offset, stride)
 	}
 }
 
-vertex_array_index_buffer :: proc(
-	vao: Vertex_Array,
-	buffer: Index_Buffer,
-	loc := #caller_location,
-) {
+vertex_array_index_buffer :: proc(vao: Vertex_Array, buffer: Index_Buffer, loc := #caller_location) {
 	when ODIN_DEBUG {
 		gl.VertexArrayElementBuffer(vao.handle, buffer.handle, loc = loc)
 	} else {
@@ -89,26 +78,11 @@ vertex_array_attrib_pointer :: proc(
 	loc := #caller_location,
 ) {
 	when ODIN_DEBUG {
-		gl.VertexArrayAttribFormat(
-			vao.handle,
-			index,
-			size,
-			cast(u32)type,
-			normalized,
-			relative_offset,
-			loc = loc,
-		)
+		gl.VertexArrayAttribFormat(vao.handle, index, size, cast(u32)type, normalized, relative_offset, loc = loc)
 		gl.VertexArrayAttribBinding(vao.handle, index, binding_index, loc = loc)
 		gl.EnableVertexArrayAttrib(vao.handle, index, loc = loc)
 	} else {
-		gl.VertexArrayAttribFormat(
-			vao.handle,
-			index,
-			size,
-			cast(u32)type,
-			normalized,
-			relative_offset,
-		)
+		gl.VertexArrayAttribFormat(vao.handle, index, size, cast(u32)type, normalized, relative_offset)
 		gl.VertexArrayAttribBinding(vao.handle, index, binding_index)
 		gl.EnableVertexArrayAttrib(vao.handle, index)
 	}
@@ -124,14 +98,7 @@ vertex_array_attrib_i_pointer :: proc(
 	loc := #caller_location,
 ) {
 	when ODIN_DEBUG {
-		gl.VertexArrayAttribIFormat(
-			vao.handle,
-			index,
-			size,
-			cast(u32)type,
-			relative_offset,
-			loc = loc,
-		)
+		gl.VertexArrayAttribIFormat(vao.handle, index, size, cast(u32)type, relative_offset, loc = loc)
 		gl.VertexArrayAttribBinding(vao.handle, index, binding_index, loc = loc)
 		gl.EnableVertexArrayAttrib(vao.handle, index, loc = loc)
 	} else {
@@ -171,62 +138,24 @@ vertex_attrib_vert :: proc(
 			case 4:
 				type = v.signed ? .Int : .Unsigned_Int
 			case:
-				unimplemented(
-					fmt.tprintf(
-						"{}.{} : Unimplemented type {}",
-						tin.name,
-						field.name,
-						field.type.id,
-					),
-				)
+				unimplemented(fmt.tprintf("{}.{} : Unimplemented type {}", tin.name, field.name, field.type.id))
 			}
 
-			vertex_array_attrib_i_pointer(
-				vao,
-				binding_index,
-				u32(i),
-				1,
-				type,
-				cast(u32)field.offset,
-				loc = loc,
-			)
+			vertex_array_attrib_i_pointer(vao, binding_index, u32(i), 1, type, cast(u32)field.offset, loc = loc)
 
 		case reflect.Type_Info_Float:
 			switch field.type.size {
 			case 4:
 				type = .Float
 			case:
-				unimplemented(
-					fmt.tprintf(
-						"{}.{} : Unimplemented type {}",
-						tin.name,
-						field.name,
-						field.type.id,
-					),
-				)
+				unimplemented(fmt.tprintf("{}.{} : Unimplemented type {}", tin.name, field.name, field.type.id))
 			}
 
-			vertex_array_attrib_pointer(
-				vao,
-				binding_index,
-				u32(i),
-				1,
-				type,
-				false,
-				cast(u32)field.offset,
-				loc = loc,
-			)
+			vertex_array_attrib_pointer(vao, binding_index, u32(i), 1, type, false, cast(u32)field.offset, loc = loc)
 
 		case reflect.Type_Info_Array:
 			if v.count > 4 {
-				unimplemented(
-					fmt.tprintf(
-						"{}.{} : Unimplemented type {}",
-						tin.name,
-						field.name,
-						field.type.id,
-					),
-				)
+				unimplemented(fmt.tprintf("{}.{} : Unimplemented type {}", tin.name, field.name, field.type.id))
 			}
 
 			// NOTE: Special case for RGBA colour
@@ -249,14 +178,7 @@ vertex_attrib_vert :: proc(
 				case 4:
 					type = ev.signed ? .Int : .Unsigned_Int
 				case:
-					unimplemented(
-						fmt.tprintf(
-							"{}.{} : Unimplemented type {}",
-							tin.name,
-							field.name,
-							field.type.id,
-						),
-					)
+					unimplemented(fmt.tprintf("{}.{} : Unimplemented type {}", tin.name, field.name, field.type.id))
 				}
 
 				vertex_array_attrib_i_pointer(
@@ -274,14 +196,7 @@ vertex_attrib_vert :: proc(
 				case 4:
 					type = .Float
 				case:
-					unimplemented(
-						fmt.tprintf(
-							"{}.{} : Unimplemented type {}",
-							tin.name,
-							field.name,
-							field.type.id,
-						),
-					)
+					unimplemented(fmt.tprintf("{}.{} : Unimplemented type {}", tin.name, field.name, field.type.id))
 				}
 
 				vertex_array_attrib_pointer(
@@ -296,20 +211,11 @@ vertex_attrib_vert :: proc(
 				)
 
 			case:
-				unimplemented(
-					fmt.tprintf(
-						"{}.{} : Unimplemented type {}",
-						tin.name,
-						field.name,
-						field.type.id,
-					),
-				)
+				unimplemented(fmt.tprintf("{}.{} : Unimplemented type {}", tin.name, field.name, field.type.id))
 			}
 
 		case:
-			unimplemented(
-				fmt.tprintf("{}.{} : Unimplemented type {}", tin.name, field.name, field.type.id),
-			)
+			unimplemented(fmt.tprintf("{}.{} : Unimplemented type {}", tin.name, field.name, field.type.id))
 		}
 
 

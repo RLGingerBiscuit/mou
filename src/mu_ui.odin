@@ -86,11 +86,7 @@ mu_init_ui :: proc(state: ^State) {
 
 		fons.AddFont(font, "Inter-Bold", "assets/fonts/Inter/Inter-Bold.ttf")
 		fons.AddFont(font, "Jellee-Bold", "assets/fonts/Jellee/Jellee-Bold.ttf")
-		fons.AddFont(
-			font,
-			"JetBrainsMono-Bold",
-			"assets/fonts/JetBrainsMono/JetBrainsMono-Bold.ttf",
-		)
+		fons.AddFont(font, "JetBrainsMono-Bold", "assets/fonts/JetBrainsMono/JetBrainsMono-Bold.ttf")
 
 		for icon in ICONS {
 			src := mu.default_atlas[i32(icon)]
@@ -123,11 +119,7 @@ mu_init_ui :: proc(state: ^State) {
 		// We need to set the texture once before we can update it
 		texture_set(state.ui.font_tex, font.textureData)
 
-		state.ui.ctx.text_width = proc(
-			user_data: mu.Font,
-			opts: mu.Font_Options,
-			str: string,
-		) -> i32 {
+		state.ui.ctx.text_width = proc(user_data: mu.Font, opts: mu.Font_Options, str: string) -> i32 {
 			font := cast(^fons.FontContext)user_data
 			fons.SetFont(font, opts.index)
 			fons.SetSpacing(font, cast(f32)opts.spacing)
@@ -221,13 +213,7 @@ mu_update_ui :: proc(state: ^State, dt: f64) {
 		mu.end_panel(ctx)
 	}
 
-	checkbox_no_label :: proc(
-		ctx: ^mu.Context,
-		label: string,
-		state: ^bool,
-	) -> (
-		res: mu.Result_Set,
-	) {
+	checkbox_no_label :: proc(ctx: ^mu.Context, label: string, state: ^bool) -> (res: mu.Result_Set) {
 		id := mu.get_id(ctx, uintptr(state))
 		r := mu.layout_next(ctx)
 		box := mu.Rect{r.x, r.y, r.h, r.h}
@@ -259,12 +245,7 @@ mu_update_ui :: proc(state: ^State, dt: f64) {
 		mu.label(ctx, "Coords:")
 		mu.text(
 			ctx,
-			fmt.tprintf(
-				"X={:.1f}, Y={:.1f}, Z={:.1f}",
-				state.camera.pos.x,
-				state.camera.pos.y,
-				state.camera.pos.z,
-			),
+			fmt.tprintf("X={:.1f}, Y={:.1f}, Z={:.1f}", state.camera.pos.x, state.camera.pos.y, state.camera.pos.z),
 			FONT_MONO,
 		)
 
@@ -272,13 +253,7 @@ mu_update_ui :: proc(state: ^State, dt: f64) {
 		if looking, ok := state.frame.looking_at.?; ok {
 			mu.text(
 				ctx,
-				fmt.tprintf(
-					"X={}, Y={}, Z={}, {}",
-					looking.at.x,
-					looking.at.y,
-					looking.at.z,
-					looking.face,
-				),
+				fmt.tprintf("X={}, Y={}, Z={}, {}", looking.at.x, looking.at.y, looking.at.z, looking.face),
 				FONT_MONO,
 			)
 		} else {
@@ -288,11 +263,7 @@ mu_update_ui :: proc(state: ^State, dt: f64) {
 		mu.label(ctx, "Camera:")
 		mu.text(
 			ctx,
-			fmt.tprintf(
-				"Yaw={:.1f}, Pitch={:.1f}",
-				glm.mod(glm.abs(state.camera.yaw), 360),
-				state.camera.pitch,
-			),
+			fmt.tprintf("Yaw={:.1f}, Pitch={:.1f}", glm.mod(glm.abs(state.camera.yaw), 360), state.camera.pitch),
 			FONT_MONO,
 		)
 
@@ -447,11 +418,7 @@ mu_update_ui :: proc(state: ^State, dt: f64) {
 			}
 
 			mu.label(ctx, "Block Mem Usage:")
-			mu.text(
-				ctx,
-				fmt.tprintf("{:.2f} MiB", f32(temp_mem_usage[4]) / mem.Megabyte),
-				FONT_MONO,
-			)
+			mu.text(ctx, fmt.tprintf("{:.2f} MiB", f32(temp_mem_usage[4]) / mem.Megabyte), FONT_MONO)
 		}
 	}
 
@@ -518,13 +485,7 @@ mu_render_ui :: proc(state: ^State) {
 		when FLUSH_ALL_UI do flush(state)
 	}
 
-	draw_text :: proc(
-		state: ^State,
-		text: string,
-		pos: mu.Vec2,
-		colour: mu.Color,
-		opts: mu.Font_Options,
-	) {
+	draw_text :: proc(state: ^State, text: string, pos: mu.Vec2, colour: mu.Color, opts: mu.Font_Options) {
 		font := &state.ui.font_ctx
 		x := f32(pos.x)
 		y := f32(pos.y)

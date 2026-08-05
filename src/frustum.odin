@@ -137,31 +137,6 @@ frustum_contains_chunk :: proc(f: Frustum, chunk_pos: Chunk_Pos) -> bool {
 
 get_frustum_indices :: proc() -> []u32 {
 	@(static, rodata)
-	FRUSTUM_LINE_INDICES := []u32 {
-		0,
-		1,
-		1,
-		2,
-		2,
-		3,
-		3,
-		0,
-		4,
-		5,
-		5,
-		6,
-		6,
-		7,
-		7,
-		4,
-		0,
-		4,
-		1,
-		5,
-		2,
-		6,
-		3,
-		7,
-	}
+	FRUSTUM_LINE_INDICES := []u32{0, 1, 1, 2, 2, 3, 3, 0, 4, 5, 5, 6, 6, 7, 7, 4, 0, 4, 1, 5, 2, 6, 3, 7}
 	return FRUSTUM_LINE_INDICES
 }

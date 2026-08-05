@@ -35,15 +35,7 @@ Window :: struct {
 	prev_keys:    [i32(Key.Last)]Action,
 }
 
-init_window :: proc(
-	state: ^State,
-	title: string,
-	size: [2]i32,
-	vsync := true,
-	visible: bool = true,
-) -> (
-	ok: bool,
-) {
+init_window :: proc(state: ^State, title: string, size: [2]i32, vsync := true, visible: bool = true) -> (ok: bool) {
 	WINDOW := &state.window
 
 	log.debug("Creating GLFW window")
@@ -291,10 +283,7 @@ _window_framebuffer_size_callback :: proc "c" (handle: glfw.WindowHandle, width,
 	resize_window(state, width, height)
 }
 
-_window_key_callback :: proc "c" (
-	handle: glfw.WindowHandle,
-	ikey, _scancode, iaction, _mods: i32,
-) {
+_window_key_callback :: proc "c" (handle: glfw.WindowHandle, ikey, _scancode, iaction, _mods: i32) {
 	if ikey == -1 {return}
 	ptr := glfw.GetWindowUserPointer(handle)
 	state := cast(^State)ptr
@@ -305,10 +294,7 @@ _window_key_callback :: proc "c" (
 	wnd.keys[key] = action
 }
 
-_window_mouse_button_callback :: proc "c" (
-	handle: glfw.WindowHandle,
-	ibutton, iaction, _mods: i32,
-) {
+_window_mouse_button_callback :: proc "c" (handle: glfw.WindowHandle, ibutton, iaction, _mods: i32) {
 	ptr := glfw.GetWindowUserPointer(handle)
 	state := cast(^State)ptr
 	wnd := &state.window

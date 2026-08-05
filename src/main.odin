@@ -188,19 +188,12 @@ main :: proc() {
 
 	opaque_shader := make_shader("assets/shaders/chunk.vert", "assets/shaders/chunk.frag")
 	defer destroy_shader(&opaque_shader)
-	transparent_shader := make_shader(
-		"assets/shaders/chunk.vert",
-		"assets/shaders/chunk.frag",
-		{{"ALPHA_CUTOUT", ""}},
-	)
+	transparent_shader := make_shader("assets/shaders/chunk.vert", "assets/shaders/chunk.frag", {{"ALPHA_CUTOUT", ""}})
 	defer destroy_shader(&transparent_shader)
 	water_shader := make_shader("assets/shaders/water.vert", "assets/shaders/water.frag")
 	defer destroy_shader(&water_shader)
 
-	fullscreen_shader := make_shader(
-		"assets/shaders/fullscreen.vert",
-		"assets/shaders/fullscreen.frag",
-	)
+	fullscreen_shader := make_shader("assets/shaders/fullscreen.vert", "assets/shaders/fullscreen.frag")
 	defer destroy_shader(&fullscreen_shader)
 
 	line_shader := make_shader("assets/shaders/line.vert", "assets/shaders/line.frag")
@@ -306,26 +299,15 @@ main :: proc() {
 						avg_dt += dt
 					}
 					avg_dt /= f64(len(prev_delta_times))
-					set_window_title(
-						&state.window,
-						fmt.tprintf(WINDOW_TITLE + " ({:.0f} fps)", 1 / avg_dt),
-					)
+					set_window_title(&state.window, fmt.tprintf(WINDOW_TITLE + " ({:.0f} fps)", 1 / avg_dt))
 				}
 
 				if window_is_key_down(state.window, KEY_FOV_MOD) {
-					state.camera.fovx = glm.clamp(
-						state.camera.fovx - 5 * f32(state.window.scroll.y),
-						5,
-						120,
-					)
+					state.camera.fovx = glm.clamp(state.camera.fovx - 5 * f32(state.window.scroll.y), 5, 120)
 				}
 
 				if window_is_key_down(state.window, KEY_SPEED_MOD) {
-					state.camera.speed = glm.clamp(
-						state.camera.speed + f32(state.window.scroll.y),
-						1,
-						25,
-					)
+					state.camera.speed = glm.clamp(state.camera.speed + f32(state.window.scroll.y), 1, 25)
 				}
 
 				if window_is_key_pressed(state.window, KEY_UI_TOGGLE) {
@@ -355,10 +337,7 @@ main :: proc() {
 					f = state.camera.front
 				} else {
 					append(&state.frame.line_vertices, Line_Vert{p, {0, 0xff, 0, 0xff}})
-					append(
-						&state.frame.line_vertices,
-						Line_Vert{p + f * HIT_DISTANCE, {0, 0xff, 0, 0xff}},
-					)
+					append(&state.frame.line_vertices, Line_Vert{p + f * HIT_DISTANCE, {0, 0xff, 0, 0xff}})
 				}
 
 				pos, face, hit := cast_ray_to_block(state.world, p, f, HIT_DISTANCE)
@@ -439,13 +418,7 @@ main :: proc() {
 						if window_is_button_pressed(state.window, BUTTON_DESTROY) {
 							try_destroy_block(&state.world, chunk_pos, local_pos)
 						} else if window_is_button_pressed(state.window, BUTTON_PLACE) {
-							try_place_block(
-								&state.world,
-								state.block_to_place,
-								chunk_pos,
-								local_pos,
-								face,
-							)
+							try_place_block(&state.world, state.block_to_place, chunk_pos, local_pos, face)
 						}
 					}
 
@@ -459,8 +432,7 @@ main :: proc() {
 					cam_chunk_pos.y = 0
 
 					frustum := create_frustum(
-						state.frozen_frustum.? or_else state.camera.projection_matrix *
-						state.camera.view_matrix,
+						state.frozen_frustum.? or_else state.camera.projection_matrix * state.camera.view_matrix,
 					)
 
 					if prof.event("generate near chunks") {
@@ -529,14 +501,7 @@ main :: proc() {
 					fp := make([]u8, 512, context.temp_allocator)
 					fp_len: u32
 
-					if rdoc.GetCapture(
-						   rdoc_api,
-						   cap_idx,
-						   cast(cstring)raw_data(fp),
-						   &fp_len,
-						   &ts,
-					   ) !=
-					   0 {
+					if rdoc.GetCapture(rdoc_api, cap_idx, cast(cstring)raw_data(fp), &fp_len, &ts) != 0 {
 						ensure(int(fp_len) < len(fp))
 						cwd, err := os.get_working_directory(context.temp_allocator)
 						assert(err == nil, "could not get current working directory")
@@ -552,11 +517,7 @@ main :: proc() {
 						if rdoc.IsTargetControlConnected(rdoc_api) {
 							rdoc.ShowReplayUI(rdoc_api)
 						} else {
-							pid := rdoc.LaunchReplayUI(
-								rdoc_api,
-								1,
-								cast(cstring)raw_data(cap_path),
-							)
+							pid := rdoc.LaunchReplayUI(rdoc_api, 1, cast(cstring)raw_data(cap_path))
 							if pid != 0 {
 								log.infof("launched RenderDoc (pid={})", pid)
 							}
@@ -596,12 +557,7 @@ main :: proc() {
 					gl.Viewport(0, 0, window_size.x, window_size.y)
 					gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
 
-					set_uniforms :: proc(
-						r: Renderer,
-						state: ^State,
-						sky: RGBA32,
-						proj_view: glm.mat4,
-					) {
+					set_uniforms :: proc(r: Renderer, state: ^State, sky: RGBA32, proj_view: glm.mat4) {
 						bind_renderer(r)
 						set_uniform(r.shader, "u_proj_view", proj_view)
 						set_uniform(r.shader, "u_campos", state.camera.pos)
@@ -614,11 +570,7 @@ main :: proc() {
 								"u_fog_start",
 								f32(state.render_distance) * CHUNK_SIZE - CHUNK_SIZE / 4,
 							)
-							set_uniform(
-								r.shader,
-								"u_fog_end",
-								f32(state.render_distance) * CHUNK_SIZE,
-							)
+							set_uniform(r.shader, "u_fog_end", f32(state.render_distance) * CHUNK_SIZE)
 							set_uniform(r.shader, "u_fog_colour", sky)
 						} else {
 							set_uniform(r.shader, "u_fog_start", max(f32))
@@ -697,8 +649,7 @@ main :: proc() {
 							mesh := chunk.mesh.(Chunk_Mesh)
 							pos := chunk.pos * CHUNK_SIZE
 							elapsed := f32(current_time) - mesh.gen_time
-							visibility :=
-								elapsed > CHUNK_FADE_IN_SECONDS ? 1 : elapsed / CHUNK_FADE_IN_SECONDS
+							visibility := elapsed > CHUNK_FADE_IN_SECONDS ? 1 : elapsed / CHUNK_FADE_IN_SECONDS
 							set_uniform(opaque_renderer.shader, "u_chunkpos", pos)
 							set_uniform(opaque_renderer.shader, "u_visibility", visibility)
 							renderer_bind_vertices(&opaque_renderer, mesh.opaque_vbo)
@@ -719,15 +670,11 @@ main :: proc() {
 							mesh := chunk.mesh.(Chunk_Mesh)
 							pos := chunk.pos * CHUNK_SIZE
 							elapsed := f32(current_time) - mesh.gen_time
-							visibility :=
-								elapsed > CHUNK_FADE_IN_SECONDS ? 1 : elapsed / CHUNK_FADE_IN_SECONDS
+							visibility := elapsed > CHUNK_FADE_IN_SECONDS ? 1 : elapsed / CHUNK_FADE_IN_SECONDS
 							set_uniform(transparent_renderer.shader, "u_chunkpos", pos)
 							set_uniform(transparent_renderer.shader, "u_visibility", visibility)
 							renderer_bind_vertices(&transparent_renderer, mesh.transparent_vbo)
-							renderer_draw_indexed(
-								transparent_renderer,
-								mesh.transparent_index_count,
-							)
+							renderer_draw_indexed(transparent_renderer, mesh.transparent_index_count)
 						}
 					}
 
@@ -748,8 +695,7 @@ main :: proc() {
 							mesh := chunk.mesh.(Chunk_Mesh)
 							pos := chunk.pos * CHUNK_SIZE
 							elapsed := f32(current_time) - mesh.gen_time
-							visibility :=
-								elapsed > CHUNK_FADE_IN_SECONDS ? 1 : elapsed / CHUNK_FADE_IN_SECONDS
+							visibility := elapsed > CHUNK_FADE_IN_SECONDS ? 1 : elapsed / CHUNK_FADE_IN_SECONDS
 							set_uniform(water_renderer.shader, "u_chunkpos", pos)
 							set_uniform(water_renderer.shader, "u_visibility", visibility)
 							renderer_bind_vertices(&water_renderer, mesh.water_vbo)
@@ -815,14 +761,7 @@ main :: proc() {
 						gl.PolygonMode(gl.FRONT_AND_BACK, gl.LINE)
 					}
 
-					projection_matrix = glm.mat4Ortho3d(
-						0,
-						f32(window_size.x),
-						f32(window_size.y),
-						0,
-						-1,
-						1,
-					)
+					projection_matrix = glm.mat4Ortho3d(0, f32(window_size.x), f32(window_size.y), 0, -1, 1)
 					view_matrix = glm.identity(glm.mat4)
 					proj_view = projection_matrix * view_matrix
 

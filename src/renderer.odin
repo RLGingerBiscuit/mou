@@ -71,10 +71,7 @@ renderer_vertices :: proc(r: ^Renderer, verts: $S/[]$T, loc := #caller_location)
 }
 
 renderer_indices :: proc(r: ^Renderer, indices: $S/[]$T, loc := #caller_location) {
-	assert(
-		.Indexed in r.flags && .Owns_EBO in r.flags,
-		#procedure + " called on un-indexed renderer",
-	)
+	assert(.Indexed in r.flags && .Owns_EBO in r.flags, #procedure + " called on un-indexed renderer")
 	index_buffer_data(r.ebo, indices, loc = loc)
 }
 
@@ -82,24 +79,12 @@ renderer_sub_vertices :: proc(r: ^Renderer, offset: int, verts: $S/[]$T, loc := 
 	vertex_buffer_sub_data(r.vbo, offset, verts, loc = loc)
 }
 
-renderer_sub_indices :: proc(
-	r: ^Renderer,
-	offset: int,
-	indices: $S/[]$T,
-	loc := #caller_location,
-) {
-	assert(
-		.Indexed in r.flags && .Owns_EBO in r.flags,
-		#procedure + " called on un-indexed renderer",
-	)
+renderer_sub_indices :: proc(r: ^Renderer, offset: int, indices: $S/[]$T, loc := #caller_location) {
+	assert(.Indexed in r.flags && .Owns_EBO in r.flags, #procedure + " called on un-indexed renderer")
 	index_buffer_sub_data(r.ebo, offset, indices, loc = loc)
 }
 
-renderer_vertex_layout :: proc(
-	r: ^Renderer,
-	$T: typeid,
-	loc := #caller_location,
-) where intrinsics.type_is_struct(T) {
+renderer_vertex_layout :: proc(r: ^Renderer, $T: typeid, loc := #caller_location) where intrinsics.type_is_struct(T) {
 	vertex_attrib_vert(r.vao, r.vbo, T, loc = loc)
 	r.stride = size_of(T)
 }
@@ -112,12 +97,7 @@ renderer_bind_indices :: proc(r: ^Renderer, ebo: Index_Buffer) {
 	vertex_array_index_buffer(r.vao, ebo)
 }
 
-renderer_draw_indexed :: proc(
-	r: Renderer,
-	index_count: int,
-	type: u32 = gl.UNSIGNED_INT,
-	mode: u32 = gl.TRIANGLES,
-) {
+renderer_draw_indexed :: proc(r: Renderer, index_count: int, type: u32 = gl.UNSIGNED_INT, mode: u32 = gl.TRIANGLES) {
 	assert(.Indexed in r.flags)
 	gl.DrawElements(mode, i32(index_count), type, nil)
 }

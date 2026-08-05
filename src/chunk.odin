@@ -100,13 +100,7 @@ chunk_destroy_mesh :: proc(chunk: ^Chunk) {
 	chunk.mesh = nil
 }
 
-chunk_update_block :: proc(
-	world: ^World,
-	chunk: ^Chunk,
-	local_pos: Local_Pos,
-	block: Block,
-	mark := true,
-) {
+chunk_update_block :: proc(world: ^World, chunk: ^Chunk, local_pos: Local_Pos, block: Block, mark := true) {
 	idx := local_coords_to_block_index(local_pos.x, local_pos.y, local_pos.z)
 	chunk.blocks[idx] = block
 	if mark {

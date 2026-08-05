@@ -116,10 +116,8 @@ image_blit :: proc(destination: ^Image, source: Image, x, y: i32) {
 	}
 
 	for dy in 0 ..< clipped_height {
-		destination_offset :=
-			destination.channels * ((bounds[0].y + dy) * destination.width + bounds[0].x)
-		source_offset :=
-			source.channels * ((source_bounds[0].y + dy) * source.width + source_bounds[0].x)
+		destination_offset := destination.channels * ((bounds[0].y + dy) * destination.width + bounds[0].x)
+		source_offset := source.channels * ((source_bounds[0].y + dy) * source.width + source_bounds[0].x)
 
 		if destination.channels == source.channels {
 			mem.copy_non_overlapping(

@@ -35,12 +35,7 @@ make_shader :: proc(
 ) -> (
 	shader: Shader,
 ) {
-	load_shader :: proc(
-		src_path: string,
-		defines: []Define,
-		depth := 0,
-		allocator := context.allocator,
-	) -> string {
+	load_shader :: proc(src_path: string, defines: []Define, depth := 0, allocator := context.allocator) -> string {
 		context.allocator = allocator
 
 		src, err := os.read_entire_file(src_path, context.temp_allocator)
@@ -98,10 +93,7 @@ make_shader :: proc(
 
 			// TODO: implement proper relative paths and absolute paths
 			path_err: mem.Allocator_Error
-			inc_path, path_err = filepath.join(
-				{"assets/shaders/", inc_path},
-				context.temp_allocator,
-			)
+			inc_path, path_err = filepath.join({"assets/shaders/", inc_path}, context.temp_allocator)
 			ensure(path_err == nil)
 			defer delete(inc_path, context.temp_allocator)
 
@@ -166,26 +158,9 @@ make_shader :: proc(
 	type: u32
 	for i in 0 ..< u32(uniform_count) {
 		when ODIN_DEBUG {
-			gl.GetActiveUniform(
-				shader.handle,
-				i,
-				max_name_len,
-				&name_len,
-				&size,
-				&type,
-				raw_data(name_buf),
-				loc = loc,
-			)
+			gl.GetActiveUniform(shader.handle, i, max_name_len, &name_len, &size, &type, raw_data(name_buf), loc = loc)
 		} else {
-			gl.GetActiveUniform(
-				shader.handle,
-				i,
-				max_name_len,
-				&name_len,
-				&size,
-				&type,
-				raw_data(name_buf),
-			)
+			gl.GetActiveUniform(shader.handle, i, max_name_len, &name_len, &size, &type, raw_data(name_buf))
 		}
 
 		name_cstr := cast(cstring)raw_data(name_buf)
@@ -222,137 +197,65 @@ use_shader :: proc(shader: Shader) {
 	gl.UseProgram(shader.handle)
 }
 
-get_uniform :: proc(
-	shader: Shader,
-	name: string,
-	loc := #caller_location,
-) -> (
-	uniform: Uniform,
-	ok: bool,
-) {
+get_uniform :: proc(shader: Shader, name: string, loc := #caller_location) -> (uniform: Uniform, ok: bool) {
 	uniform, ok = shader.uniforms[name]
 	assert(ok, fmt.tprintf("Could not find uniform '{}'", name), loc = loc)
 	return uniform, true
 }
 
-set_uniform_mat2 :: proc(
-	shader: Shader,
-	name: string,
-	val: glm.mat2,
-	loc := #caller_location,
-) -> (
-	ok: bool,
-) {
+set_uniform_mat2 :: proc(shader: Shader, name: string, val: glm.mat2, loc := #caller_location) -> (ok: bool) {
 	val := val
 	uniform := get_uniform(shader, name, loc = loc) or_return
 	assert(
 		uniform.type == .Float_Mat2,
-		fmt.tprintf(
-			#procedure + " uniform type mismatch: expected {}, found {}",
-			Data_Type.Float_Mat2,
-			uniform.type,
-		),
+		fmt.tprintf(#procedure + " uniform type mismatch: expected {}, found {}", Data_Type.Float_Mat2, uniform.type),
 		loc = loc,
 	)
 	when ODIN_DEBUG {
-		gl.ProgramUniformMatrix2fv(
-			shader.handle,
-			uniform.location,
-			1,
-			false,
-			&val[0, 0],
-			loc = loc,
-		)
+		gl.ProgramUniformMatrix2fv(shader.handle, uniform.location, 1, false, &val[0, 0], loc = loc)
 	} else {
 		gl.ProgramUniformMatrix2fv(shader.handle, uniform.location, 1, false, &val[0, 0])
 	}
 	return true
 }
 
-set_uniform_mat3 :: proc(
-	shader: Shader,
-	name: string,
-	val: glm.mat3,
-	loc := #caller_location,
-) -> (
-	ok: bool,
-) {
+set_uniform_mat3 :: proc(shader: Shader, name: string, val: glm.mat3, loc := #caller_location) -> (ok: bool) {
 	val := val
 	uniform := get_uniform(shader, name, loc = loc) or_return
 	assert(
 		uniform.type == .Float_Mat3,
-		fmt.tprintf(
-			#procedure + " uniform type mismatch: expected {}, found {}",
-			Data_Type.Float_Mat3,
-			uniform.type,
-		),
+		fmt.tprintf(#procedure + " uniform type mismatch: expected {}, found {}", Data_Type.Float_Mat3, uniform.type),
 		loc = loc,
 	)
 	when ODIN_DEBUG {
-		gl.ProgramUniformMatrix3fv(
-			shader.handle,
-			uniform.location,
-			1,
-			false,
-			&val[0, 0],
-			loc = loc,
-		)
+		gl.ProgramUniformMatrix3fv(shader.handle, uniform.location, 1, false, &val[0, 0], loc = loc)
 	} else {
 		gl.ProgramUniformMatrix3fv(shader.handle, uniform.location, 1, false, &val[0, 0])
 	}
 	return true
 }
 
-set_uniform_mat4 :: proc(
-	shader: Shader,
-	name: string,
-	val: glm.mat4,
-	loc := #caller_location,
-) -> (
-	ok: bool,
-) {
+set_uniform_mat4 :: proc(shader: Shader, name: string, val: glm.mat4, loc := #caller_location) -> (ok: bool) {
 	val := val
 	uniform := get_uniform(shader, name, loc = loc) or_return
 	assert(
 		uniform.type == .Float_Mat4,
-		fmt.tprintf(
-			#procedure + " uniform type mismatch: expected {}, found {}",
-			Data_Type.Float_Mat4,
-			uniform.type,
-		),
+		fmt.tprintf(#procedure + " uniform type mismatch: expected {}, found {}", Data_Type.Float_Mat4, uniform.type),
 		loc = loc,
 	)
 	when ODIN_DEBUG {
-		gl.ProgramUniformMatrix4fv(
-			shader.handle,
-			uniform.location,
-			1,
-			false,
-			&val[0, 0],
-			loc = loc,
-		)
+		gl.ProgramUniformMatrix4fv(shader.handle, uniform.location, 1, false, &val[0, 0], loc = loc)
 	} else {
 		gl.ProgramUniformMatrix4fv(shader.handle, uniform.location, 1, false, &val[0, 0])
 	}
 	return true
 }
 
-set_uniform_f32 :: proc(
-	shader: Shader,
-	name: string,
-	val: f32,
-	loc := #caller_location,
-) -> (
-	ok: bool,
-) {
+set_uniform_f32 :: proc(shader: Shader, name: string, val: f32, loc := #caller_location) -> (ok: bool) {
 	uniform := get_uniform(shader, name, loc = loc) or_return
 	assert(
 		uniform.type == .Float,
-		fmt.tprintf(
-			#procedure + " uniform type mismatch: expected {}, found {}",
-			Data_Type.Float,
-			uniform.type,
-		),
+		fmt.tprintf(#procedure + " uniform type mismatch: expected {}, found {}", Data_Type.Float, uniform.type),
 		loc = loc,
 	)
 	when ODIN_DEBUG {
@@ -363,22 +266,11 @@ set_uniform_f32 :: proc(
 	return true
 }
 
-set_uniform_i32 :: proc(
-	shader: Shader,
-	name: string,
-	val: i32,
-	loc := #caller_location,
-) -> (
-	ok: bool,
-) {
+set_uniform_i32 :: proc(shader: Shader, name: string, val: i32, loc := #caller_location) -> (ok: bool) {
 	uniform := get_uniform(shader, name, loc = loc) or_return
 	assert(
 		uniform.type == .Int,
-		fmt.tprintf(
-			#procedure + " uniform type mismatch: expected {}, found {}",
-			Data_Type.Int,
-			uniform.type,
-		),
+		fmt.tprintf(#procedure + " uniform type mismatch: expected {}, found {}", Data_Type.Int, uniform.type),
 		loc = loc,
 	)
 	when ODIN_DEBUG {
@@ -389,14 +281,7 @@ set_uniform_i32 :: proc(
 	return true
 }
 
-set_uniform_u32 :: proc(
-	shader: Shader,
-	name: string,
-	val: u32,
-	loc := #caller_location,
-) -> (
-	ok: bool,
-) {
+set_uniform_u32 :: proc(shader: Shader, name: string, val: u32, loc := #caller_location) -> (ok: bool) {
 	uniform := get_uniform(shader, name, loc = loc) or_return
 	assert(
 		uniform.type == .Unsigned_Int,
@@ -415,22 +300,11 @@ set_uniform_u32 :: proc(
 	return true
 }
 
-set_uniform_vec2 :: proc(
-	shader: Shader,
-	name: string,
-	val: glm.vec2,
-	loc := #caller_location,
-) -> (
-	ok: bool,
-) {
+set_uniform_vec2 :: proc(shader: Shader, name: string, val: glm.vec2, loc := #caller_location) -> (ok: bool) {
 	uniform := get_uniform(shader, name, loc = loc) or_return
 	assert(
 		uniform.type == .Float_Vec2,
-		fmt.tprintf(
-			#procedure + " uniform type mismatch: expected {}, found {}",
-			Data_Type.Float_Vec2,
-			uniform.type,
-		),
+		fmt.tprintf(#procedure + " uniform type mismatch: expected {}, found {}", Data_Type.Float_Vec2, uniform.type),
 		loc = loc,
 	)
 	when ODIN_DEBUG {
@@ -441,22 +315,11 @@ set_uniform_vec2 :: proc(
 	return true
 }
 
-set_uniform_vec3 :: proc(
-	shader: Shader,
-	name: string,
-	val: glm.vec3,
-	loc := #caller_location,
-) -> (
-	ok: bool,
-) {
+set_uniform_vec3 :: proc(shader: Shader, name: string, val: glm.vec3, loc := #caller_location) -> (ok: bool) {
 	uniform := get_uniform(shader, name, loc = loc) or_return
 	assert(
 		uniform.type == .Float_Vec3,
-		fmt.tprintf(
-			#procedure + " uniform type mismatch: expected {}, found {}",
-			Data_Type.Float_Vec3,
-			uniform.type,
-		),
+		fmt.tprintf(#procedure + " uniform type mismatch: expected {}, found {}", Data_Type.Float_Vec3, uniform.type),
 		loc = loc,
 	)
 	when ODIN_DEBUG {
@@ -467,22 +330,11 @@ set_uniform_vec3 :: proc(
 	return true
 }
 
-set_uniform_vec4 :: proc(
-	shader: Shader,
-	name: string,
-	val: glm.vec4,
-	loc := #caller_location,
-) -> (
-	ok: bool,
-) {
+set_uniform_vec4 :: proc(shader: Shader, name: string, val: glm.vec4, loc := #caller_location) -> (ok: bool) {
 	uniform := get_uniform(shader, name, loc = loc) or_return
 	assert(
 		uniform.type == .Float_Vec4,
-		fmt.tprintf(
-			#procedure + " uniform type mismatch: expected {}, found {}",
-			Data_Type.Float_Vec4,
-			uniform.type,
-		),
+		fmt.tprintf(#procedure + " uniform type mismatch: expected {}, found {}", Data_Type.Float_Vec4, uniform.type),
 		loc = loc,
 	)
 	when ODIN_DEBUG {
@@ -493,22 +345,11 @@ set_uniform_vec4 :: proc(
 	return true
 }
 
-set_uniform_ivec2 :: proc(
-	shader: Shader,
-	name: string,
-	val: glm.ivec2,
-	loc := #caller_location,
-) -> (
-	ok: bool,
-) {
+set_uniform_ivec2 :: proc(shader: Shader, name: string, val: glm.ivec2, loc := #caller_location) -> (ok: bool) {
 	uniform := get_uniform(shader, name, loc = loc) or_return
 	assert(
 		uniform.type == .Int_Vec2,
-		fmt.tprintf(
-			#procedure + " uniform type mismatch: expected {}, found {}",
-			Data_Type.Int_Vec2,
-			uniform.type,
-		),
+		fmt.tprintf(#procedure + " uniform type mismatch: expected {}, found {}", Data_Type.Int_Vec2, uniform.type),
 		loc = loc,
 	)
 	when ODIN_DEBUG {
@@ -519,22 +360,11 @@ set_uniform_ivec2 :: proc(
 	return true
 }
 
-set_uniform_ivec3 :: proc(
-	shader: Shader,
-	name: string,
-	val: glm.ivec3,
-	loc := #caller_location,
-) -> (
-	ok: bool,
-) {
+set_uniform_ivec3 :: proc(shader: Shader, name: string, val: glm.ivec3, loc := #caller_location) -> (ok: bool) {
 	uniform := get_uniform(shader, name, loc = loc) or_return
 	assert(
 		uniform.type == .Int_Vec3,
-		fmt.tprintf(
-			#procedure + " uniform type mismatch: expected {}, found {}",
-			Data_Type.Int_Vec3,
-			uniform.type,
-		),
+		fmt.tprintf(#procedure + " uniform type mismatch: expected {}, found {}", Data_Type.Int_Vec3, uniform.type),
 		loc = loc,
 	)
 	when ODIN_DEBUG {
@@ -545,22 +375,11 @@ set_uniform_ivec3 :: proc(
 	return true
 }
 
-set_uniform_ivec4 :: proc(
-	shader: Shader,
-	name: string,
-	val: glm.ivec4,
-	loc := #caller_location,
-) -> (
-	ok: bool,
-) {
+set_uniform_ivec4 :: proc(shader: Shader, name: string, val: glm.ivec4, loc := #caller_location) -> (ok: bool) {
 	uniform := get_uniform(shader, name, loc = loc) or_return
 	assert(
 		uniform.type == .Int_Vec4,
-		fmt.tprintf(
-			#procedure + " uniform type mismatch: expected {}, found {}",
-			Data_Type.Int_Vec4,
-			uniform.type,
-		),
+		fmt.tprintf(#procedure + " uniform type mismatch: expected {}, found {}", Data_Type.Int_Vec4, uniform.type),
 		loc = loc,
 	)
 	when ODIN_DEBUG {
@@ -571,14 +390,7 @@ set_uniform_ivec4 :: proc(
 	return true
 }
 
-set_uniform_uvec2 :: proc(
-	shader: Shader,
-	name: string,
-	val: glm.uvec2,
-	loc := #caller_location,
-) -> (
-	ok: bool,
-) {
+set_uniform_uvec2 :: proc(shader: Shader, name: string, val: glm.uvec2, loc := #caller_location) -> (ok: bool) {
 	uniform := get_uniform(shader, name, loc = loc) or_return
 	assert(
 		uniform.type == .Unsigned_Int_Vec2,
@@ -597,14 +409,7 @@ set_uniform_uvec2 :: proc(
 	return true
 }
 
-set_uniform_uvec3 :: proc(
-	shader: Shader,
-	name: string,
-	val: glm.uvec3,
-	loc := #caller_location,
-) -> (
-	ok: bool,
-) {
+set_uniform_uvec3 :: proc(shader: Shader, name: string, val: glm.uvec3, loc := #caller_location) -> (ok: bool) {
 	uniform := get_uniform(shader, name, loc = loc) or_return
 	assert(
 		uniform.type == .Unsigned_Int_Vec3,
@@ -623,14 +428,7 @@ set_uniform_uvec3 :: proc(
 	return true
 }
 
-set_uniform_uvec4 :: proc(
-	shader: Shader,
-	name: string,
-	val: glm.uvec4,
-	loc := #caller_location,
-) -> (
-	ok: bool,
-) {
+set_uniform_uvec4 :: proc(shader: Shader, name: string, val: glm.uvec4, loc := #caller_location) -> (ok: bool) {
 	uniform := get_uniform(shader, name, loc = loc) or_return
 	assert(
 		uniform.type == .Unsigned_Int_Vec4,
@@ -642,40 +440,18 @@ set_uniform_uvec4 :: proc(
 		loc = loc,
 	)
 	when ODIN_DEBUG {
-		gl.ProgramUniform4ui(
-			shader.handle,
-			uniform.location,
-			val.x,
-			val.y,
-			val.z,
-			val.w,
-			loc = loc,
-		)
+		gl.ProgramUniform4ui(shader.handle, uniform.location, val.x, val.y, val.z, val.w, loc = loc)
 	} else {
 		gl.ProgramUniform4ui(shader.handle, uniform.location, val.x, val.y, val.z, val.w)
 	}
 	return true
 }
 
-set_uniform_rgba :: proc(
-	shader: Shader,
-	name: string,
-	val: RGBA,
-	loc := #caller_location,
-) -> (
-	ok: bool,
-) {
+set_uniform_rgba :: proc(shader: Shader, name: string, val: RGBA, loc := #caller_location) -> (ok: bool) {
 	return set_uniform(shader, name, transmute(u32)val, loc = loc)
 }
 
-set_uniform_rgba32 :: proc(
-	shader: Shader,
-	name: string,
-	val: RGBA32,
-	loc := #caller_location,
-) -> (
-	ok: bool,
-) {
+set_uniform_rgba32 :: proc(shader: Shader, name: string, val: RGBA32, loc := #caller_location) -> (ok: bool) {
 	return set_uniform(shader, name, cast(glm.vec4)val, loc = loc)
 }
 

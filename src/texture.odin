@@ -121,39 +121,20 @@ make_texture :: proc(
 		texture_parameter(tex, gl.TEXTURE_WRAP_T, cast(i32)wrap, loc = loc)
 		texture_parameter(tex, gl.TEXTURE_MIN_FILTER, cast(i32)min_filter, loc = loc)
 		texture_parameter(tex, gl.TEXTURE_MAG_FILTER, cast(i32)mag_filter, loc = loc)
-		gl.TextureStorage2D(
-			tex.handle,
-			levels,
-			cast(u32)tex.internal_format,
-			tex.width,
-			tex.height,
-			loc = loc,
-		)
+		gl.TextureStorage2D(tex.handle, levels, cast(u32)tex.internal_format, tex.width, tex.height, loc = loc)
 	} else {
 		gl.CreateTextures(gl.TEXTURE_2D, 1, &tex.handle)
 		texture_parameter(tex, gl.TEXTURE_WRAP_S, cast(i32)wrap)
 		texture_parameter(tex, gl.TEXTURE_WRAP_T, cast(i32)wrap)
 		texture_parameter(tex, gl.TEXTURE_MIN_FILTER, cast(i32)min_filter)
 		texture_parameter(tex, gl.TEXTURE_MAG_FILTER, cast(i32)mag_filter)
-		gl.TextureStorage2D(
-			tex.handle,
-			levels,
-			cast(u32)tex.internal_format,
-			tex.width,
-			tex.height,
-		)
+		gl.TextureStorage2D(tex.handle, levels, cast(u32)tex.internal_format, tex.width, tex.height)
 	}
 
 	return
 }
 
-texture_set_level :: proc(
-	tex: Texture,
-	level: i32,
-	width, height: i32,
-	data: []byte,
-	loc := #caller_location,
-) {
+texture_set_level :: proc(tex: Texture, level: i32, width, height: i32, data: []byte, loc := #caller_location) {
 	if len(data) < int(width * height * texture_format_size(tex.format)) {
 		log.warnf("Setting texture {} level {}: was not provided enough bytes", tex.name, level)
 		return

@@ -46,9 +46,7 @@ _update_camera_axes :: proc(state: ^State) {
 	yaw := glm.radians(cam.yaw)
 	pitch := glm.radians(cam.pitch)
 
-	cam.front = glm.normalize(
-		glm.vec3{glm.sin(pitch) * glm.cos(yaw), glm.cos(pitch), glm.sin(pitch) * glm.sin(yaw)},
-	)
+	cam.front = glm.normalize(glm.vec3{glm.sin(pitch) * glm.cos(yaw), glm.cos(pitch), glm.sin(pitch) * glm.sin(yaw)})
 	cam.right = glm.normalize(glm.cross(cam.front, cam.global_up))
 	cam.up = glm.normalize(glm.cross(cam.right, cam.front))
 

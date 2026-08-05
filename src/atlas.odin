@@ -138,11 +138,7 @@ make_atlas :: proc(asset_path: string, mips := true) -> (atlas: Atlas) {
 	}
 
 	// img[0] is always the largest
-	tmp_data := make(
-		[]u8,
-		4 * (packer.imgs[0].width * packer.imgs[0].height) / 2,
-		context.temp_allocator,
-	)
+	tmp_data := make([]u8, 4 * (packer.imgs[0].width * packer.imgs[0].height) / 2, context.temp_allocator)
 	defer delete(tmp_data, context.temp_allocator)
 
 	for img, i in packer.imgs {

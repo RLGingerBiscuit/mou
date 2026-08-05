@@ -27,12 +27,7 @@ Framebuffer :: struct {
 	attachments: [dynamic; len(Attachment_Type)]Framebuffer_Attachment,
 }
 
-make_framebuffer :: proc(
-	attachments: []Framebuffer_Attachment,
-	loc := #caller_location,
-) -> (
-	fbo: Framebuffer,
-) {
+make_framebuffer :: proc(attachments: []Framebuffer_Attachment, loc := #caller_location) -> (fbo: Framebuffer) {
 	when ODIN_DEBUG {
 		gl.CreateFramebuffers(1, &fbo.handle, loc = loc)
 	} else {
@@ -56,11 +51,7 @@ make_framebuffer :: proc(
 
 	for a in attachments {
 		if _, used := used_attachments[a.type]; used {
-			log.warnf(
-				"Duplicate framebuffer attachment {}, only the first one will be used",
-				a.type,
-				location = loc,
-			)
+			log.warnf("Duplicate framebuffer attachment {}, only the first one will be used", a.type, location = loc)
 		} else {
 			append(&fbo.attachments, a)
 			used_attachments[a.type] = {}
@@ -115,8 +106,7 @@ make_framebuffer :: proc(
 		}
 	}
 
-	if gl.CheckNamedFramebufferStatus(fbo.handle, cast(u32)Framebuffer_Target.All) !=
-	   gl.FRAMEBUFFER_COMPLETE {
+	if gl.CheckNamedFramebufferStatus(fbo.handle, cast(u32)Framebuffer_Target.All) != gl.FRAMEBUFFER_COMPLETE {
 		log.panic("Framebuffer did not complete", location = loc)
 	}
 
@@ -167,8 +157,7 @@ resize_framebuffer :: proc(fbo: ^Framebuffer, width, height: i32, loc := #caller
 			gl.NamedFramebufferTexture(fbo.handle, cast(u32)a.type, new_tex.handle, 0)
 		}
 
-		if gl.CheckNamedFramebufferStatus(fbo.handle, cast(u32)Framebuffer_Target.All) !=
-		   gl.FRAMEBUFFER_COMPLETE {
+		if gl.CheckNamedFramebufferStatus(fbo.handle, cast(u32)Framebuffer_Target.All) != gl.FRAMEBUFFER_COMPLETE {
 			log.panic("Framebuffer resize did not complete")
 		}
 
