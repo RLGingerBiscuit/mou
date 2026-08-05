@@ -168,9 +168,7 @@ main :: proc() {
 		fovx = DEFAULT_FOV,
 	)
 
-	when ODIN_DEBUG {
-		setup_opengl_debug()
-	}
+	setup_opengl_debug()
 
 	gl.Enable(gl.CULL_FACE)
 	gl.BlendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA)

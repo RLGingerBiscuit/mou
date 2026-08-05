@@ -33,8 +33,9 @@ Debug_Severity :: enum u32 {
 	Notification = gl.DEBUG_SEVERITY_NOTIFICATION,
 }
 
+OPENGL_DEBUG :: #config(OPENGL_DEBUG, ODIN_DEBUG)
 
-@(disabled = !ODIN_DEBUG)
+@(disabled = !OPENGL_DEBUG)
 setup_opengl_debug :: proc() {
 	gl.Enable(gl.DEBUG_OUTPUT)
 	gl.Enable(gl.DEBUG_OUTPUT_SYNCHRONOUS)
@@ -71,7 +72,7 @@ setup_opengl_debug :: proc() {
 	)
 }
 
-@(disabled = !ODIN_DEBUG)
+@(disabled = !OPENGL_DEBUG)
 push_debug_group :: proc(message: string, loc := #caller_location) {
 	when ODIN_DEBUG {
 		gl.PushDebugGroup(
@@ -91,7 +92,7 @@ push_debug_group :: proc(message: string, loc := #caller_location) {
 	}
 }
 
-@(disabled = !ODIN_DEBUG)
+@(disabled = !OPENGL_DEBUG)
 pop_debug_group :: proc(loc := #caller_location) {
 	when ODIN_DEBUG {
 		gl.PopDebugGroup(loc = loc)
@@ -100,7 +101,7 @@ pop_debug_group :: proc(loc := #caller_location) {
 	}
 }
 
-@(disabled = !ODIN_DEBUG, deferred_in = debug_group_end)
+@(disabled = !OPENGL_DEBUG, deferred_in = debug_group_end)
 debug_group :: proc(message: string, loc := #caller_location) {
 	when ODIN_DEBUG {
 		push_debug_group(message, loc = loc)
@@ -109,7 +110,7 @@ debug_group :: proc(message: string, loc := #caller_location) {
 	}
 }
 
-@(disabled = !ODIN_DEBUG)
+@(disabled = !OPENGL_DEBUG)
 debug_group_end :: proc(_: string, loc := #caller_location) {
 	when ODIN_DEBUG {
 		pop_debug_group(loc = loc)
