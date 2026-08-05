@@ -50,11 +50,7 @@ chunk_ensure_mesh :: proc(chunk: ^Chunk) -> ^Chunk_Mesh {
 	if mesh, ok := &chunk.mesh.?; ok {
 		return mesh
 	}
-	chunk.mesh = Chunk_Mesh {
-		opaque_vbo      = make_vertex_buffer(.Dynamic),
-		transparent_vbo = make_vertex_buffer(.Dynamic),
-		water_vbo       = make_vertex_buffer(.Dynamic),
-	}
+	chunk.mesh = Chunk_Mesh{}
 	mesh := &chunk.mesh.(Chunk_Mesh)
 	return mesh
 }
@@ -62,12 +58,36 @@ chunk_ensure_mesh :: proc(chunk: ^Chunk) -> ^Chunk_Mesh {
 chunk_update_mesh :: proc(chunk: ^Chunk, generated: ^Generated_Chunk_Mesh) -> ^Chunk_Mesh {
 	mesh := chunk_ensure_mesh(chunk)
 	mesh.opaque_index_count = len(generated.opaque_verts) * FACE_INDEX_COUNT
+	if mesh.opaque_index_count > 0 {
+		if mesh.opaque_vbo.handle == 0 {
+			mesh.opaque_vbo = make_vertex_buffer(.Dynamic)
+		}
+		buffer_data(mesh.opaque_vbo, generated.opaque_verts[:])
+	} else if mesh.opaque_vbo.handle != 0 {
+		destroy_vertex_buffer(&mesh.opaque_vbo)
+		mesh.opaque_vbo = {}
+	}
 	mesh.transparent_index_count = len(generated.transparent_verts) * FACE_INDEX_COUNT
+	if mesh.transparent_index_count > 0 {
+		if mesh.transparent_vbo.handle == 0 {
+			mesh.transparent_vbo = make_vertex_buffer(.Dynamic)
+		}
+		buffer_data(mesh.transparent_vbo, generated.transparent_verts[:])
+	} else if mesh.transparent_vbo.handle != 0 {
+		destroy_vertex_buffer(&mesh.transparent_vbo)
+		mesh.transparent_vbo = {}
+	}
 	mesh.water_index_count = len(generated.water_verts) * FACE_INDEX_COUNT
+	if mesh.water_index_count > 0 {
+		if mesh.water_vbo.handle == 0 {
+			mesh.water_vbo = make_vertex_buffer(.Dynamic)
+		}
+		buffer_data(mesh.water_vbo, generated.water_verts[:])
+	} else if mesh.water_vbo.handle != 0 {
+		destroy_vertex_buffer(&mesh.water_vbo)
+		mesh.water_vbo = {}
+	}
 
-	buffer_data(mesh.opaque_vbo, generated.opaque_verts[:])
-	buffer_data(mesh.transparent_vbo, generated.transparent_verts[:])
-	buffer_data(mesh.water_vbo, generated.water_verts[:])
 	return mesh
 }
 
