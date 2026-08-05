@@ -1,7 +1,6 @@
 package mou
 
 import glm "core:math/linalg/glsl"
-import "core:slice"
 import "core:sync"
 
 CHUNK_SIZE :: 16
@@ -14,9 +13,6 @@ Chunk_Mesh :: struct {
 	transparent_index_count: int,
 	water_vbo:               Vertex_Buffer,
 	water_index_count:       int,
-	// For sorting...
-	transparent_verts:       []Mesh_Face,
-	water_verts:             []Mesh_Face,
 	gen_time:                f32,
 }
 
@@ -69,11 +65,6 @@ chunk_update_mesh :: proc(chunk: ^Chunk, generated: ^Generated_Chunk_Mesh) -> ^C
 	mesh.transparent_index_count = len(generated.transparent_verts) * FACE_INDEX_COUNT
 	mesh.water_index_count = len(generated.water_verts) * FACE_INDEX_COUNT
 
-	delete(mesh.water_verts)
-	delete(mesh.transparent_verts)
-	mesh.water_verts = slice.clone(generated.water_verts[:])
-	mesh.transparent_verts = slice.clone(generated.transparent_verts[:])
-
 	buffer_data(mesh.opaque_vbo, generated.opaque_verts[:])
 	buffer_data(mesh.transparent_vbo, generated.transparent_verts[:])
 	buffer_data(mesh.water_vbo, generated.water_verts[:])
@@ -82,8 +73,6 @@ chunk_update_mesh :: proc(chunk: ^Chunk, generated: ^Generated_Chunk_Mesh) -> ^C
 
 chunk_destroy_mesh :: proc(chunk: ^Chunk) {
 	if mesh, ok := &chunk.mesh.?; ok {
-		delete(mesh.water_verts)
-		delete(mesh.transparent_verts)
 		destroy_vertex_buffer(&mesh.opaque_vbo)
 		destroy_vertex_buffer(&mesh.transparent_vbo)
 		destroy_vertex_buffer(&mesh.water_vbo)

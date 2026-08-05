@@ -682,38 +682,7 @@ main :: proc() {
 						})
 					}
 
-					// TODO: Do this but way better
-					// if prof.event("sort water faces") {
-					// 	for chunk in water_chunks {
-					// 		mesh := chunk.mesh
-
-					// 		slice.sort_by(mesh.water[:], proc(i, j: Mesh_Face) -> bool {
-					// 			state := cast(^State)context.user_ptr
-
-					// 			get_face_centre :: proc(f: Mesh_Face) -> glm.vec3 {
-					// 				a := f[0].pos
-					// 				b := f[2].pos
-					// 				t := (a + b) / 2
-					// 				if a.x == b.x {
-					// 					return {a.x, t.y, t.z}
-					// 				} else if a.y == b.y {
-					// 					return {t.x, a.y, t.z}
-					// 				} else if a.z == b.z {
-					// 					return {t.x, t.y, a.z}
-					// 				}
-					// 				unreachable()
-					// 			}
-
-					// 			i_c := get_face_centre(i)
-					// 			j_c := get_face_centre(j)
-
-					// 			i_dist := glm.length(state.camera.pos - i_c)
-					// 			j_dist := glm.length(state.camera.pos - j_c)
-
-					// 			return i_dist > j_dist
-					// 		})
-					// 	}
-					// }
+					// TODO: Sort water faces but in a good way this time
 
 					if prof.event("render opaque meshes") {
 						debug_group("Opaque")
