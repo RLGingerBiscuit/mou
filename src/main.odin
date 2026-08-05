@@ -779,14 +779,15 @@ main :: proc() {
 						bind_texture_unit(0, block_atlas.texture)
 						set_uniforms(water_renderer, &state, SKY_COLOUR, proj_view)
 
+						set_uniform(water_renderer.shader, "u_time", cast(f32)current_time)
+						set_uniform(water_renderer.shader, "u_atlas_size", ATLAS_SIZE)
+						set_uniform(water_renderer.shader, "u_atlas_block_size", cast(f32)128)
+
 						for &chunk in water_chunks {
 							pos := chunk.pos * CHUNK_SIZE
 							elapsed := f32(current_time) - chunk.mesh.gen_time
 							visibility :=
 								elapsed > CHUNK_FADE_IN_SECONDS ? 1 : elapsed / CHUNK_FADE_IN_SECONDS
-							set_uniform(water_renderer.shader, "u_time", cast(f32)current_time)
-							set_uniform(water_renderer.shader, "u_atlas_size", ATLAS_SIZE)
-							set_uniform(water_renderer.shader, "u_atlas_block_size", cast(f32)128)
 							set_uniform(water_renderer.shader, "u_chunkpos", pos)
 							set_uniform(water_renderer.shader, "u_visibility", visibility)
 							renderer_sub_vertices(water_renderer, 0, chunk.mesh.water[:])
