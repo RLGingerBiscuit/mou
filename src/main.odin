@@ -298,7 +298,6 @@ main :: proc() {
 		log.infof("Profile: {}", profile)
 	}
 
-
 	prev_delta_times: [dynamic; 60]f64
 	for !window_should_close(state.window) {
 		current_time := state.window.time
