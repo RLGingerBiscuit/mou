@@ -596,7 +596,8 @@ main :: proc() {
 				// Ensure stuff is reset
 				gl.Enable(gl.CULL_FACE)
 				gl.Enable(gl.DEPTH_TEST)
-				gl.Enable(gl.SCISSOR_TEST)
+				gl.Disable(gl.SCISSOR_TEST)
+				gl.DepthMask(true)
 
 				if prof.event("render chunks") {
 					debug_group("Render Chunks")
@@ -743,6 +744,7 @@ main :: proc() {
 					}
 
 					gl.Enable(gl.BLEND)
+					gl.DepthMask(false)
 
 					if prof.event("render transparent meshes") {
 						debug_group("Transparent")
