@@ -558,7 +558,6 @@ main :: proc() {
 					gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
 
 					set_uniforms :: proc(r: Renderer, state: ^State, sky: RGBA32, proj_view: glm.mat4) {
-						bind_renderer(r)
 						set_uniform(r.shader, "u_proj_view", proj_view)
 						set_uniform(r.shader, "u_campos", state.camera.pos)
 						set_uniform(r.shader, "u_ao", u32(state.ao))
@@ -612,8 +611,10 @@ main :: proc() {
 					if prof.event("sort opaque chunks") {
 						slice.sort_by(opaque_chunks[:], proc(i, j: ^Chunk) -> bool {
 							state := cast(^State)context.user_ptr
-							i_dist := glm.length(state.camera.pos - get_chunk_centre(i))
-							j_dist := glm.length(state.camera.pos - get_chunk_centre(j))
+							i_pos := state.camera.pos - get_chunk_centre(i)
+							j_pos := state.camera.pos - get_chunk_centre(j)
+							i_dist := glm.dot(i_pos, i_pos)
+							j_dist := glm.dot(j_pos, j_pos)
 							return i_dist < j_dist
 						})
 					}
@@ -621,8 +622,10 @@ main :: proc() {
 					if prof.event("sort transparent chunks") {
 						slice.sort_by(transparent_chunks[:], proc(i, j: ^Chunk) -> bool {
 							state := cast(^State)context.user_ptr
-							i_dist := glm.length(state.camera.pos - get_chunk_centre(i))
-							j_dist := glm.length(state.camera.pos - get_chunk_centre(j))
+							i_pos := state.camera.pos - get_chunk_centre(i)
+							j_pos := state.camera.pos - get_chunk_centre(j)
+							i_dist := glm.dot(i_pos, i_pos)
+							j_dist := glm.dot(j_pos, j_pos)
 							return i_dist > j_dist
 						})
 					}
@@ -630,8 +633,10 @@ main :: proc() {
 					if prof.event("sort water chunks") {
 						slice.sort_by(water_chunks[:], proc(i, j: ^Chunk) -> bool {
 							state := cast(^State)context.user_ptr
-							i_dist := glm.length(state.camera.pos - get_chunk_centre(i))
-							j_dist := glm.length(state.camera.pos - get_chunk_centre(j))
+							i_pos := state.camera.pos - get_chunk_centre(i)
+							j_pos := state.camera.pos - get_chunk_centre(j)
+							i_dist := glm.dot(i_pos, i_pos)
+							j_dist := glm.dot(j_pos, j_pos)
 							return i_dist > j_dist
 						})
 					}
