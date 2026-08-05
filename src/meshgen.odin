@@ -287,93 +287,47 @@ mesh_chunk :: proc(world: ^World, chunk: ^Chunk, mesh: ^Generated_Chunk_Mesh) {
 
 				if .Neg_Y in mask {
 					face_verts = position_face(.Neg_Y, ao_mask, local_pos, block, world.atlas)
-					if block.id == .Water {
-						append(vertices, face_verts)
-						face_verts = position_face(.Pos_Y, ao_mask, local_pos + {0, -1, 0}, block, world.atlas)
-					}
 					append(vertices, face_verts)
 				}
 				if .Pos_Y in mask {
 					face_verts = position_face(.Pos_Y, ao_mask, local_pos, block, world.atlas)
-					if block.id == .Water {
-						if bpy.id != .Water {
-							face_verts[0].pos.y -= WATER_TOP_OFFSET
-							face_verts[1].pos.y -= WATER_TOP_OFFSET
-							face_verts[2].pos.y -= WATER_TOP_OFFSET
-							face_verts[3].pos.y -= WATER_TOP_OFFSET
-						}
-						append(vertices, face_verts)
-						face_verts = position_face(.Neg_Y, ao_mask, local_pos + {0, 1, 0}, block, world.atlas)
-						if bpy.id != .Water {
-							face_verts[0].pos.y -= WATER_TOP_OFFSET
-							face_verts[1].pos.y -= WATER_TOP_OFFSET
-							face_verts[2].pos.y -= WATER_TOP_OFFSET
-							face_verts[3].pos.y -= WATER_TOP_OFFSET
-						}
+					if block.id == .Water && bpy.id != .Water {
+						face_verts[0].pos.y -= WATER_TOP_OFFSET
+						face_verts[1].pos.y -= WATER_TOP_OFFSET
+						face_verts[2].pos.y -= WATER_TOP_OFFSET
+						face_verts[3].pos.y -= WATER_TOP_OFFSET
 					}
 					append(vertices, face_verts)
 				}
 				if .Neg_Z in mask {
 					face_verts = position_face(.Neg_Z, ao_mask, local_pos, block, world.atlas)
-					if block.id == .Water {
-						if bpy.id != .Water {
-							face_verts[0].pos.y -= WATER_TOP_OFFSET
-							face_verts[3].pos.y -= WATER_TOP_OFFSET
-						}
-						append(vertices, face_verts)
-						face_verts = position_face(.Pos_Z, ao_mask, local_pos + {0, 0, -1}, block, world.atlas)
-						if bpy.id != .Water {
-							face_verts[0].pos.y -= WATER_TOP_OFFSET
-							face_verts[3].pos.y -= WATER_TOP_OFFSET
-						}
+					if block.id == .Water && bpy.id != .Water {
+						face_verts[0].pos.y -= WATER_TOP_OFFSET
+						face_verts[3].pos.y -= WATER_TOP_OFFSET
 					}
 					append(vertices, face_verts)
 				}
 				if .Pos_Z in mask {
 					face_verts = position_face(.Pos_Z, ao_mask, local_pos, block, world.atlas)
-					if block.id == .Water {
-						if bpy.id != .Water {
-							face_verts[0].pos.y -= WATER_TOP_OFFSET
-							face_verts[3].pos.y -= WATER_TOP_OFFSET
-						}
-						append(vertices, face_verts)
-						face_verts = position_face(.Neg_Z, ao_mask, local_pos + {0, 0, 1}, block, world.atlas)
-						if bpy.id != .Water {
-							face_verts[0].pos.y -= WATER_TOP_OFFSET
-							face_verts[3].pos.y -= WATER_TOP_OFFSET
-						}
+					if block.id == .Water && bpy.id != .Water {
+						face_verts[0].pos.y -= WATER_TOP_OFFSET
+						face_verts[3].pos.y -= WATER_TOP_OFFSET
 					}
 					append(vertices, face_verts)
 				}
 				if .Neg_X in mask {
 					face_verts = position_face(.Neg_X, ao_mask, local_pos, block, world.atlas)
-					if block.id == .Water {
-						if bpy.id != .Water {
-							face_verts[0].pos.y -= WATER_TOP_OFFSET
-							face_verts[3].pos.y -= WATER_TOP_OFFSET
-						}
-						append(vertices, face_verts)
-						face_verts = position_face(.Pos_X, ao_mask, local_pos + {-1, 0, 0}, block, world.atlas)
-						if bpy.id != .Water {
-							face_verts[0].pos.y -= WATER_TOP_OFFSET
-							face_verts[3].pos.y -= WATER_TOP_OFFSET
-						}
+					if block.id == .Water && bpy.id != .Water {
+						face_verts[0].pos.y -= WATER_TOP_OFFSET
+						face_verts[3].pos.y -= WATER_TOP_OFFSET
 					}
 					append(vertices, face_verts)
 				}
 				if .Pos_X in mask {
 					face_verts = position_face(.Pos_X, ao_mask, local_pos, block, world.atlas)
-					if block.id == .Water {
-						if bpy.id != .Water {
-							face_verts[0].pos.y -= WATER_TOP_OFFSET
-							face_verts[3].pos.y -= WATER_TOP_OFFSET
-						}
-						append(vertices, face_verts)
-						face_verts = position_face(.Neg_X, ao_mask, local_pos + {1, 0, 0}, block, world.atlas)
-						if bpy.id != .Water {
-							face_verts[0].pos.y -= WATER_TOP_OFFSET
-							face_verts[3].pos.y -= WATER_TOP_OFFSET
-						}
+					if block.id == .Water && bpy.id != .Water {
+						face_verts[0].pos.y -= WATER_TOP_OFFSET
+						face_verts[3].pos.y -= WATER_TOP_OFFSET
 					}
 					append(vertices, face_verts)
 				}

@@ -227,7 +227,7 @@ main :: proc() {
 	defer destroy_renderer(&fullscreen_renderer)
 
 	{ 	// Renderer setup
-		MAX_INDEX_SIZE :: CHUNK_BLOCK_COUNT * 6
+		MAX_INDEX_SIZE :: CHUNK_BLOCK_COUNT * 3
 		temp_indices := make([]Mesh_Face_Indexes, MAX_INDEX_SIZE, context.temp_allocator)
 		defer delete(temp_indices, context.temp_allocator)
 		for i in 0 ..< u32(len(temp_indices)) {
@@ -575,6 +575,7 @@ main :: proc() {
 				gl.Enable(gl.DEPTH_TEST)
 				gl.Disable(gl.BLEND)
 				gl.Disable(gl.SCISSOR_TEST)
+				gl.Enable(gl.CULL_FACE)
 				gl.DepthMask(true)
 
 				{
@@ -731,6 +732,7 @@ main :: proc() {
 					}
 
 					gl.DepthMask(false)
+					gl.Disable(gl.CULL_FACE)
 
 					if prof.event("render water meshes") {
 						debug_group("Water")
