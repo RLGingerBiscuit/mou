@@ -2,7 +2,6 @@ package mou
 
 import "core:math"
 import glm "core:math/linalg/glsl"
-import vmem "core:mem/virtual"
 import "core:slice"
 import "core:sync"
 import "core:sync/chan"
@@ -42,16 +41,12 @@ World :: struct {
 	atlas:          ^Atlas, // FIXME: This doesn't belong here
 	msg_stack:      [dynamic]Meshgen_Msg,
 	prio_msg_stack: [dynamic]Meshgen_Msg,
-	arena:          vmem.Arena,
 }
 
 init_world :: proc(world: ^World, atlas: ^Atlas) {
 	world.atlas = atlas
 	world.meshgen_tx, world.rx = init_meshgen_thread(&world.meshgen_thread, world)
 
-	ensure(vmem.arena_init_growing(&world.arena) == nil)
-
-	context.allocator = vmem.arena_allocator(&world.arena)
 	world.chunks = make(map[Chunk_Pos]Chunk)
 	world.msg_stack = make([dynamic]Meshgen_Msg, 0, MAX_RENDER_DISTANCE * MAX_RENDER_DISTANCE)
 	world.prio_msg_stack = make([dynamic]Meshgen_Msg, 0, MAX_RENDER_DISTANCE)
@@ -60,8 +55,12 @@ init_world :: proc(world: ^World, atlas: ^Atlas) {
 destroy_world :: proc(world: ^World) {
 	destroy_meshgen_thread(&world.meshgen_thread)
 
-	// God I love arenas
-	vmem.arena_destroy(&world.arena)
+	for _, &chunk in world.chunks {
+		destroy_chunk(&chunk)
+	}
+	delete(world.chunks)
+	delete(world.msg_stack)
+	delete(world.prio_msg_stack)
 
 	world^ = {}
 }
@@ -166,8 +165,6 @@ update_world :: proc(world: ^World, player_pos: glm.vec3) {
 //
 // NOTE: Caller needs to have the lock on the world.
 world_generate_chunk :: proc(world: ^World, chunk_pos: Chunk_Pos) -> bool {
-	context.allocator = vmem.arena_allocator(&world.arena)
-
 	if _, found := world.chunks[chunk_pos]; found {
 		return false
 	}
@@ -234,8 +231,6 @@ world_generate_chunk :: proc(world: ^World, chunk_pos: Chunk_Pos) -> bool {
 
 // NOTE: caller needs to have the lock on the world
 world_fill_chunk :: proc(world: ^World, chunk_pos: Chunk_Pos, block: Block) {
-	context.allocator = vmem.arena_allocator(&world.arena)
-
 	chunk: ^Chunk
 	found: bool
 	if chunk, found = &world.chunks[chunk_pos]; !found {
