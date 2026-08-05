@@ -258,6 +258,18 @@ world_remesh_surrounding_chunks :: proc(world: ^World, chunk_pos: Chunk_Pos) {
 	}
 }
 
+world_remesh_surrounding_chunks_priority :: proc(world: ^World, chunk_pos: Chunk_Pos) {
+	for z in i32(-1) ..= 1 {
+		for y in i32(-1) ..= 1 {
+			for x in i32(-1) ..= 1 {
+				if chunk, ok := &world.chunks[chunk_pos + {x, y, z}]; ok {
+					world_mark_chunk_remesh_priority(world, chunk)
+				}
+			}
+		}
+	}
+}
+
 // Marks a chunk as in need of remeshing and adds it to the queue for dispatching to the meshgen thread.
 world_mark_chunk_remesh :: proc(world: ^World, chunk: ^Chunk) {
 	if queued := sync.atomic_compare_exchange_strong(&chunk.mark_remesh, false, true); !queued {

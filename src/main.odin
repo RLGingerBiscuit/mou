@@ -833,7 +833,7 @@ try_destroy_block :: proc(w: ^World, chunk_pos: Chunk_Pos, local_pos: Local_Pos)
 	sync.guard(&w.lock)
 	if chunk, cok := get_world_chunk(w^, chunk_pos); cok {
 		chunk_update_block(w, chunk, local_pos, {.Air})
-		single_block_update_remesh(w, chunk_pos, local_pos)
+		world_remesh_surrounding_chunks_priority(w, chunk_pos)
 		return true
 	}
 	return false
@@ -891,96 +891,8 @@ try_place_block :: proc(
 	sync.guard(&w.lock)
 	if chunk, cok := get_world_chunk(w^, chunk_pos); cok {
 		chunk_update_block(w, chunk, local_pos, block)
-		single_block_update_remesh(w, chunk_pos, local_pos)
+		world_remesh_surrounding_chunks_priority(w, chunk_pos)
 		return true
 	}
 	return false
-}
-
-single_block_update_remesh :: proc(w: ^World, chunk_pos: Chunk_Pos, local_pos: Local_Pos) {
-	remesh :: proc(w: ^World, pos: Chunk_Pos) {
-		if nb, nbok := get_world_chunk(w^, pos); nbok {
-			world_mark_chunk_remesh_priority(w, nb)
-		}
-	}
-
-	// FIXME: This is probably a terrible way to do this (and doesn't even work properly sometimes). Do better.
-	remesh(w, chunk_pos)
-	if local_pos.x == 0 {
-		remesh(w, chunk_pos + {-1, 0, 0})
-		if local_pos.y == 0 {
-			remesh(w, chunk_pos + {-1, -1, 0})
-		} else if local_pos.y == 15 {
-			remesh(w, chunk_pos + {-1, +1, 0})
-		}
-		if local_pos.z == 0 {
-			remesh(w, chunk_pos + {-1, 0, -1})
-		} else if local_pos.z == 15 {
-			remesh(w, chunk_pos + {-1, 0, +1})
-		}
-	} else if local_pos.x == 15 {
-		remesh(w, chunk_pos + {+1, 0, 0})
-		if local_pos.y == 0 {
-			remesh(w, chunk_pos + {+1, -1, 0})
-		} else if local_pos.y == 15 {
-			remesh(w, chunk_pos + {+1, +1, 0})
-		}
-		if local_pos.z == 0 {
-			remesh(w, chunk_pos + {+1, 0, -1})
-		} else if local_pos.z == 15 {
-			remesh(w, chunk_pos + {+1, 0, +1})
-		}
-	}
-
-	if local_pos.y == 0 {
-		remesh(w, chunk_pos + {0, -1, 0})
-		if local_pos.x == 0 {
-			remesh(w, chunk_pos + {-1, -1, 0})
-		} else if local_pos.x == 15 {
-			remesh(w, chunk_pos + {+1, -1, 0})
-		}
-		if local_pos.z == 0 {
-			remesh(w, chunk_pos + {-1, -1, -1})
-		} else if local_pos.z == 15 {
-			remesh(w, chunk_pos + {+1, -1, +1})
-		}
-	} else if local_pos.y == 15 {
-		remesh(w, chunk_pos + {0, +1, 0})
-		if local_pos.x == 0 {
-			remesh(w, chunk_pos + {-1, +1, 0})
-		} else if local_pos.x == 15 {
-			remesh(w, chunk_pos + {+1, +1, 0})
-		}
-		if local_pos.z == 0 {
-			remesh(w, chunk_pos + {0, +1, -1})
-		} else if local_pos.z == 15 {
-			remesh(w, chunk_pos + {0, +1, +1})
-		}
-	}
-
-	if local_pos.z == 0 {
-		remesh(w, chunk_pos + {0, 0, -1})
-		if local_pos.x == 0 {
-			remesh(w, chunk_pos + {-1, 0, -1})
-		} else if local_pos.x == 15 {
-			remesh(w, chunk_pos + {+1, 0, -1})
-		}
-		if local_pos.y == 0 {
-			remesh(w, chunk_pos + {0, -1, -1})
-		} else if local_pos.y == 15 {
-			remesh(w, chunk_pos + {0, +1, -1})
-		}
-	} else if local_pos.z == 15 {
-		remesh(w, chunk_pos + {0, 0, +1})
-		if local_pos.x == 0 {
-			remesh(w, chunk_pos + {-1, 0, +1})
-		} else if local_pos.x == 15 {
-			remesh(w, chunk_pos + {+1, 0, +1})
-		}
-		if local_pos.y == 0 {
-			remesh(w, chunk_pos + {0, -1, +1})
-		} else if local_pos.y == 15 {
-			remesh(w, chunk_pos + {0, +1, +1})
-		}
-	}
 }
