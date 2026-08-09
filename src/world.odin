@@ -79,14 +79,14 @@ update_world :: proc(world: ^World, player_pos: glm.vec3) {
 
 					switch vi in i {
 					// Give terminate/tombstone priority (send to top of stack)
-					case Meshgen_Msg_Terminate, Meshgen_Msg_Tombstone:
+					case Meshgen_Msg_Tombstone:
 						return false
 
 					case Meshgen_Msg_Remesh:
 						i_dist = glm.length(player_pos^ - chunk_pos_centre(vi.pos))
 									// odinfmt:disable
 				switch vj in j {
-				case Meshgen_Msg_Terminate, Meshgen_Msg_Tombstone: return true
+				case Meshgen_Msg_Tombstone: return true
 				case Meshgen_Msg_Remesh:                           j_pos = vj.pos
 				case Meshgen_Msg_Demesh:                           j_pos = vj.pos
 				}
@@ -98,7 +98,7 @@ update_world :: proc(world: ^World, player_pos: glm.vec3) {
 						i_dist = glm.length(player_pos^ - chunk_pos_centre(vi.pos))
 									// odinfmt:disable
 				switch vj in j {
-				case Meshgen_Msg_Terminate, Meshgen_Msg_Tombstone: return true
+				case Meshgen_Msg_Tombstone: return true
 				case Meshgen_Msg_Remesh:                           j_pos = vj.pos
 				case Meshgen_Msg_Demesh:                           j_pos = vj.pos
 				}

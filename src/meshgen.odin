@@ -31,13 +31,11 @@ Meshgen_Msg_Demesh :: struct {
 Meshgen_Msg_Tombstone :: struct {
 	mesh: ^Generated_Chunk_Mesh,
 }
-Meshgen_Msg_Terminate :: struct {}
 
 Meshgen_Msg :: union {
 	Meshgen_Msg_Remesh,
 	Meshgen_Msg_Demesh,
 	Meshgen_Msg_Tombstone,
-	Meshgen_Msg_Terminate,
 }
 
 Meshgen_Thread :: struct {
@@ -170,9 +168,6 @@ _meshgen_thread_proc :: proc(mg: ^Meshgen_Thread) {
 
 		case Meshgen_Msg_Tombstone:
 			append(&mg.tombstones, v.mesh)
-
-		case Meshgen_Msg_Terminate:
-			return
 		}
 	}
 }
