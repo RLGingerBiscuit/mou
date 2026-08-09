@@ -12,6 +12,9 @@ import "prof"
 
 MESHGEN_CHAN_CAP :: 32
 
+MESHGEN_CHUNK_SIZE :: 18
+Meshgen_Chunk :: [MESHGEN_CHUNK_SIZE * MESHGEN_CHUNK_SIZE * MESHGEN_CHUNK_SIZE]Block
+
 Generated_Chunk_Mesh :: struct {
 	opaque_verts:      [dynamic]Mesh_Face `fmt:"-"`,
 	transparent_verts: [dynamic]Mesh_Face `fmt:"-"`,
@@ -116,9 +119,31 @@ _meshgen_thread_proc :: proc(mg: ^Meshgen_Thread) {
 
 		switch v in msg {
 		case Meshgen_Msg_Remesh:
-			chunk, exists := &world.chunks[v.pos]
-			ensure(exists, "Chunk sent for meshing doesn't exist")
-			if !chunk_marked_remesh(chunk) || chunk_marked_demesh(chunk) {
+			should_mesh := false
+			mg_chunk: Meshgen_Chunk
+			{
+				sync.shared_guard(&world.lock)
+				chunk, exists := &world.chunks[v.pos]
+				ensure(exists, "Chunk sent for meshing doesn't exist")
+				should_mesh = chunk_marked_remesh(chunk) && !chunk_marked_demesh(chunk)
+				if should_mesh {
+					sync.atomic_store(&chunk.mark_remesh, false)
+					chunk_block_pos := chunk_pos_to_block_pos(chunk.pos)
+					for py in i32(-1) ..< MESHGEN_CHUNK_SIZE - 1 {
+						for pz in i32(-1) ..< MESHGEN_CHUNK_SIZE - 1 {
+							for px in i32(-1) ..< MESHGEN_CHUNK_SIZE - 1 {
+								block_pos := Block_Pos{px, py, pz}
+								world_pos := chunk_block_pos + block_pos
+								if b, ok := get_world_block(world^, world_pos); ok {
+									mg_chunk[meshgen_index(block_pos)] = b
+								}
+							}
+						}
+					}
+				}
+			}
+
+			if !should_mesh {
 				continue
 			}
 
@@ -126,20 +151,22 @@ _meshgen_thread_proc :: proc(mg: ^Meshgen_Thread) {
 			mesh := len(mg.tombstones) > 0 ? pop(&mg.tombstones) : new_chunk_mesh(mg, world)
 			assert(mesh != nil)
 
-			sync.atomic_store(&chunk.mark_remesh, false)
 			if prof.event("chunk mesh generation") {
-				mesh_chunk(world, chunk, mesh)
+				mesh_chunk(world, v.pos, &mg_chunk, mesh)
 			}
 
 			chan.send(mg.world_tx, World_Msg_Meshed{v.pos, mesh})
 
 		case Meshgen_Msg_Demesh:
-			chunk, exists := &world.chunks[v.pos]
-			ensure(exists, "Chunk sent for demeshing doesn't exist")
-			if chunk.mesh == nil {
-				continue
+			{
+				sync.shared_guard(&world.lock)
+				chunk, exists := &world.chunks[v.pos]
+				ensure(exists, "Chunk sent for demeshing doesn't exist")
+				if chunk.mesh == nil {
+					continue
+				}
+				chan.send(mg.world_tx, World_Msg_Demeshed{v.pos})
 			}
-			chan.send(mg.world_tx, World_Msg_Demeshed{v.pos})
 
 		case Meshgen_Msg_Tombstone:
 			append(&mg.tombstones, v.mesh)
@@ -153,64 +180,35 @@ _meshgen_thread_proc :: proc(mg: ^Meshgen_Thread) {
 new_chunk_mesh :: proc(mg: ^Meshgen_Thread, world: ^World) -> ^Generated_Chunk_Mesh {
 	mesh := new(Generated_Chunk_Mesh)
 
-	// From some *very* basic tests these numbers seem to be alright for now
-	mesh.opaque_verts = make([dynamic]Mesh_Face, 0, CHUNK_BLOCK_COUNT / 24)
+	mesh.opaque_verts = make([dynamic]Mesh_Face)
 	mesh.transparent_verts = make([dynamic]Mesh_Face)
 	mesh.water_verts = make([dynamic]Mesh_Face)
 
 	return mesh
 }
 
-mesh_chunk :: proc(world: ^World, chunk: ^Chunk, mesh: ^Generated_Chunk_Mesh) {
+mesh_chunk :: proc(world: ^World, chunk_pos: Chunk_Pos, mg_chunk: ^Meshgen_Chunk, mesh: ^Generated_Chunk_Mesh) {
 	clear(&mesh.opaque_verts)
 	clear(&mesh.transparent_verts)
 	clear(&mesh.water_verts)
 
 	WATER_TOP_OFFSET :: (f32(1) / CHUNK_SIZE)
 
-	MESHGEN_CHUNK_SIZE :: 18
-	Meshgen_Chunk :: [MESHGEN_CHUNK_SIZE * MESHGEN_CHUNK_SIZE * MESHGEN_CHUNK_SIZE]Block
-
-	meshgen_index :: #force_inline proc(pos: glm.ivec3) -> i32 {
-		return (pos.y + 1) * MESHGEN_CHUNK_SIZE * MESHGEN_CHUNK_SIZE + (pos.z + 1) * MESHGEN_CHUNK_SIZE + (pos.x + 1)
-	}
-	meshgen_get :: #force_inline proc(mg: ^Meshgen_Chunk, pos: glm.ivec3) -> Block {
-		return mg[meshgen_index(pos)]
-	}
-
-	chunk_block_pos := chunk_pos_to_block_pos(chunk.pos)
-
-	mg_chunk: Meshgen_Chunk
-	{
-		sync.shared_guard(&world.lock)
-
-		for py in i32(-1) ..< MESHGEN_CHUNK_SIZE - 1 {
-			for pz in i32(-1) ..< MESHGEN_CHUNK_SIZE - 1 {
-				for px in i32(-1) ..< MESHGEN_CHUNK_SIZE - 1 {
-					block_pos := Block_Pos{px, py, pz}
-					world_pos := chunk_block_pos + block_pos
-					if b, ok := get_world_block(world^, world_pos); ok {
-						mg_chunk[meshgen_index(block_pos)] = b
-					}
-				}
-			}
-		}
-	}
 
 	for y in i32(0) ..< CHUNK_SIZE {
 		for z in i32(0) ..< CHUNK_SIZE {
 			for x in i32(0) ..< CHUNK_SIZE {
-				block := meshgen_get(&mg_chunk, {x, y, z})
+				block := meshgen_get(mg_chunk, {x, y, z})
 				if block.id == .Air {
 					continue
 				}
 
-				bnx := meshgen_get(&mg_chunk, {x - 1, y, z})
-				bpx := meshgen_get(&mg_chunk, {x + 1, y, z})
-				bny := meshgen_get(&mg_chunk, {x, y - 1, z})
-				bpy := meshgen_get(&mg_chunk, {x, y + 1, z})
-				bnz := meshgen_get(&mg_chunk, {x, y, z - 1})
-				bpz := meshgen_get(&mg_chunk, {x, y, z + 1})
+				bnx := meshgen_get(mg_chunk, {x - 1, y, z})
+				bpx := meshgen_get(mg_chunk, {x + 1, y, z})
+				bny := meshgen_get(mg_chunk, {x, y - 1, z})
+				bpy := meshgen_get(mg_chunk, {x, y + 1, z})
+				bnz := meshgen_get(mg_chunk, {x, y, z - 1})
+				bpz := meshgen_get(mg_chunk, {x, y, z + 1})
 
 
 				mask: Block_Face_Mask
@@ -235,26 +233,26 @@ mesh_chunk :: proc(world: ^World, chunk: ^Chunk, mesh: ^Generated_Chunk_Mesh) {
 				ao_mask: Block_Diag_Mask
 
 				if block.id != .Water {
-					bnnn := meshgen_get(&mg_chunk, {x - 1, y - 1, z - 1})
-					bnnz := meshgen_get(&mg_chunk, {x - 1, y - 1, z + 0})
-					bnnp := meshgen_get(&mg_chunk, {x - 1, y - 1, z + 1})
-					bnzn := meshgen_get(&mg_chunk, {x - 1, y + 0, z - 1})
-					bnzp := meshgen_get(&mg_chunk, {x - 1, y + 0, z + 1})
-					bnpn := meshgen_get(&mg_chunk, {x - 1, y + 1, z - 1})
-					bnpz := meshgen_get(&mg_chunk, {x - 1, y + 1, z + 0})
-					bnpp := meshgen_get(&mg_chunk, {x - 1, y + 1, z + 1})
-					bznn := meshgen_get(&mg_chunk, {x + 0, y - 1, z - 1})
-					bznp := meshgen_get(&mg_chunk, {x + 0, y - 1, z + 1})
-					bzpn := meshgen_get(&mg_chunk, {x + 0, y + 1, z - 1})
-					bzpp := meshgen_get(&mg_chunk, {x + 0, y + 1, z + 1})
-					bpnn := meshgen_get(&mg_chunk, {x + 1, y - 1, z - 1})
-					bpnz := meshgen_get(&mg_chunk, {x + 1, y - 1, z + 0})
-					bpnp := meshgen_get(&mg_chunk, {x + 1, y - 1, z + 1})
-					bpzn := meshgen_get(&mg_chunk, {x + 1, y + 0, z - 1})
-					bpzp := meshgen_get(&mg_chunk, {x + 1, y + 0, z + 1})
-					bppn := meshgen_get(&mg_chunk, {x + 1, y + 1, z - 1})
-					bppz := meshgen_get(&mg_chunk, {x + 1, y + 1, z + 0})
-					bppp := meshgen_get(&mg_chunk, {x + 1, y + 1, z + 1})
+					bnnn := meshgen_get(mg_chunk, {x - 1, y - 1, z - 1})
+					bnnz := meshgen_get(mg_chunk, {x - 1, y - 1, z + 0})
+					bnnp := meshgen_get(mg_chunk, {x - 1, y - 1, z + 1})
+					bnzn := meshgen_get(mg_chunk, {x - 1, y + 0, z - 1})
+					bnzp := meshgen_get(mg_chunk, {x - 1, y + 0, z + 1})
+					bnpn := meshgen_get(mg_chunk, {x - 1, y + 1, z - 1})
+					bnpz := meshgen_get(mg_chunk, {x - 1, y + 1, z + 0})
+					bnpp := meshgen_get(mg_chunk, {x - 1, y + 1, z + 1})
+					bznn := meshgen_get(mg_chunk, {x + 0, y - 1, z - 1})
+					bznp := meshgen_get(mg_chunk, {x + 0, y - 1, z + 1})
+					bzpn := meshgen_get(mg_chunk, {x + 0, y + 1, z - 1})
+					bzpp := meshgen_get(mg_chunk, {x + 0, y + 1, z + 1})
+					bpnn := meshgen_get(mg_chunk, {x + 1, y - 1, z - 1})
+					bpnz := meshgen_get(mg_chunk, {x + 1, y - 1, z + 0})
+					bpnp := meshgen_get(mg_chunk, {x + 1, y - 1, z + 1})
+					bpzn := meshgen_get(mg_chunk, {x + 1, y + 0, z - 1})
+					bpzp := meshgen_get(mg_chunk, {x + 1, y + 0, z + 1})
+					bppn := meshgen_get(mg_chunk, {x + 1, y + 1, z - 1})
+					bppz := meshgen_get(mg_chunk, {x + 1, y + 1, z + 0})
+					bppp := meshgen_get(mg_chunk, {x + 1, y + 1, z + 1})
 
 					ao_mask |= bnnn.id != .Air && block_is_opaque(bnnn) ? {.NNN} : {}
 					ao_mask |= bnnz.id != .Air && block_is_opaque(bnnz) ? {.NNZ} : {}
@@ -334,6 +332,13 @@ mesh_chunk :: proc(world: ^World, chunk: ^Chunk, mesh: ^Generated_Chunk_Mesh) {
 			}
 		}
 	}
+}
+
+meshgen_index :: proc "contextless" (pos: glm.ivec3) -> i32 {
+	return (pos.y + 1) * MESHGEN_CHUNK_SIZE * MESHGEN_CHUNK_SIZE + (pos.z + 1) * MESHGEN_CHUNK_SIZE + (pos.x + 1)
+}
+meshgen_get :: proc "contextless" (mg: ^Meshgen_Chunk, pos: glm.ivec3) -> Block {
+	return mg[meshgen_index(pos)]
 }
 
 @(private = "file")
