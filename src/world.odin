@@ -155,7 +155,6 @@ update_world :: proc(world: ^World, player_pos: glm.vec3) {
 				ensure(exists, "Demeshed chunk doesn't exist")
 				assert(chunk.pos == v.chunk_pos)
 				chunk_destroy_mesh(chunk)
-				chunk.mesh = nil
 				sync.atomic_store(&chunk.mark_demesh, false)
 			}
 		}

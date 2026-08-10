@@ -61,11 +61,12 @@ init_meshgen_thread :: proc(
 	chan.Chan(World_Msg, chan.Direction.Recv),
 ) {
 	chan_err: mem.Allocator_Error
-	mg._mg_chan, chan_err = chan.create(type_of(mg._mg_chan), 16, allocator)
+	mg._mg_chan, chan_err = chan.create(type_of(mg._mg_chan), MESHGEN_CHAN_CAP, allocator)
+	ensure(chan_err == nil)
 	rx := chan.as_recv(mg._mg_chan)
 	tx := chan.as_send(mg._mg_chan)
 
-	mg._world_chan, chan_err = chan.create(type_of(mg._world_chan), 16, allocator)
+	mg._world_chan, chan_err = chan.create(type_of(mg._world_chan), MESHGEN_CHAN_CAP, allocator)
 	ensure(chan_err == nil)
 	world_rx := chan.as_recv(mg._world_chan)
 	world_tx := chan.as_send(mg._world_chan)
@@ -156,15 +157,7 @@ _meshgen_thread_proc :: proc(mg: ^Meshgen_Thread) {
 			chan.send(mg.world_tx, World_Msg_Meshed{v.pos, mesh})
 
 		case Meshgen_Msg_Demesh:
-			{
-				sync.shared_guard(&world.lock)
-				chunk, exists := &world.chunks[v.pos]
-				ensure(exists, "Chunk sent for demeshing doesn't exist")
-				if chunk.mesh == nil {
-					continue
-				}
-				chan.send(mg.world_tx, World_Msg_Demeshed{v.pos})
-			}
+			chan.send(mg.world_tx, World_Msg_Demeshed{v.pos})
 
 		case Meshgen_Msg_Tombstone:
 			append(&mg.tombstones, v.mesh)
