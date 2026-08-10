@@ -250,11 +250,27 @@ mu_update_ui :: proc(state: ^State, dt: f64) {
 
 		mu.label(ctx, "Looking At:")
 		if looking, ok := state.frame.looking_at.?; ok {
-			mu.text(
-				ctx,
-				fmt.tprintf("X={}, Y={}, Z={}, {}", looking.at.x, looking.at.y, looking.at.z, looking.face),
-				FONT_MONO,
-			)
+			if b, bok := get_world_block(state.world, looking.at); bok {
+				mu.text(
+					ctx,
+					fmt.tprintf(
+						"X={}, Y={}, Z={}, {} ({})",
+						looking.at.x,
+						looking.at.y,
+						looking.at.z,
+						b.id,
+						looking.face,
+					),
+					FONT_MONO,
+				)
+			} else {
+				mu.text(
+					ctx,
+					fmt.tprintf("X={}, Y={}, Z={}, ({})", looking.at.x, looking.at.y, looking.at.z, looking.face),
+					FONT_MONO,
+				)
+
+			}
 		} else {
 			mu.text(ctx, "Nothing", FONT_MONO)
 		}

@@ -48,6 +48,7 @@ KEY_PAN_LEFT :: Key.Left
 KEY_PAN_RIGHT :: Key.Right
 KEY_SPEED_MOD :: Key.Left_Control
 KEY_FOV_MOD :: Key.Left_Alt
+BUTTON_PICK_BLOCK :: Mouse_Button.Middle
 
 KEY_EXIT :: Key.Escape
 KEY_FREE_MOUSE :: Key.Tab
@@ -351,6 +352,12 @@ main :: proc() {
 					local_pos := block_pos_to_local_pos(pos)
 					v := &state.frame.line_vertices
 					C :: RGBA{0xff, 0xff, 0xff, 0xff}
+
+					if window_is_button_pressed(state.window, BUTTON_PICK_BLOCK) {
+						if b, ok := get_world_block(state.world, pos); ok {
+							state.block_to_place = b
+						}
+					}
 
 					switch face {
 					case .Neg_X:
