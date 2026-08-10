@@ -3,7 +3,10 @@ package mou
 import glm "core:math/linalg/glsl"
 import "core:sync"
 
-CHUNK_SIZE :: 16
+// 4 == 16, 5 == 32, etc.
+CHUNK_SIZE_SHIFT :: 4
+CHUNK_SIZE :: 1 << CHUNK_SIZE_SHIFT
+CHUNK_SIZE_MASK :: CHUNK_SIZE - 1
 CHUNK_BLOCK_COUNT :: CHUNK_SIZE * CHUNK_SIZE * CHUNK_SIZE
 
 Chunk_Mesh :: struct {
@@ -121,13 +124,13 @@ get_chunk_block :: proc(chunk: Chunk, local_pos: Local_Pos) -> (Block, bool) {
 
 get_chunk_layer :: proc(chunk: ^Chunk, y: i32) -> []Block {
 	start := local_coords_to_block_index(0, y, 0)
-	end := local_coords_to_block_index(15, y, 15) + 1
+	end := local_coords_to_block_index(CHUNK_SIZE - 1, y, CHUNK_SIZE - 1) + 1
 	return chunk.blocks[start:end]
 }
 
 get_chunk_layers :: proc(chunk: ^Chunk, start_y, end_y: i32) -> []Block {
 	start := local_coords_to_block_index(0, start_y, 0)
-	end := local_coords_to_block_index(15, end_y, 15) + 1
+	end := local_coords_to_block_index(CHUNK_SIZE - 1, end_y, CHUNK_SIZE - 1) + 1
 	return chunk.blocks[start:end]
 }
 
@@ -137,15 +140,15 @@ get_chunk_centre :: proc(chunk: ^Chunk) -> glm.vec3 {
 
 chunk_pos_centre :: proc(chunk_pos: Chunk_Pos) -> glm.vec3 {
 	centre := chunk_pos_to_block_pos(chunk_pos) + Block_Pos(CHUNK_SIZE / 2)
-	return {f32(centre.x), f32(centre.y), f32(centre.z)}
+	return cast(glm.vec3)centre
 }
 
 chunk_pos_to_world_pos :: proc(chunk_pos: Chunk_Pos) -> World_Pos {
-	return {f32(chunk_pos.x << 4), f32(chunk_pos.y << 4), f32(chunk_pos.z << 4)}
+	return cast(World_Pos)chunk_pos * CHUNK_SIZE
 }
 
 chunk_pos_to_block_pos :: proc(chunk_pos: Chunk_Pos) -> Block_Pos {
-	return {chunk_pos.x << 4, chunk_pos.y << 4, chunk_pos.z << 4}
+	return chunk_pos * CHUNK_SIZE
 }
 
 local_coords_to_block_index :: proc(x, y, z: i32) -> i32 {

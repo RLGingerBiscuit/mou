@@ -12,7 +12,7 @@ import "prof"
 
 MESHGEN_CHAN_CAP :: 32
 
-MESHGEN_CHUNK_SIZE :: 18
+MESHGEN_CHUNK_SIZE :: CHUNK_SIZE + 2
 Meshgen_Chunk :: [MESHGEN_CHUNK_SIZE * MESHGEN_CHUNK_SIZE * MESHGEN_CHUNK_SIZE]Block
 
 Generated_Chunk_Mesh :: struct {

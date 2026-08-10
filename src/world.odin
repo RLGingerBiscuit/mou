@@ -180,6 +180,7 @@ world_generate_chunk :: proc(world: ^World, chunk_pos: Chunk_Pos) -> bool {
 		for x in i32(0) ..< CHUNK_SIZE {
 			OCTAVES :: 4
 			PERSISTENCE :: 0.5
+			TERRAIN_AMPLITUDE :: 32
 
 			xf := f32(chunk_pos.x * CHUNK_SIZE + x)
 			zf := f32(chunk_pos.z * CHUNK_SIZE + z)
@@ -197,7 +198,7 @@ world_generate_chunk :: proc(world: ^World, chunk_pos: Chunk_Pos) -> bool {
 			n /= amplitude_total
 			n *= 0.5
 			n += 0.5
-			n *= CHUNK_SIZE * 2
+			n *= TERRAIN_AMPLITUDE
 
 			height := cast(i32)math.round(n)
 			chunk_noise[z * CHUNK_SIZE + x] = height
@@ -301,20 +302,23 @@ world_mark_chunk_demesh_priority :: proc(world: ^World, chunk: ^Chunk) {
 }
 
 world_pos_to_block_pos :: proc(world_pos: World_Pos) -> Block_Pos {
-	p := glm.floor(world_pos)
-	return {i32(p.x), i32(p.y), i32(p.z)}
+	return cast(Block_Pos)glm.floor(world_pos)
 }
 
 world_pos_to_chunk_pos :: proc(world_pos: World_Pos) -> Chunk_Pos {
-	return {i32(world_pos.x) >> 4, i32(world_pos.y) >> 4, i32(world_pos.z) >> 4}
+	return block_pos_to_chunk_pos(world_pos_to_block_pos(world_pos))
 }
 
 block_pos_to_world_pos :: proc(block_pos: Block_Pos) -> World_Pos {
-	return {f32(block_pos.x), f32(block_pos.y), f32(block_pos.z)}
+	return cast(World_Pos)block_pos
 }
 
 block_pos_to_chunk_pos :: proc(block_pos: Block_Pos) -> Chunk_Pos {
-	return {block_pos.x >> 4, block_pos.y >> 4, block_pos.z >> 4}
+	return {
+		i32(block_pos.x) >> CHUNK_SIZE_SHIFT,
+		i32(block_pos.y) >> CHUNK_SIZE_SHIFT,
+		i32(block_pos.z) >> CHUNK_SIZE_SHIFT,
+	}
 }
 
 block_pos_to_local_pos :: proc(block_pos: Block_Pos) -> Local_Pos {

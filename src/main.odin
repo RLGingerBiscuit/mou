@@ -855,36 +855,36 @@ try_place_block :: proc(
 	case .Neg_X:
 		local_pos += {-1, 0, 0}
 		if local_pos.x < 0 {
-			local_pos.x = 15
+			local_pos.x = CHUNK_SIZE_MASK
 			chunk_pos.x -= 1
 		}
 	case .Pos_X:
 		local_pos += {+1, 0, 0}
-		if local_pos.x > 15 {
+		if local_pos.x > CHUNK_SIZE_MASK {
 			local_pos.x = 0
 			chunk_pos.x += 1
 		}
 	case .Neg_Y:
 		local_pos += {0, -1, 0}
 		if local_pos.y < 0 {
-			local_pos.y = 15
+			local_pos.y = CHUNK_SIZE_MASK
 			chunk_pos.y -= 1
 		}
 	case .Pos_Y:
 		local_pos += {0, +1, 0}
-		if local_pos.y > 15 {
+		if local_pos.y > CHUNK_SIZE_MASK {
 			local_pos.y = 0
 			chunk_pos.y += 1
 		}
 	case .Neg_Z:
 		local_pos += {0, 0, -1}
 		if local_pos.z < 0 {
-			local_pos.z = 15
+			local_pos.z = CHUNK_SIZE_MASK
 			chunk_pos.z -= 1
 		}
 	case .Pos_Z:
 		local_pos += {0, 0, +1}
-		if local_pos.z > 15 {
+		if local_pos.z > CHUNK_SIZE_MASK {
 			local_pos.z = 0
 			chunk_pos.z += 1
 		}
