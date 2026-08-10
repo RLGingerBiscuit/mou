@@ -140,7 +140,6 @@ mu_init_ui :: proc(state: ^State) {
 	shader := make_shader("assets/shaders/ui.vert", "assets/shaders/ui.frag")
 
 	state.ui.renderer = make_renderer(shader, .Dynamic, {.Indexed, .Owns_VBO, .Owns_EBO})
-
 	renderer_vertices(&state.ui.renderer, vbo_buf[:])
 	renderer_indices(&state.ui.renderer, ebo_buf[:])
 	renderer_vertex_layout(&state.ui.renderer, UI_Vert)

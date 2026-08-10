@@ -110,7 +110,6 @@ vertex_array_attrib_i_pointer :: proc(
 
 vertex_attrib_vert :: proc(
 	vao: Vertex_Array,
-	buffer: Vertex_Buffer,
 	$T: typeid,
 	binding_index := u32(0),
 	loc := #caller_location,
@@ -124,8 +123,6 @@ vertex_attrib_vert :: proc(
 	if .packed not_in tis.flags {
 		panic(fmt.tprintf(#procedure + ": {} is not packed!", typeid_of(T)))
 	}
-
-	vertex_array_vertex_buffer(vao, binding_index, buffer, 0, size_of(T), loc = loc)
 
 	type: Data_Type
 

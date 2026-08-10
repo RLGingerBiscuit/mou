@@ -85,8 +85,11 @@ renderer_sub_indices :: proc(r: ^Renderer, offset: int, indices: $S/[]$T, loc :=
 }
 
 renderer_vertex_layout :: proc(r: ^Renderer, $T: typeid, loc := #caller_location) where intrinsics.type_is_struct(T) {
-	vertex_attrib_vert(r.vao, r.vbo, T, loc = loc)
+	vertex_attrib_vert(r.vao, T, loc = loc)
 	r.stride = size_of(T)
+	if .Owns_VBO in r.flags {
+		vertex_array_vertex_buffer(r.vao, 0, r.vbo, 0, r.stride)
+	}
 }
 
 renderer_bind_vertices :: proc(r: ^Renderer, vbo: Vertex_Buffer) {
