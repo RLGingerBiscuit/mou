@@ -155,7 +155,6 @@ main :: proc() {
 	state: State
 	state.render_distance = DEFAULT_RENDER_DISTANCE
 	state.fog_enabled = true
-	state.far_plane = true
 	state.render_ui = true
 	state.ao = true
 	state.block_to_place = Block {
@@ -172,13 +171,15 @@ main :: proc() {
 	window_disable_cursor(&state.window)
 
 	init_camera(
-		&state,
+		&state.camera,
+		&state.window,
 		pos = {0, 24, 0},
 		yaw = 240,
 		pitch = 90,
 		speed = 5,
 		sensitivity_mult = DEFAULT_SENSITIVITY_MULT,
 		fovx = DEFAULT_FOV,
+		render_distance = state.render_distance,
 	)
 
 	setup_opengl_debug()
@@ -424,7 +425,7 @@ main :: proc() {
 
 				}
 
-				update_camera(&state, delta_time)
+				update_camera(&state.camera, &state.window, state.render_distance, delta_time)
 
 				{
 					N := i32(1.2 * f32(state.render_distance))
@@ -736,10 +737,6 @@ main :: proc() {
 
 					if len(state.frame.line_vertices) > 0 {
 						// Remove far plane temporarily
-						old_far_plane := state.far_plane
-						state.far_plane = false
-						defer state.far_plane = old_far_plane
-						_update_camera_axes(&state)
 						projection_matrix = state.camera.projection_matrix
 						view_matrix = state.camera.view_matrix
 						proj_view = projection_matrix * view_matrix

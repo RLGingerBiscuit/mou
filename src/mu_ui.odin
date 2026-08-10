@@ -296,9 +296,6 @@ mu_update_ui :: proc(state: ^State, dt: f64) {
 		mu.label(ctx, "Fog:")
 		checkbox_no_label(ctx, "fog_enabled", &state.fog_enabled)
 
-		mu.label(ctx, "Clip Plane:")
-		checkbox_no_label(ctx, "far_plane", &state.far_plane)
-
 		mu.label(ctx, "Render Frustum:")
 		checkbox_no_label(ctx, "render_frustum", &state.render_frustum)
 

@@ -22,12 +22,13 @@ Camera :: struct {
 }
 
 init_camera :: proc(
-	state: ^State,
+	cam: ^Camera,
+	wnd: ^Window,
 	pos: glm.vec3,
 	yaw, pitch, speed, sensitivity_mult, fovx: f32,
+	render_distance: i32,
 	up := glm.vec3{0, 1, 0},
 ) {
-	cam := &state.camera
 	cam.pos = pos
 	cam.yaw = yaw
 	cam.pitch = pitch
@@ -37,12 +38,10 @@ init_camera :: proc(
 	cam.global_up = up
 	cam.up = up
 
-	_update_camera_axes(state)
+	_update_camera_axes(cam, wnd, render_distance)
 }
 
-_update_camera_axes :: proc(state: ^State) {
-	cam := &state.camera
-
+_update_camera_axes :: proc(cam: ^Camera, wnd: ^Window, render_distance: i32) {
 	yaw := glm.radians(cam.yaw)
 	pitch := glm.radians(cam.pitch)
 
@@ -50,28 +49,21 @@ _update_camera_axes :: proc(state: ^State) {
 	cam.right = glm.normalize(glm.cross(cam.front, cam.global_up))
 	cam.up = glm.normalize(glm.cross(cam.right, cam.front))
 
-	aspect := window_aspect_ratio(state.window)
+	aspect := window_aspect_ratio(wnd^)
 	fovy := 2 * glm.atan(glm.tan(glm.radians(cam.fovx) / 2) / aspect)
 
 	cam.view_matrix = glm.mat4LookAt(cam.pos, cam.pos + cam.front, cam.up)
-	cam.projection_matrix = glm.mat4Perspective(
-		fovy,
-		aspect,
-		NEAR_PLANE,
-		state.far_plane ? f32(state.render_distance + 1) * CHUNK_SIZE : 1_000,
-	)
+	cam.projection_matrix = glm.mat4Perspective(fovy, aspect, NEAR_PLANE, f32(render_distance + 1) * CHUNK_SIZE)
 }
 
-update_camera :: proc(state: ^State, dt: f64) {
-	cam := &state.camera
-	wnd := &state.window
+update_camera :: proc(cam: ^Camera, wnd: ^Window, render_distance: i32, dt: f64) {
 
 	if .UI in wnd.flags {
-		_update_camera_axes(state)
+		_update_camera_axes(cam, wnd, render_distance)
 		return
 	}
 
-	window_size := get_window_size(state.window)
+	window_size := get_window_size(wnd^)
 	centre := glm.dvec2{cast(f64)window_size.x / 2, cast(f64)window_size.y / 2}
 
 	x := wnd.cursor.x
@@ -80,7 +72,7 @@ update_camera :: proc(state: ^State, dt: f64) {
 	y = centre.y - y
 	window_center_cursor(wnd)
 
-	sensitivity := state.camera.fovx * state.camera.sensitivity_mult
+	sensitivity := cam.fovx * cam.sensitivity_mult
 
 	x *= cast(f64)sensitivity
 	y *= cast(f64)sensitivity
@@ -88,7 +80,7 @@ update_camera :: proc(state: ^State, dt: f64) {
 	cam.yaw -= cast(f32)x
 	cam.pitch = clamp(cam.pitch - cast(f32)y, 0.01, 179.99)
 
-	_update_camera_axes(state)
+	_update_camera_axes(cam, wnd, render_distance)
 
 	old_pos := cam.pos
 
