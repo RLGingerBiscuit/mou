@@ -4,9 +4,12 @@ import glm "core:math/linalg/glsl"
 
 // Global state
 State :: struct {
+	// Actual game state
+	world:           World,
+	player:          Player,
+	block_to_place:  Block,
 	// Rendering state
 	window:          Window,
-	camera:          Camera,
 	fbo:             Framebuffer,
 	// UI state
 	ui:              UI_State,
@@ -19,9 +22,7 @@ State :: struct {
 	ao:              bool,
 	ao_debug:        bool,
 	// Other state
-	block_to_place:  Block,
 	frame:           Frame_State,
-	world:           World,
 }
 
 Looking_At :: struct {

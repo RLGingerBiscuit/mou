@@ -170,8 +170,8 @@ main :: proc() {
 	defer destroy_window(&state.window)
 	window_disable_cursor(&state.window)
 
-	init_camera(
-		&state.camera,
+	init_player(
+		&state.player,
 		&state.window,
 		pos = {0, 24, 0},
 		yaw = 240,
@@ -304,11 +304,11 @@ main :: proc() {
 				}
 
 				if window_is_key_down(state.window, KEY_FOV_MOD) {
-					state.camera.fovx = glm.clamp(state.camera.fovx - 5 * f32(state.window.scroll.y), 5, 120)
+					state.player.cam.fovx = glm.clamp(state.player.cam.fovx - 5 * f32(state.window.scroll.y), 5, 120)
 				}
 
 				if window_is_key_down(state.window, KEY_SPEED_MOD) {
-					state.camera.speed = glm.clamp(state.camera.speed + f32(state.window.scroll.y), 1, 25)
+					state.player.speed = glm.clamp(state.player.speed + f32(state.window.scroll.y), 1, 25)
 				}
 
 				if window_is_key_pressed(state.window, KEY_UI_TOGGLE) {
@@ -334,8 +334,8 @@ main :: proc() {
 
 				@(static) p, f: glm.vec3
 				if state.frozen_frustum == nil {
-					p = state.camera.pos
-					f = state.camera.front
+					p = state.player.cam.pos
+					f = state.player.cam.front
 				} else {
 					append(&state.frame.line_vertices, Line_Vert{p, {0, 0xff, 0, 0xff}})
 					append(&state.frame.line_vertices, Line_Vert{p + f * HIT_DISTANCE, {0, 0xff, 0, 0xff}})
@@ -425,15 +425,16 @@ main :: proc() {
 
 				}
 
-				update_camera(&state.camera, &state.window, state.render_distance, delta_time)
+				update_player(&state.player, &state.window, state.render_distance, delta_time)
 
 				{
 					N := i32(1.2 * f32(state.render_distance))
-					cam_chunk_pos := world_pos_to_chunk_pos(state.camera.pos)
-					cam_chunk_pos.y = 0
+					player_chunk_pos := world_pos_to_chunk_pos(state.player.pos)
+					player_chunk_pos.y = 0
 
 					frustum := create_frustum(
-						state.frozen_frustum.? or_else state.camera.projection_matrix * state.camera.view_matrix,
+						state.frozen_frustum.? or_else state.player.cam.projection_matrix *
+						state.player.cam.view_matrix,
 					)
 
 					if prof.event("generate near chunks") {
@@ -444,7 +445,7 @@ main :: proc() {
 						for y in i32(0) ..= 1 {
 							for z in i32(-N) ..= N {
 								for x in i32(-N) ..= N {
-									chunk_pos := cam_chunk_pos + {x, y, z}
+									chunk_pos := player_chunk_pos + {x, y, z}
 									if !frustum_contains_chunk(frustum, chunk_pos) {
 										continue
 									}
@@ -466,8 +467,8 @@ main :: proc() {
 
 						for _, &chunk in &state.world.chunks {
 							if chunk.mesh != nil &&
-							   (glm.abs(cam_chunk_pos.x - chunk.pos.x) > N ||
-									   glm.abs(cam_chunk_pos.z - chunk.pos.z) > N) {
+							   (glm.abs(player_chunk_pos.x - chunk.pos.x) > N ||
+									   glm.abs(player_chunk_pos.z - chunk.pos.z) > N) {
 								append(chunks_to_demesh, &chunk)
 							}
 						}
@@ -481,7 +482,7 @@ main :: proc() {
 				}
 
 				if prof.event("update world") {
-					update_world(&state.world, state.camera.pos)
+					update_world(&state.world, state.player.pos)
 				}
 
 				update_window(&state.window)
@@ -546,8 +547,8 @@ main :: proc() {
 					gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
 				}
 
-				projection_matrix := state.camera.projection_matrix
-				view_matrix := state.camera.view_matrix
+				projection_matrix := state.player.cam.projection_matrix
+				view_matrix := state.player.cam.view_matrix
 				proj_view := projection_matrix * view_matrix
 				frustum := create_frustum(state.frozen_frustum.? or_else proj_view)
 
@@ -560,7 +561,7 @@ main :: proc() {
 
 					set_uniforms :: proc(r: Renderer, state: ^State, sky: RGBA32, proj_view: glm.mat4) {
 						set_uniform(r.shader, "u_proj_view", proj_view)
-						set_uniform(r.shader, "u_campos", state.camera.pos)
+						set_uniform(r.shader, "u_campos", state.player.cam.pos)
 						set_uniform(r.shader, "u_ao", u32(state.ao))
 						set_uniform(r.shader, "u_ao_debug", u32(state.ao_debug))
 
@@ -612,8 +613,8 @@ main :: proc() {
 					if prof.event("sort opaque chunks") {
 						slice.sort_by(opaque_chunks[:], proc(i, j: ^Chunk) -> bool {
 							state := cast(^State)context.user_ptr
-							i_pos := state.camera.pos - get_chunk_centre(i)
-							j_pos := state.camera.pos - get_chunk_centre(j)
+							i_pos := state.player.pos - get_chunk_centre(i)
+							j_pos := state.player.pos - get_chunk_centre(j)
 							i_dist := glm.dot(i_pos, i_pos)
 							j_dist := glm.dot(j_pos, j_pos)
 							return i_dist < j_dist
@@ -623,8 +624,8 @@ main :: proc() {
 					if prof.event("sort transparent chunks") {
 						slice.sort_by(transparent_chunks[:], proc(i, j: ^Chunk) -> bool {
 							state := cast(^State)context.user_ptr
-							i_pos := state.camera.pos - get_chunk_centre(i)
-							j_pos := state.camera.pos - get_chunk_centre(j)
+							i_pos := state.player.pos - get_chunk_centre(i)
+							j_pos := state.player.pos - get_chunk_centre(j)
 							i_dist := glm.dot(i_pos, i_pos)
 							j_dist := glm.dot(j_pos, j_pos)
 							return i_dist > j_dist
@@ -634,8 +635,8 @@ main :: proc() {
 					if prof.event("sort water chunks") {
 						slice.sort_by(water_chunks[:], proc(i, j: ^Chunk) -> bool {
 							state := cast(^State)context.user_ptr
-							i_pos := state.camera.pos - get_chunk_centre(i)
-							j_pos := state.camera.pos - get_chunk_centre(j)
+							i_pos := state.player.pos - get_chunk_centre(i)
+							j_pos := state.player.pos - get_chunk_centre(j)
 							i_dist := glm.dot(i_pos, i_pos)
 							j_dist := glm.dot(j_pos, j_pos)
 							return i_dist > j_dist
@@ -713,10 +714,10 @@ main :: proc() {
 				if prof.event("framebuffer blit") {
 					debug_group("Blit")
 
-					if .Wireframe in state.camera.flags {
+					if state.player.cam.wireframe {
 						gl.PolygonMode(gl.FRONT_AND_BACK, gl.FILL)
 					}
-					defer if .Wireframe in state.camera.flags {
+					defer if state.player.cam.wireframe {
 						gl.PolygonMode(gl.FRONT_AND_BACK, gl.LINE)
 					}
 
@@ -736,9 +737,8 @@ main :: proc() {
 					}
 
 					if len(state.frame.line_vertices) > 0 {
-						// Remove far plane temporarily
-						projection_matrix = state.camera.projection_matrix
-						view_matrix = state.camera.view_matrix
+						projection_matrix = state.player.cam.projection_matrix
+						view_matrix = state.player.cam.view_matrix
 						proj_view = projection_matrix * view_matrix
 
 						bind_renderer(line_renderer)
@@ -754,10 +754,10 @@ main :: proc() {
 
 				{ 	// TODO: Do this but better
 					debug_group("Crosshair")
-					if .Wireframe in state.camera.flags {
+					if state.player.cam.wireframe {
 						gl.PolygonMode(gl.FRONT_AND_BACK, gl.FILL)
 					}
-					defer if .Wireframe in state.camera.flags {
+					defer if state.player.cam.wireframe {
 						gl.PolygonMode(gl.FRONT_AND_BACK, gl.LINE)
 					}
 

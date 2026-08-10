@@ -233,7 +233,7 @@ mu_update_ui :: proc(state: ^State, dt: f64) {
 	mu.begin(ctx)
 	defer mu.end(ctx)
 
-	if mu.window(ctx, "Minceraft", {10, 50, 350, 390}, {.NO_CLOSE}, FONT_BOUNCY) {
+	if mu.window(ctx, "Minceraft", {10, 50, 410, 400}, {.NO_CLOSE}, FONT_BOUNCY) {
 		LABEL_WIDTH :: 140
 
 		mu.layout_row(ctx, {LABEL_WIDTH, -1})
@@ -244,7 +244,7 @@ mu_update_ui :: proc(state: ^State, dt: f64) {
 		mu.label(ctx, "Coords:")
 		mu.text(
 			ctx,
-			fmt.tprintf("X={:.1f}, Y={:.1f}, Z={:.1f}", state.camera.pos.x, state.camera.pos.y, state.camera.pos.z),
+			fmt.tprintf("X={:.1f}, Y={:.1f}, Z={:.1f}", state.player.pos.x, state.player.pos.y, state.player.pos.z),
 			FONT_MONO,
 		)
 
@@ -262,7 +262,12 @@ mu_update_ui :: proc(state: ^State, dt: f64) {
 		mu.label(ctx, "Camera:")
 		mu.text(
 			ctx,
-			fmt.tprintf("Yaw={:.1f}, Pitch={:.1f}", glm.mod(glm.abs(state.camera.yaw), 360), state.camera.pitch),
+			fmt.tprintf(
+				"Yaw={:.1f}, Pitch={:.1f} FOV={:.1f}",
+				glm.mod(glm.abs(state.player.cam.yaw), 360),
+				state.player.cam.pitch,
+				state.player.cam.fovx,
+			),
 			FONT_MONO,
 		)
 
@@ -277,15 +282,8 @@ mu_update_ui :: proc(state: ^State, dt: f64) {
 		}
 		state.render_distance = cast(i32)temp_render_distance
 
-		temp_wireframe_enabled := .Wireframe in state.camera.flags
 		mu.label(ctx, "Wireframe:")
-		if .CHANGE in checkbox_no_label(ctx, "wireframe_enabled", &temp_wireframe_enabled) {
-			if temp_wireframe_enabled {
-				state.camera.flags |= {.Wireframe}
-			} else {
-				state.camera.flags &~= {.Wireframe}
-			}
-		}
+		checkbox_no_label(ctx, "wireframe_enabled", &state.player.cam.wireframe)
 
 		mu.label(ctx, "AO:")
 		checkbox_no_label(ctx, "ao", &state.ao)
@@ -303,7 +301,7 @@ mu_update_ui :: proc(state: ^State, dt: f64) {
 		mu.label(ctx, "Freeze Frustum:")
 		if .CHANGE in checkbox_no_label(ctx, "frozen_frustum", &temp_frozen_frustum) {
 			state.frozen_frustum =
-				temp_frozen_frustum ? (state.camera.projection_matrix * state.camera.view_matrix) : nil
+				temp_frozen_frustum ? (state.player.cam.projection_matrix * state.player.cam.view_matrix) : nil
 		}
 
 		mu.label(ctx, "Chunks:")
@@ -333,88 +331,6 @@ mu_update_ui :: proc(state: ^State, dt: f64) {
 					mu.close_current_popup(ctx)
 				}
 			}
-		}
-
-		when false {
-			temp_mem_usage: [7]int
-			for usage in state.frame.memory_usage {
-				temp_mem_usage += usage
-			}
-
-			mu.label(ctx, "Opaque Mem Usage:")
-			if temp_mem_usage[0] != 0 {
-				mu.text(
-					ctx,
-					fmt.tprintf(
-						"{:.2f} MiB ({:.2f} MiB, {:.2f}x)",
-						f32(temp_mem_usage[0]) / mem.Megabyte,
-						f32(temp_mem_usage[1]) / mem.Megabyte,
-						(f32(temp_mem_usage[1]) / (f32(temp_mem_usage[0]))),
-					),
-					FONT_MONO,
-				)
-			} else {
-				mu.text(
-					ctx,
-					fmt.tprintf(
-						"{:.2f} MiB ({:.2f} MiB)",
-						f32(temp_mem_usage[0]) / mem.Megabyte,
-						f32(temp_mem_usage[1]) / mem.Megabyte,
-					),
-					FONT_MONO,
-				)
-			}
-
-			mu.label(ctx, "Trans. Mem Usage:")
-			if temp_mem_usage[2] != 0 {
-				mu.text(
-					ctx,
-					fmt.tprintf(
-						"{:.2f} MiB ({:.2f} MiB, {:.2f}x)",
-						f32(temp_mem_usage[2]) / mem.Megabyte,
-						f32(temp_mem_usage[3]) / mem.Megabyte,
-						(f32(temp_mem_usage[3]) / (f32(temp_mem_usage[2]))),
-					),
-					FONT_MONO,
-				)
-			} else {
-				mu.text(
-					ctx,
-					fmt.tprintf(
-						"{:.2f} MiB ({:.2f} MiB)",
-						f32(temp_mem_usage[2]) / mem.Megabyte,
-						f32(temp_mem_usage[3]) / mem.Megabyte,
-					),
-					FONT_MONO,
-				)
-			}
-
-			mu.label(ctx, "Water Mem Usage:")
-			if temp_mem_usage[2] != 0 {
-				mu.text(
-					ctx,
-					fmt.tprintf(
-						"{:.2f} MiB ({:.2f} MiB, {:.2f}x)",
-						f32(temp_mem_usage[5]) / mem.Megabyte,
-						f32(temp_mem_usage[6]) / mem.Megabyte,
-						(f32(temp_mem_usage[6]) / (f32(temp_mem_usage[5]))),
-					),
-					FONT_MONO,
-				)
-			} else {
-				mu.text(
-					ctx,
-					fmt.tprintf(
-						"{:.2f} MiB ({:.2f} MiB)",
-						f32(temp_mem_usage[5]) / mem.Megabyte,
-						f32(temp_mem_usage[6]) / mem.Megabyte,
-					),
-					FONT_MONO,
-				)
-			}
-
-			mu.label(ctx, "Block Mem Usage:")
-			mu.text(ctx, fmt.tprintf("{:.2f} MiB", f32(temp_mem_usage[4]) / mem.Megabyte), FONT_MONO)
 		}
 	}
 
@@ -544,7 +460,7 @@ mu_render_ui :: proc(state: ^State) {
 	gl.Disable(gl.DEPTH_TEST)
 
 	gl.PolygonMode(gl.FRONT_AND_BACK, gl.FILL)
-	defer if .Wireframe in state.camera.flags {
+	defer if state.player.cam.wireframe {
 		gl.PolygonMode(gl.FRONT_AND_BACK, gl.LINE)
 	}
 

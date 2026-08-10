@@ -3,36 +3,29 @@ package mou
 import glm "core:math/linalg/glsl"
 import gl "vendor:OpenGL"
 
-FAST_MODIFIER :: 2.5
-
 Camera :: struct {
 	yaw, pitch:        f32,
 	pos:               glm.vec3,
-	speed:             f32,
 	sensitivity_mult:  f32,
 	fovx:              f32,
 	view_matrix:       glm.mat4,
 	projection_matrix: glm.mat4,
 	global_up:         glm.vec3,
 	front, right, up:  glm.vec3,
-	flags:             bit_set[enum u8 {
-		Fast,
-		Wireframe,
-	};u8],
+	wireframe:         bool,
 }
 
 init_camera :: proc(
 	cam: ^Camera,
 	wnd: ^Window,
 	pos: glm.vec3,
-	yaw, pitch, speed, sensitivity_mult, fovx: f32,
+	yaw, pitch, sensitivity_mult, fovx: f32,
 	render_distance: i32,
 	up := glm.vec3{0, 1, 0},
 ) {
 	cam.pos = pos
 	cam.yaw = yaw
 	cam.pitch = pitch
-	cam.speed = speed
 	cam.sensitivity_mult = sensitivity_mult
 	cam.fovx = fovx
 	cam.global_up = up
@@ -57,11 +50,11 @@ _update_camera_axes :: proc(cam: ^Camera, wnd: ^Window, render_distance: i32) {
 }
 
 update_camera :: proc(cam: ^Camera, wnd: ^Window, render_distance: i32, dt: f64) {
-
 	if .UI in wnd.flags {
-		_update_camera_axes(cam, wnd, render_distance)
 		return
 	}
+
+	defer _update_camera_axes(cam, wnd, render_distance)
 
 	window_size := get_window_size(wnd^)
 	centre := glm.dvec2{cast(f64)window_size.x / 2, cast(f64)window_size.y / 2}
@@ -80,49 +73,13 @@ update_camera :: proc(cam: ^Camera, wnd: ^Window, render_distance: i32, dt: f64)
 	cam.yaw -= cast(f32)x
 	cam.pitch = clamp(cam.pitch - cast(f32)y, 0.01, 179.99)
 
-	_update_camera_axes(cam, wnd, render_distance)
-
-	old_pos := cam.pos
-
-	if window_is_key_down(wnd^, KEY_SPRINT) {
-		cam.flags |= {.Fast}
-	}
-
 	if window_is_key_pressed(wnd^, KEY_WIREFRAME) {
-		cam.flags ~= {.Wireframe}
-		if .Wireframe in cam.flags {
+		cam.wireframe = !cam.wireframe
+		if cam.wireframe {
 			gl.PolygonMode(gl.FRONT_AND_BACK, gl.LINE)
 		} else {
 			gl.PolygonMode(gl.FRONT_AND_BACK, gl.FILL)
 		}
-	}
-
-	velocity := f32(cast(f64)cam.speed * dt)
-	if .Fast in cam.flags {
-		velocity *= FAST_MODIFIER
-	}
-
-	yaw := glm.radians(cam.yaw)
-	front := glm.normalize(glm.vec3{glm.cos(yaw), 0, glm.sin(yaw)})
-	right := glm.normalize(glm.cross(front, cam.global_up))
-
-	if window_is_key_down(wnd^, KEY_FORWARD) {
-		cam.pos += front * velocity
-	}
-	if window_is_key_down(wnd^, KEY_BACKWARD) {
-		cam.pos -= front * velocity
-	}
-	if window_is_key_down(wnd^, KEY_LEFT) {
-		cam.pos -= right * velocity
-	}
-	if window_is_key_down(wnd^, KEY_RIGHT) {
-		cam.pos += right * velocity
-	}
-	if window_is_key_down(wnd^, KEY_UP) {
-		cam.pos += cam.global_up * velocity
-	}
-	if window_is_key_down(wnd^, KEY_DOWN) {
-		cam.pos -= cam.global_up * velocity
 	}
 
 	if window_is_key_down(wnd^, KEY_PAN_UP) {
@@ -136,9 +93,5 @@ update_camera :: proc(cam: ^Camera, wnd: ^Window, render_distance: i32, dt: f64)
 	}
 	if window_is_key_down(wnd^, KEY_PAN_RIGHT) {
 		cam.yaw += sensitivity * 5
-	}
-
-	if cam.pos == old_pos && window_is_key_up(wnd^, KEY_SPRINT) {
-		cam.flags &~= {.Fast}
 	}
 }
