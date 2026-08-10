@@ -470,11 +470,11 @@ mu_render_ui :: proc(state: ^State) {
 
 	debug_group("UI")
 
-	// FIXME: doesn't update mu viewport unless move mu window to top left
 	window_size := get_window_size(state.window)
 	gl.Viewport(0, 0, window_size.x, window_size.y)
 
 	gl.Enable(gl.SCISSOR_TEST)
+	gl.Scissor(0, 0, window_size.x, window_size.y)
 	gl.Disable(gl.CULL_FACE)
 	gl.Disable(gl.DEPTH_TEST)
 
@@ -496,7 +496,8 @@ mu_render_ui :: proc(state: ^State) {
 			draw_icon(state, cmd.id, cmd.rect, cmd.color)
 
 		case ^mu.Command_Clip:
-			gl.Scissor(cmd.rect.x, cmd.rect.y, cmd.rect.w, cmd.rect.h)
+			flush(state)
+			gl.Scissor(cmd.rect.x, window_size.y - (cmd.rect.y + cmd.rect.h), cmd.rect.w, cmd.rect.h)
 
 		case ^mu.Command_Jump:
 			panic("unreachable " + #procedure)
