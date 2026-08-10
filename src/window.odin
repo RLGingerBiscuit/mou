@@ -14,6 +14,7 @@ Window_Flag :: enum {
 	Visible,
 	Minimised,
 	UI,
+	Vsync,
 }
 Window_Flags :: bit_set[Window_Flag]
 
@@ -63,17 +64,13 @@ init_window :: proc(state: ^State, title: string, size: [2]i32, vsync := true, v
 	log.info("Created GLFW window:", WINDOW.handle)
 
 	glfw.MakeContextCurrent(WINDOW.handle)
-	if vsync {
-		glfw.SwapInterval(1)
-	} else {
-		glfw.SwapInterval(0)
-	}
+	window_set_vsync(WINDOW, vsync)
 
 	gl.load_up_to(GL_MAJOR, GL_MINOR, glfw.gl_set_proc_address)
 
 	WINDOW.time = glfw.GetTime()
 	WINDOW.prev_time = WINDOW.time
-	WINDOW.flags = visible ? {.Visible} : {}
+	WINDOW.flags += visible ? {.Visible} : {}
 	resize_window(state, size.x, size.y)
 
 	glfw.SetWindowUserPointer(WINDOW.handle, state)
@@ -102,6 +99,16 @@ set_window_should_close :: proc(wnd: ^Window, close: bool) {
 
 set_window_title :: proc(wnd: ^Window, title: string) {
 	glfw.SetWindowTitle(wnd.handle, strings.clone_to_cstring(title, context.temp_allocator))
+}
+
+window_set_vsync :: proc(wnd: ^Window, vsync: bool) {
+	if vsync {
+		glfw.SwapInterval(1)
+		wnd.flags += {.Vsync}
+	} else {
+		glfw.SwapInterval(0)
+		wnd.flags -= {.Vsync}
+	}
 }
 
 window_aspect_ratio :: proc(wnd: Window) -> f32 {

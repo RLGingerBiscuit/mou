@@ -298,8 +298,11 @@ mu_update_ui :: proc(state: ^State, dt: f64) {
 		}
 		state.render_distance = cast(i32)temp_render_distance
 
-		mu.label(ctx, "Noclip:")
-		checkbox_no_label(ctx, "noclip", &state.player.noclip)
+		temp_vsync := .Vsync in state.window.flags
+		mu.label(ctx, "Vsync:")
+		if .CHANGE in checkbox_no_label(ctx, "noclip", &temp_vsync) {
+			window_set_vsync(&state.window, temp_vsync)
+		}
 
 		mu.label(ctx, "Wireframe:")
 		checkbox_no_label(ctx, "wireframe_enabled", &state.player.cam.wireframe)
@@ -322,6 +325,9 @@ mu_update_ui :: proc(state: ^State, dt: f64) {
 			state.frozen_frustum =
 				temp_frozen_frustum ? (state.player.cam.projection_matrix * state.player.cam.view_matrix) : nil
 		}
+
+		mu.label(ctx, "Noclip:")
+		checkbox_no_label(ctx, "noclip", &state.player.noclip)
 
 		mu.label(ctx, "Chunks:")
 		mu.text(
