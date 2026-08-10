@@ -38,13 +38,11 @@ World :: struct {
 	meshgen_tx:     chan.Chan(Meshgen_Msg, chan.Direction.Send),
 	rx:             chan.Chan(World_Msg, chan.Direction.Recv),
 	lock:           sync.RW_Mutex,
-	atlas:          ^Atlas, // FIXME: This doesn't belong here
 	msg_stack:      [dynamic]Meshgen_Msg,
 	prio_msg_stack: [dynamic]Meshgen_Msg,
 }
 
-init_world :: proc(world: ^World, atlas: ^Atlas) {
-	world.atlas = atlas
+init_world :: proc(world: ^World) {
 	world.meshgen_tx, world.rx = init_meshgen_thread(&world.meshgen_thread, world)
 
 	world.chunks = make(map[Chunk_Pos]Chunk)

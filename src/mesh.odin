@@ -10,7 +10,10 @@ Mesh_Vert :: struct #packed {
 	pos:       glm.vec3,
 	tex_coord: glm.vec2,
 	colour:    RGBA,
-	ao:        f32,
+	ao:        bit_field u32 {
+		ao:    u32 | 2,
+		layer: u32 | 8,
+	},
 }
 
 FACE_VERT_COUNT :: 4

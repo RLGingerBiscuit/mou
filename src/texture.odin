@@ -7,7 +7,9 @@ import gl "vendor:OpenGL"
 
 Texture :: struct {
 	handle:          u32,
+	target:          u32,
 	width, height:   i32,
+	layers:          i32, // 1 unless the texture is an array
 	levels:          i32,
 	format:          Format,
 	internal_format: Internal_Format,
@@ -103,8 +105,10 @@ make_texture :: proc(
 	tex: Texture,
 ) {
 	tex.name = strings.clone(name)
+	tex.target = gl.TEXTURE_2D
 	tex.width = width
 	tex.height = height
+	tex.layers = 1
 	tex.format = format
 	tex.internal_format = texture_internal_format(format)
 	tex.wrap = wrap
@@ -132,6 +136,107 @@ make_texture :: proc(
 	}
 
 	return
+}
+
+make_texture_array :: proc(
+	name: string,
+	width, height, layers: i32,
+	format: Format,
+	wrap := Wrap.Repeat,
+	min_filter := Filter.Nearest,
+	mag_filter := Filter.Nearest,
+	levels: i32 = 1,
+	loc := #caller_location,
+) -> (
+	tex: Texture,
+) {
+	tex.name = strings.clone(name)
+	tex.target = gl.TEXTURE_2D_ARRAY
+	tex.width = width
+	tex.height = height
+	tex.layers = layers
+	tex.format = format
+	tex.internal_format = texture_internal_format(format)
+	tex.wrap = wrap
+	tex.min_filter = min_filter
+	tex.mag_filter = mag_filter
+
+	levels := levels
+	levels = max(1, min(levels, texture_mipmap_level_count(width, height)))
+	tex.levels = levels
+
+	when ODIN_DEBUG {
+		gl.CreateTextures(tex.target, 1, &tex.handle, loc = loc)
+		texture_parameter(tex, gl.TEXTURE_WRAP_S, cast(i32)wrap, loc = loc)
+		texture_parameter(tex, gl.TEXTURE_WRAP_T, cast(i32)wrap, loc = loc)
+		texture_parameter(tex, gl.TEXTURE_MIN_FILTER, cast(i32)min_filter, loc = loc)
+		texture_parameter(tex, gl.TEXTURE_MAG_FILTER, cast(i32)mag_filter, loc = loc)
+		gl.TextureStorage3D(
+			tex.handle,
+			levels,
+			cast(u32)tex.internal_format,
+			tex.width,
+			tex.height,
+			tex.layers,
+			loc = loc,
+		)
+	} else {
+		gl.CreateTextures(tex.target, 1, &tex.handle)
+		texture_parameter(tex, gl.TEXTURE_WRAP_S, cast(i32)wrap)
+		texture_parameter(tex, gl.TEXTURE_WRAP_T, cast(i32)wrap)
+		texture_parameter(tex, gl.TEXTURE_MIN_FILTER, cast(i32)min_filter)
+		texture_parameter(tex, gl.TEXTURE_MAG_FILTER, cast(i32)mag_filter)
+		gl.TextureStorage3D(tex.handle, levels, cast(u32)tex.internal_format, tex.width, tex.height, tex.layers)
+	}
+
+	return
+}
+
+texture_set_layer_level :: proc(
+	tex: Texture,
+	layer, level: i32,
+	width, height: i32,
+	data: []byte,
+	loc := #caller_location,
+) {
+	if len(data) < int(width * height * texture_format_size(tex.format)) {
+		log.warnf("Setting texture {} layer {} level {}: was not provided enough bytes", tex.name, layer, level)
+		return
+	}
+	when ODIN_DEBUG {
+		gl.TextureSubImage3D(
+			tex.handle,
+			level,
+			0,
+			0,
+			layer,
+			width,
+			height,
+			1,
+			cast(u32)tex.format,
+			gl.UNSIGNED_BYTE,
+			raw_data(data),
+			loc = loc,
+		)
+	} else {
+		gl.TextureSubImage3D(
+			tex.handle,
+			level,
+			0,
+			0,
+			layer,
+			width,
+			height,
+			1,
+			cast(u32)tex.format,
+			gl.UNSIGNED_BYTE,
+			raw_data(data),
+		)
+	}
+}
+
+texture_set_layer :: proc(tex: Texture, layer: i32, data: []byte, loc := #caller_location) {
+	texture_set_layer_level(tex, layer, 0, tex.width, tex.height, data, loc = loc)
 }
 
 texture_set_level :: proc(tex: Texture, level: i32, width, height: i32, data: []byte, loc := #caller_location) {

@@ -41,7 +41,14 @@ create_image :: proc(
 	return
 }
 
-load_image :: proc(path: string, do_log := true, allocator := context.allocator) -> (img: Image) {
+load_image :: proc(
+	path: string,
+	do_log := true,
+	allocator := context.allocator,
+	desired_channels: i32 = 0,
+) -> (
+	img: Image,
+) {
 	context.allocator = allocator
 
 	if do_log do log.debugf("Loading image '{}'", path)
@@ -52,7 +59,10 @@ load_image :: proc(path: string, do_log := true, allocator := context.allocator)
 	defer delete(data, context.temp_allocator)
 
 	x, y, ch: i32
-	raw := stbi.load_from_memory(raw_data(data), cast(i32)len(data), &x, &y, &ch, 0)
+	raw := stbi.load_from_memory(raw_data(data), cast(i32)len(data), &x, &y, &ch, desired_channels)
+	if desired_channels > 0 {
+		ch = desired_channels
+	}
 	img.data = raw[:x * y * ch]
 	img.width = x
 	img.height = y

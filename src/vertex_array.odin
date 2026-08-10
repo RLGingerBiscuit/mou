@@ -143,6 +143,21 @@ vertex_attrib_vert :: proc(
 
 			vertex_array_attrib_i_pointer(vao, binding_index, u32(i), 1, type, cast(u32)field.offset, loc = loc)
 
+		case reflect.Type_Info_Bit_Field:
+			bt, bt_ok := reflect.type_info_base(v.backing_type).variant.(reflect.Type_Info_Integer)
+			if !bt_ok {
+				unimplemented(fmt.tprintf("{}.{} : Unimplemented type {}", tin.name, field.name, field.type.id))
+			}
+
+			switch field.type.size {
+			case 4:
+				type = bt.signed ? .Int : .Unsigned_Int
+			case:
+				unimplemented(fmt.tprintf("{}.{} : Unimplemented type {}", tin.name, field.name, field.type.id))
+			}
+
+			vertex_array_attrib_i_pointer(vao, binding_index, u32(i), 1, type, cast(u32)field.offset, loc = loc)
+
 		case reflect.Type_Info_Float:
 			switch field.type.size {
 			case 4:

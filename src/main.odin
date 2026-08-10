@@ -199,13 +199,13 @@ main :: proc() {
 	line_shader := make_shader("assets/shaders/line.vert", "assets/shaders/line.frag")
 	defer destroy_shader(&line_shader)
 
-	block_atlas := make_atlas("assets/textures/blocks/")
-	defer destroy_atlas(&block_atlas)
+	block_textures := make_block_textures("assets/textures/blocks/")
+	defer destroy_texture(&block_textures)
 
-	ui_atlas := make_atlas("assets/textures/ui/", false)
-	defer destroy_atlas(&ui_atlas)
+	crosshair_tex := load_texture("assets/textures/ui/crosshair.png")
+	defer destroy_texture(&crosshair_tex)
 
-	init_world(&state.world, &block_atlas)
+	init_world(&state.world)
 	defer destroy_world(&state.world)
 
 	opaque_renderer := make_renderer(opaque_shader, .Dynamic, {.Indexed, .Owns_EBO})
@@ -647,7 +647,7 @@ main :: proc() {
 						debug_group("Opaque")
 						bind_renderer(opaque_renderer)
 						defer unbind_renderer()
-						bind_texture_unit(0, block_atlas.texture)
+						bind_texture_unit(0, block_textures)
 						set_uniforms(opaque_renderer, &state, SKY_COLOUR, proj_view)
 
 						for &chunk in opaque_chunks {
@@ -668,7 +668,7 @@ main :: proc() {
 						debug_group("Transparent")
 						bind_renderer(transparent_renderer)
 						defer unbind_renderer()
-						bind_texture_unit(0, block_atlas.texture)
+						bind_texture_unit(0, block_textures)
 						set_uniforms(transparent_renderer, &state, SKY_COLOUR, proj_view)
 
 						for &chunk in transparent_chunks {
@@ -690,11 +690,9 @@ main :: proc() {
 						debug_group("Water")
 						bind_renderer(water_renderer)
 						defer unbind_renderer()
-						bind_texture_unit(0, block_atlas.texture)
+						bind_texture_unit(0, block_textures)
 						set_uniforms(water_renderer, &state, SKY_COLOUR, proj_view)
 						set_uniform(water_renderer.shader, "u_time", cast(f32)current_time)
-						set_uniform(water_renderer.shader, "u_atlas_size", ATLAS_SIZE)
-						set_uniform(water_renderer.shader, "u_atlas_block_size", cast(f32)128)
 
 						for &chunk in water_chunks {
 							mesh := chunk.mesh.(Chunk_Mesh)
@@ -773,8 +771,7 @@ main :: proc() {
 					SCALE :: 0.5
 					C :: RGBA{0xff, 0xff, 0xff, 0xff}
 
-					uv := ui_atlas.uvs["crosshair.png"]
-					size := SCALE * (uv[1] - uv[0]) * ui_atlas.size
+					size := SCALE * glm.vec2{f32(crosshair_tex.width), f32(crosshair_tex.height)}
 
 					r := RectF {
 						x = (f32(window_size.x) - size.x) / 2,
@@ -785,7 +782,7 @@ main :: proc() {
 
 					bind_renderer(state.ui.renderer)
 					defer unbind_renderer()
-					bind_texture_unit(0, ui_atlas.texture)
+					bind_texture_unit(0, crosshair_tex)
 					defer unbind_texture_unit(0)
 
 					set_uniform(state.ui.renderer.shader, "u_proj_view", proj_view)
@@ -794,10 +791,10 @@ main :: proc() {
 						&state.ui.renderer,
 						0,
 						[]UI_Vert {
-							{{r.x, r.y}, uv[0], C},
-							{{r.x + r.w, r.y}, {uv[1].x, uv[0].y}, C},
-							{{r.x, r.y + r.h}, {uv[0].x, uv[1].y}, C},
-							{{r.x + r.w, r.y + r.h}, uv[1], C},
+							{{r.x, r.y}, {0, 0}, C},
+							{{r.x + r.w, r.y}, {1, 0}, C},
+							{{r.x, r.y + r.h}, {0, 1}, C},
+							{{r.x + r.w, r.y + r.h}, {1, 1}, C},
 						},
 					)
 

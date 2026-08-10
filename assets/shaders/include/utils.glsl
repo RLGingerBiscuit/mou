@@ -16,3 +16,11 @@ vec4 colour_mix(vec4 a, vec4 b, float t) {
 bool ubool(uint x) {
     return x != uint(0);
 }
+
+float unpack_ao(uint packed_ao) {
+    return float(packed_ao & 0x3u) * 0.25;
+}
+
+uint unpack_tex_layer(uint packed_ao) {
+    return (packed_ao >> 2) & 0xffu;
+}

@@ -77,38 +77,70 @@ block_culls_self :: proc(block: Block) -> bool {
 	}
 }
 
-block_asset_name :: proc(block: Block, face: Block_Face) -> string {
+// Every block texture gets its own layer in the block texture array, so the enum value *is* the layer index.
+Block_Texture :: enum u32 {
+	Dirt,
+	Glass,
+	Grass_Side,
+	Grass_Top,
+	Leaves,
+	Leaves_Transparent,
+	Log_Side,
+	Log_Top,
+	Planks,
+	Stone,
+	Water,
+}
+
+// odinfmt:disable
+@(rodata)
+BLOCK_TEXTURE_ASSET_NAMES := [Block_Texture]string {
+	.Dirt               = "dirt.png",
+	.Glass              = "glass.png",
+	.Grass_Side         = "grass_side.png",
+	.Grass_Top          = "grass_top.png",
+	.Leaves             = "leaves.png",
+	.Leaves_Transparent = "leaves_transparent.png",
+	.Log_Side           = "log_side.png",
+	.Log_Top            = "log_top.png",
+	.Planks             = "planks.png",
+	.Stone              = "stone.png",
+	.Water              = "water.png",
+}
+// odinfmt:enable
+
+block_texture :: proc(block: Block, face: Block_Face) -> Block_Texture {
 	switch block.id {
 	case .Stone:
-		return "stone.png"
+		return .Stone
 
 	case .Grass:
 		#partial switch face {
 		case .Neg_Y:
-			return "dirt.png"
+			return .Dirt
 		case .Pos_Y:
-			return "grass_top.png"
+			return .Grass_Top
 		case:
-			return "grass_side.png"
+			return .Grass_Side
 		}
 
 	case .Dirt:
-		return "dirt.png"
+		return .Dirt
 
 	case .Glass:
-		return "glass.png"
+		return .Glass
 
 	case .Water:
-		return "water.png"
+		return .Water
 
 	case .Log:
-		return face == .Pos_Y ? "log_top.png" : "log_side.png"
+		return face == .Pos_Y ? .Log_Top : .Log_Side
 
 	case .Leaves:
-		return TRANSPARENT_LEAVES ? "leaves_transparent.png" : "leaves.png"
+		return TRANSPARENT_LEAVES ? .Leaves_Transparent : .Leaves
 
 	case .Planks:
-		return "planks.png"
+		return .Planks
 
 	case .Air:
 		fallthrough
