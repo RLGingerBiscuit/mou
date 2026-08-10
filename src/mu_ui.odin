@@ -233,7 +233,7 @@ mu_update_ui :: proc(state: ^State, dt: f64) {
 	mu.begin(ctx)
 	defer mu.end(ctx)
 
-	if mu.window(ctx, "Minceraft", {10, 50, 410, 400}, {.NO_CLOSE}, FONT_BOUNCY) {
+	if mu.window(ctx, "Minceraft", {10, 50, 420, 420}, {.NO_CLOSE}, FONT_BOUNCY) {
 		LABEL_WIDTH :: 140
 
 		mu.layout_row(ctx, {LABEL_WIDTH, -1})
@@ -297,6 +297,9 @@ mu_update_ui :: proc(state: ^State, dt: f64) {
 			temp_render_distance = MAX_RENDER_DISTANCE
 		}
 		state.render_distance = cast(i32)temp_render_distance
+
+		mu.label(ctx, "Noclip:")
+		checkbox_no_label(ctx, "noclip", &state.player.noclip)
 
 		mu.label(ctx, "Wireframe:")
 		checkbox_no_label(ctx, "wireframe_enabled", &state.player.cam.wireframe)

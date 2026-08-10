@@ -41,6 +41,7 @@ KEY_RIGHT :: Key.D
 KEY_UP :: Key.Space
 KEY_DOWN :: Key.Left_Shift
 KEY_SPRINT :: Key.Left_Control
+KEY_FLY :: Key.F
 
 KEY_PAN_UP :: Key.Up
 KEY_PAN_DOWN :: Key.Down
@@ -432,7 +433,7 @@ main :: proc() {
 
 				}
 
-				update_player(&state.player, &state.window, state.render_distance, delta_time)
+				update_player(&state.player, &state.window, state.world, state.render_distance, delta_time)
 
 				{
 					N := i32(1.2 * f32(state.render_distance))

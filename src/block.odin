@@ -66,6 +66,17 @@ block_is_opaque :: proc(block: Block) -> bool {
 	unreachable()
 }
 
+block_is_solid :: proc(block: Block) -> bool {
+	switch block.id {
+	case .Air, .Water:
+		return false
+	case .Stone, .Dirt, .Grass, .Glass, .Log, .Leaves, .Planks:
+		return true
+	}
+	unreachable()
+}
+
+
 block_culls_self :: proc(block: Block) -> bool {
 	switch block.id {
 	case .Air:
