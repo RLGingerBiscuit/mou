@@ -2,13 +2,13 @@ package mou
 
 import glm "core:math/linalg/glsl"
 
-PLAYER_WIDTH :: 1
-PLAYER_HEIGHT :: 2
-PLAYER_EYE_OFFSET :: glm.vec3{0, 1.8, 0}
+PLAYER_WIDTH :: 0.8
+PLAYER_HEIGHT :: 1.8
+PLAYER_EYE_OFFSET :: glm.vec3{0, 1.62, 0}
 PLAYER_GRAVITY :: -24 // blocks/s^2
 PLAYER_JUMP_SPEED :: 9 // blocks/s^2
 PLAYER_TERMINAL_VELOCITY :: -78
-PLAYER_SPRINT_MODIFIER :: 1.5
+PLAYER_SPRINT_MODIFIER :: 2
 
 Player :: struct {
 	cam:       Camera,
