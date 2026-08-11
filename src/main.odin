@@ -29,6 +29,11 @@ VSYNC :: true
 DEFAULT_RENDER_DISTANCE :: 8
 MAX_RENDER_DISTANCE :: 32
 DEFAULT_FOV :: 90
+MIN_FOV :: 5
+MAX_FOV :: 120
+DEFAULT_SPEED :: 5
+MIN_SPEED :: 1
+MAX_SPEED :: 25
 DEFAULT_SENSITIVITY_MULT :: f32(1) / 700
 NEAR_PLANE :: 0.1
 HIT_DISTANCE :: 6
@@ -199,7 +204,7 @@ main :: proc() {
 		pos = {0, 24, 0},
 		yaw = 240,
 		pitch = 90,
-		speed = 5,
+		speed = DEFAULT_SPEED,
 		sensitivity_mult = DEFAULT_SENSITIVITY_MULT,
 		fovx = DEFAULT_FOV,
 		render_distance = state.render_distance,
@@ -311,11 +316,11 @@ main :: proc() {
 				}
 
 				if window_is_key_down(state.window, KEY_FOV_MOD) {
-					state.player.cam.fovx = glm.clamp(state.player.cam.fovx - 5 * f32(state.window.scroll.y), 5, 120)
+					state.player.cam.fovx = glm.clamp(state.player.cam.fovx - 5 * f32(state.window.scroll.y), MIN_FOV, MAX_FOV)
 				}
 
 				if window_is_key_down(state.window, KEY_SPEED_MOD) {
-					state.player.speed = glm.clamp(state.player.speed + f32(state.window.scroll.y), 1, 25)
+					state.player.speed = glm.clamp(state.player.speed + f32(state.window.scroll.y), MIN_SPEED, MAX_SPEED)
 				}
 
 				if window_is_key_pressed(state.window, KEY_UI_TOGGLE) {

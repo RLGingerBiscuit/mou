@@ -233,7 +233,7 @@ mu_update_ui :: proc(state: ^State, dt: f64) {
 	mu.begin(ctx)
 	defer mu.end(ctx)
 
-	if mu.window(ctx, "Minceraft", {10, 50, 420, 420}, {.NO_CLOSE}, FONT_BOUNCY) {
+	if mu.window(ctx, "Minceraft", {10, 50, 440, 460}, {.NO_CLOSE}, FONT_BOUNCY) {
 		LABEL_WIDTH :: 140
 
 		mu.layout_row(ctx, {LABEL_WIDTH, -1})
@@ -289,13 +289,7 @@ mu_update_ui :: proc(state: ^State, dt: f64) {
 
 		mu.label(ctx, "Render Distance:")
 		temp_render_distance := cast(f32)state.render_distance
-		mu.number(ctx, &temp_render_distance, 1, "%.0f", font_opts = FONT_MONO)
-		if temp_render_distance < 1 {
-			temp_render_distance = 1
-		}
-		if temp_render_distance > MAX_RENDER_DISTANCE {
-			temp_render_distance = MAX_RENDER_DISTANCE
-		}
+		mu.slider(ctx, &temp_render_distance, 1, MAX_RENDER_DISTANCE, 1, "%.0f", font_opts = FONT_MONO)
 		state.render_distance = cast(i32)temp_render_distance
 
 		temp_vsync := .Vsync in state.window.flags
@@ -303,6 +297,12 @@ mu_update_ui :: proc(state: ^State, dt: f64) {
 		if .CHANGE in checkbox_no_label(ctx, "noclip", &temp_vsync) {
 			window_set_vsync(&state.window, temp_vsync)
 		}
+
+		mu.label(ctx, "Speed:")
+		mu.slider(ctx, &state.player.speed, MIN_SPEED, MAX_SPEED, 1, "%.0f", font_opts = FONT_MONO)
+
+		mu.label(ctx, "FOV:")
+		mu.slider(ctx, &state.player.cam.fovx, MIN_FOV, MAX_FOV, 5, "%.0f", font_opts = FONT_MONO)
 
 		mu.label(ctx, "Wireframe:")
 		checkbox_no_label(ctx, "wireframe_enabled", &state.player.cam.wireframe)
