@@ -133,7 +133,7 @@ make_shader :: proc(
 	assert(ok)
 
 	uniform_count: i32
-	when ODIN_DEBUG {
+	when OPENGL_DEBUG {
 		gl.GetProgramiv(shader.handle, gl.ACTIVE_UNIFORMS, &uniform_count, loc = loc)
 	} else {
 		gl.GetProgramiv(shader.handle, gl.ACTIVE_UNIFORMS, &uniform_count)
@@ -145,7 +145,7 @@ make_shader :: proc(
 	shader.uniforms = make(map[string]Uniform, uniform_count)
 
 	max_name_len: i32
-	when ODIN_DEBUG {
+	when OPENGL_DEBUG {
 		gl.GetProgramiv(shader.handle, gl.ACTIVE_UNIFORM_MAX_LENGTH, &max_name_len, loc = loc)
 	} else {
 		gl.GetProgramiv(shader.handle, gl.ACTIVE_UNIFORM_MAX_LENGTH, &max_name_len)
@@ -157,7 +157,7 @@ make_shader :: proc(
 	name_len, size: i32
 	type: u32
 	for i in 0 ..< u32(uniform_count) {
-		when ODIN_DEBUG {
+		when OPENGL_DEBUG {
 			gl.GetActiveUniform(shader.handle, i, max_name_len, &name_len, &size, &type, raw_data(name_buf), loc = loc)
 		} else {
 			gl.GetActiveUniform(shader.handle, i, max_name_len, &name_len, &size, &type, raw_data(name_buf))
@@ -168,7 +168,7 @@ make_shader :: proc(
 		assert(err == nil)
 
 		location: i32
-		when ODIN_DEBUG {
+		when OPENGL_DEBUG {
 			location = gl.GetUniformLocation(shader.handle, name_cstr, loc = loc)
 		} else {
 			location = gl.GetUniformLocation(shader.handle, name_cstr)
@@ -200,7 +200,12 @@ use_shader :: proc(shader: Shader) {
 get_uniform :: proc(shader: Shader, name: string, loc := #caller_location) -> (uniform: Uniform, ok: bool) {
 	uniform, ok = shader.uniforms[name]
 	assert(ok, fmt.tprintf("Could not find uniform '{}'", name), loc = loc)
-	return uniform, true
+	if !ok {
+		uniform = {
+			location = -1,
+		}
+	}
+	return uniform, ok
 }
 
 set_uniform_mat2 :: proc(shader: Shader, name: string, val: glm.mat2, loc := #caller_location) -> (ok: bool) {
@@ -211,7 +216,7 @@ set_uniform_mat2 :: proc(shader: Shader, name: string, val: glm.mat2, loc := #ca
 		fmt.tprintf(#procedure + " uniform type mismatch: expected {}, found {}", Data_Type.Float_Mat2, uniform.type),
 		loc = loc,
 	)
-	when ODIN_DEBUG {
+	when OPENGL_DEBUG {
 		gl.ProgramUniformMatrix2fv(shader.handle, uniform.location, 1, false, &val[0, 0], loc = loc)
 	} else {
 		gl.ProgramUniformMatrix2fv(shader.handle, uniform.location, 1, false, &val[0, 0])
@@ -227,7 +232,7 @@ set_uniform_mat3 :: proc(shader: Shader, name: string, val: glm.mat3, loc := #ca
 		fmt.tprintf(#procedure + " uniform type mismatch: expected {}, found {}", Data_Type.Float_Mat3, uniform.type),
 		loc = loc,
 	)
-	when ODIN_DEBUG {
+	when OPENGL_DEBUG {
 		gl.ProgramUniformMatrix3fv(shader.handle, uniform.location, 1, false, &val[0, 0], loc = loc)
 	} else {
 		gl.ProgramUniformMatrix3fv(shader.handle, uniform.location, 1, false, &val[0, 0])
@@ -243,7 +248,7 @@ set_uniform_mat4 :: proc(shader: Shader, name: string, val: glm.mat4, loc := #ca
 		fmt.tprintf(#procedure + " uniform type mismatch: expected {}, found {}", Data_Type.Float_Mat4, uniform.type),
 		loc = loc,
 	)
-	when ODIN_DEBUG {
+	when OPENGL_DEBUG {
 		gl.ProgramUniformMatrix4fv(shader.handle, uniform.location, 1, false, &val[0, 0], loc = loc)
 	} else {
 		gl.ProgramUniformMatrix4fv(shader.handle, uniform.location, 1, false, &val[0, 0])
@@ -258,7 +263,7 @@ set_uniform_f32 :: proc(shader: Shader, name: string, val: f32, loc := #caller_l
 		fmt.tprintf(#procedure + " uniform type mismatch: expected {}, found {}", Data_Type.Float, uniform.type),
 		loc = loc,
 	)
-	when ODIN_DEBUG {
+	when OPENGL_DEBUG {
 		gl.ProgramUniform1f(shader.handle, uniform.location, val, loc = loc)
 	} else {
 		gl.ProgramUniform1f(shader.handle, uniform.location, val)
@@ -273,7 +278,7 @@ set_uniform_i32 :: proc(shader: Shader, name: string, val: i32, loc := #caller_l
 		fmt.tprintf(#procedure + " uniform type mismatch: expected {}, found {}", Data_Type.Int, uniform.type),
 		loc = loc,
 	)
-	when ODIN_DEBUG {
+	when OPENGL_DEBUG {
 		gl.ProgramUniform1i(shader.handle, uniform.location, val, loc = loc)
 	} else {
 		gl.ProgramUniform1i(shader.handle, uniform.location, val)
@@ -292,7 +297,7 @@ set_uniform_u32 :: proc(shader: Shader, name: string, val: u32, loc := #caller_l
 		),
 		loc = loc,
 	)
-	when ODIN_DEBUG {
+	when OPENGL_DEBUG {
 		gl.ProgramUniform1ui(shader.handle, uniform.location, val, loc = loc)
 	} else {
 		gl.ProgramUniform1ui(shader.handle, uniform.location, val)
@@ -307,7 +312,7 @@ set_uniform_vec2 :: proc(shader: Shader, name: string, val: glm.vec2, loc := #ca
 		fmt.tprintf(#procedure + " uniform type mismatch: expected {}, found {}", Data_Type.Float_Vec2, uniform.type),
 		loc = loc,
 	)
-	when ODIN_DEBUG {
+	when OPENGL_DEBUG {
 		gl.ProgramUniform2f(shader.handle, uniform.location, val.x, val.y, loc = loc)
 	} else {
 		gl.ProgramUniform2f(shader.handle, uniform.location, val.x, val.y)
@@ -322,7 +327,7 @@ set_uniform_vec3 :: proc(shader: Shader, name: string, val: glm.vec3, loc := #ca
 		fmt.tprintf(#procedure + " uniform type mismatch: expected {}, found {}", Data_Type.Float_Vec3, uniform.type),
 		loc = loc,
 	)
-	when ODIN_DEBUG {
+	when OPENGL_DEBUG {
 		gl.ProgramUniform3f(shader.handle, uniform.location, val.x, val.y, val.z, loc = loc)
 	} else {
 		gl.ProgramUniform3f(shader.handle, uniform.location, val.x, val.y, val.z)
@@ -337,7 +342,7 @@ set_uniform_vec4 :: proc(shader: Shader, name: string, val: glm.vec4, loc := #ca
 		fmt.tprintf(#procedure + " uniform type mismatch: expected {}, found {}", Data_Type.Float_Vec4, uniform.type),
 		loc = loc,
 	)
-	when ODIN_DEBUG {
+	when OPENGL_DEBUG {
 		gl.ProgramUniform4f(shader.handle, uniform.location, val.x, val.y, val.z, val.w, loc = loc)
 	} else {
 		gl.ProgramUniform4f(shader.handle, uniform.location, val.x, val.y, val.z, val.w)
@@ -352,7 +357,7 @@ set_uniform_ivec2 :: proc(shader: Shader, name: string, val: glm.ivec2, loc := #
 		fmt.tprintf(#procedure + " uniform type mismatch: expected {}, found {}", Data_Type.Int_Vec2, uniform.type),
 		loc = loc,
 	)
-	when ODIN_DEBUG {
+	when OPENGL_DEBUG {
 		gl.ProgramUniform2i(shader.handle, uniform.location, val.x, val.y, loc = loc)
 	} else {
 		gl.ProgramUniform2i(shader.handle, uniform.location, val.x, val.y)
@@ -367,7 +372,7 @@ set_uniform_ivec3 :: proc(shader: Shader, name: string, val: glm.ivec3, loc := #
 		fmt.tprintf(#procedure + " uniform type mismatch: expected {}, found {}", Data_Type.Int_Vec3, uniform.type),
 		loc = loc,
 	)
-	when ODIN_DEBUG {
+	when OPENGL_DEBUG {
 		gl.ProgramUniform3i(shader.handle, uniform.location, val.x, val.y, val.z, loc = loc)
 	} else {
 		gl.ProgramUniform3i(shader.handle, uniform.location, val.x, val.y, val.z)
@@ -382,7 +387,7 @@ set_uniform_ivec4 :: proc(shader: Shader, name: string, val: glm.ivec4, loc := #
 		fmt.tprintf(#procedure + " uniform type mismatch: expected {}, found {}", Data_Type.Int_Vec4, uniform.type),
 		loc = loc,
 	)
-	when ODIN_DEBUG {
+	when OPENGL_DEBUG {
 		gl.ProgramUniform4i(shader.handle, uniform.location, val.x, val.y, val.z, val.w, loc = loc)
 	} else {
 		gl.ProgramUniform4i(shader.handle, uniform.location, val.x, val.y, val.z, val.w)
@@ -401,7 +406,7 @@ set_uniform_uvec2 :: proc(shader: Shader, name: string, val: glm.uvec2, loc := #
 		),
 		loc = loc,
 	)
-	when ODIN_DEBUG {
+	when OPENGL_DEBUG {
 		gl.ProgramUniform2ui(shader.handle, uniform.location, val.x, val.y, loc = loc)
 	} else {
 		gl.ProgramUniform2ui(shader.handle, uniform.location, val.x, val.y)
@@ -420,7 +425,7 @@ set_uniform_uvec3 :: proc(shader: Shader, name: string, val: glm.uvec3, loc := #
 		),
 		loc = loc,
 	)
-	when ODIN_DEBUG {
+	when OPENGL_DEBUG {
 		gl.ProgramUniform3ui(shader.handle, uniform.location, val.x, val.y, val.z, loc = loc)
 	} else {
 		gl.ProgramUniform3ui(shader.handle, uniform.location, val.x, val.y, val.z)
@@ -439,7 +444,7 @@ set_uniform_uvec4 :: proc(shader: Shader, name: string, val: glm.uvec4, loc := #
 		),
 		loc = loc,
 	)
-	when ODIN_DEBUG {
+	when OPENGL_DEBUG {
 		gl.ProgramUniform4ui(shader.handle, uniform.location, val.x, val.y, val.z, val.w, loc = loc)
 	} else {
 		gl.ProgramUniform4ui(shader.handle, uniform.location, val.x, val.y, val.z, val.w)

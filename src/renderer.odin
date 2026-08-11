@@ -92,19 +92,33 @@ renderer_vertex_layout :: proc(r: ^Renderer, $T: typeid, loc := #caller_location
 	}
 }
 
-renderer_bind_vertices :: proc(r: ^Renderer, vbo: Vertex_Buffer) {
-	vertex_array_vertex_buffer(r.vao, 0, vbo, 0, r.stride)
+renderer_bind_vertices :: proc(r: ^Renderer, vbo: Vertex_Buffer, loc := #caller_location) {
+	vertex_array_vertex_buffer(r.vao, 0, vbo, 0, r.stride, loc = loc)
 }
 
-renderer_bind_indices :: proc(r: ^Renderer, ebo: Index_Buffer) {
-	vertex_array_index_buffer(r.vao, ebo)
+renderer_bind_indices :: proc(r: ^Renderer, ebo: Index_Buffer, loc := #caller_location) {
+	vertex_array_index_buffer(r.vao, ebo, loc = loc)
 }
 
-renderer_draw_indexed :: proc(r: Renderer, index_count: int, type: u32 = gl.UNSIGNED_INT, mode: u32 = gl.TRIANGLES) {
+renderer_draw_indexed :: proc(
+	r: Renderer,
+	index_count: int,
+	type: u32 = gl.UNSIGNED_INT,
+	mode: u32 = gl.TRIANGLES,
+	loc := #caller_location,
+) {
 	assert(.Indexed in r.flags)
-	gl.DrawElements(mode, i32(index_count), type, nil)
+	when OPENGL_DEBUG {
+		gl.DrawElements(mode, i32(index_count), type, nil, loc = loc)
+	} else {
+		gl.DrawElements(mode, i32(index_count), type, nil)
+	}
 }
 
-renderer_draw :: proc(r: Renderer, vertex_count: int, mode: u32 = gl.TRIANGLES) {
-	gl.DrawArrays(mode, 0, i32(vertex_count))
+renderer_draw :: proc(r: Renderer, vertex_count: int, mode: u32 = gl.TRIANGLES, loc := #caller_location) {
+	when OPENGL_DEBUG {
+		gl.DrawArrays(mode, 0, i32(vertex_count), loc = loc)
+	} else {
+		gl.DrawArrays(mode, 0, i32(vertex_count))
+	}
 }

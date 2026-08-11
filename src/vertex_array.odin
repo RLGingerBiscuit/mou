@@ -11,7 +11,7 @@ Vertex_Array :: struct {
 }
 
 make_vertex_array :: proc(loc := #caller_location) -> (vao: Vertex_Array) {
-	when ODIN_DEBUG {
+	when OPENGL_DEBUG {
 		gl.CreateVertexArrays(1, &vao.handle, loc = loc)
 	} else {
 		gl.CreateVertexArrays(1, &vao.handle)
@@ -20,7 +20,7 @@ make_vertex_array :: proc(loc := #caller_location) -> (vao: Vertex_Array) {
 }
 
 destroy_vertex_array :: proc(vao: ^Vertex_Array, loc := #caller_location) {
-	when ODIN_DEBUG {
+	when OPENGL_DEBUG {
 		gl.DeleteVertexArrays(1, &vao.handle, loc = loc)
 	} else {
 		gl.DeleteVertexArrays(1, &vao.handle)
@@ -29,7 +29,7 @@ destroy_vertex_array :: proc(vao: ^Vertex_Array, loc := #caller_location) {
 }
 
 bind_vertex_array :: proc(vao: Vertex_Array, loc := #caller_location) {
-	when ODIN_DEBUG {
+	when OPENGL_DEBUG {
 		gl.BindVertexArray(vao.handle, loc = loc)
 	} else {
 		gl.BindVertexArray(vao.handle)
@@ -37,7 +37,7 @@ bind_vertex_array :: proc(vao: Vertex_Array, loc := #caller_location) {
 }
 
 unbind_vertex_array :: proc(loc := #caller_location) {
-	when ODIN_DEBUG {
+	when OPENGL_DEBUG {
 		gl.BindVertexArray(0, loc = loc)
 	} else {
 		gl.BindVertexArray(0)
@@ -52,7 +52,7 @@ vertex_array_vertex_buffer :: proc(
 	stride: i32,
 	loc := #caller_location,
 ) {
-	when ODIN_DEBUG {
+	when OPENGL_DEBUG {
 		gl.VertexArrayVertexBuffer(vao.handle, binding_index, buffer.handle, offset, stride, loc = loc)
 	} else {
 		gl.VertexArrayVertexBuffer(vao.handle, binding_index, buffer.handle, offset, stride)
@@ -60,7 +60,7 @@ vertex_array_vertex_buffer :: proc(
 }
 
 vertex_array_index_buffer :: proc(vao: Vertex_Array, buffer: Index_Buffer, loc := #caller_location) {
-	when ODIN_DEBUG {
+	when OPENGL_DEBUG {
 		gl.VertexArrayElementBuffer(vao.handle, buffer.handle, loc = loc)
 	} else {
 		gl.VertexArrayElementBuffer(vao.handle, buffer.handle)
@@ -77,7 +77,7 @@ vertex_array_attrib_pointer :: proc(
 	relative_offset: u32,
 	loc := #caller_location,
 ) {
-	when ODIN_DEBUG {
+	when OPENGL_DEBUG {
 		gl.VertexArrayAttribFormat(vao.handle, index, size, cast(u32)type, normalized, relative_offset, loc = loc)
 		gl.VertexArrayAttribBinding(vao.handle, index, binding_index, loc = loc)
 		gl.EnableVertexArrayAttrib(vao.handle, index, loc = loc)
@@ -97,7 +97,7 @@ vertex_array_attrib_i_pointer :: proc(
 	relative_offset: u32,
 	loc := #caller_location,
 ) {
-	when ODIN_DEBUG {
+	when OPENGL_DEBUG {
 		gl.VertexArrayAttribIFormat(vao.handle, index, size, cast(u32)type, relative_offset, loc = loc)
 		gl.VertexArrayAttribBinding(vao.handle, index, binding_index, loc = loc)
 		gl.EnableVertexArrayAttrib(vao.handle, index, loc = loc)

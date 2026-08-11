@@ -8,7 +8,7 @@ Vertex_Buffer :: struct {
 }
 
 make_vertex_buffer :: proc(usage: Buffer_Usage, loc := #caller_location) -> (buffer: Vertex_Buffer) {
-	when ODIN_DEBUG {
+	when OPENGL_DEBUG {
 		gl.CreateBuffers(1, &buffer.handle, loc = loc)
 	} else {
 		gl.CreateBuffers(1, &buffer.handle)
@@ -18,7 +18,7 @@ make_vertex_buffer :: proc(usage: Buffer_Usage, loc := #caller_location) -> (buf
 }
 
 destroy_vertex_buffer :: proc(buffer: ^Vertex_Buffer, loc := #caller_location) {
-	when ODIN_DEBUG {
+	when OPENGL_DEBUG {
 		gl.DeleteBuffers(1, &buffer.handle, loc = loc)
 	} else {
 		gl.DeleteBuffers(1, &buffer.handle)
@@ -27,7 +27,7 @@ destroy_vertex_buffer :: proc(buffer: ^Vertex_Buffer, loc := #caller_location) {
 }
 
 vertex_buffer_data :: proc(buffer: Vertex_Buffer, data: $S/[]$T, loc := #caller_location) {
-	when ODIN_DEBUG {
+	when OPENGL_DEBUG {
 		gl.NamedBufferData(buffer.handle, len(data) * size_of(T), raw_data(data), cast(u32)buffer.usage, loc = loc)
 	} else {
 		gl.NamedBufferData(buffer.handle, len(data) * size_of(T), raw_data(data), cast(u32)buffer.usage)
@@ -35,7 +35,7 @@ vertex_buffer_data :: proc(buffer: Vertex_Buffer, data: $S/[]$T, loc := #caller_
 }
 
 vertex_buffer_sub_data :: proc(buffer: Vertex_Buffer, offset: int, data: $S/[]$T, loc := #caller_location) {
-	when ODIN_DEBUG {
+	when OPENGL_DEBUG {
 		gl.NamedBufferSubData(buffer.handle, offset, len(data) * size_of(T), raw_data(data), loc = loc)
 	} else {
 		gl.NamedBufferSubData(buffer.handle, offset, len(data) * size_of(T), raw_data(data))

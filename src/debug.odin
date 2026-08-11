@@ -33,7 +33,7 @@ Debug_Severity :: enum u32 {
 	Notification = gl.DEBUG_SEVERITY_NOTIFICATION,
 }
 
-OPENGL_DEBUG :: #config(OPENGL_DEBUG, ODIN_DEBUG)
+OPENGL_DEBUG :: #config(GL_DEBUG, ODIN_DEBUG)
 
 @(disabled = !OPENGL_DEBUG)
 setup_opengl_debug :: proc() {
@@ -52,9 +52,14 @@ setup_opengl_debug :: proc() {
 			context = default_context()
 
 			source := cast(Debug_Source)source_
-			type := cast(Debug_Source)type_
+			type := cast(Debug_Type)type_
 			severity := cast(Debug_Severity)severity_
 			msg := strings.string_from_ptr(cast([^]u8)message, cast(int)length)
+
+			#partial switch type {
+			case .Push_Group, .Pop_Group:
+				return
+			}
 			
 					// odinfmt:disable
 			level: log.Level
@@ -74,27 +79,17 @@ setup_opengl_debug :: proc() {
 
 @(disabled = !OPENGL_DEBUG)
 push_debug_group :: proc(message: string, loc := #caller_location) {
-	when ODIN_DEBUG {
-		gl.PushDebugGroup(
-			gl.DEBUG_SOURCE_APPLICATION,
-			0,
-			cast(i32)len(message),
-			strings.unsafe_string_to_cstring(message),
-			loc = loc,
-		)
+	cstr := strings.clone_to_cstring(message, context.temp_allocator)
+	when OPENGL_DEBUG {
+		gl.PushDebugGroup(gl.DEBUG_SOURCE_APPLICATION, 0, cast(i32)len(message), cstr, loc = loc)
 	} else {
-		gl.PushDebugGroup(
-			gl.DEBUG_SOURCE_APPLICATION,
-			0,
-			cast(i32)len(message),
-			strings.unsafe_string_to_cstring(message),
-		)
+		gl.PushDebugGroup(gl.DEBUG_SOURCE_APPLICATION, 0, cast(i32)len(message), cstr)
 	}
 }
 
 @(disabled = !OPENGL_DEBUG)
 pop_debug_group :: proc(loc := #caller_location) {
-	when ODIN_DEBUG {
+	when OPENGL_DEBUG {
 		gl.PopDebugGroup(loc = loc)
 	} else {
 		gl.PopDebugGroup()
@@ -103,7 +98,7 @@ pop_debug_group :: proc(loc := #caller_location) {
 
 @(disabled = !OPENGL_DEBUG, deferred_in = debug_group_end)
 debug_group :: proc(message: string, loc := #caller_location) {
-	when ODIN_DEBUG {
+	when OPENGL_DEBUG {
 		push_debug_group(message, loc = loc)
 	} else {
 		push_debug_group(message)
@@ -112,7 +107,7 @@ debug_group :: proc(message: string, loc := #caller_location) {
 
 @(disabled = !OPENGL_DEBUG)
 debug_group_end :: proc(_: string, loc := #caller_location) {
-	when ODIN_DEBUG {
+	when OPENGL_DEBUG {
 		pop_debug_group(loc = loc)
 	} else {
 		pop_debug_group()

@@ -119,7 +119,7 @@ make_texture :: proc(
 	levels = max(1, min(levels, texture_mipmap_level_count(width, height)))
 	tex.levels = levels
 
-	when ODIN_DEBUG {
+	when OPENGL_DEBUG {
 		gl.CreateTextures(gl.TEXTURE_2D, 1, &tex.handle, loc = loc)
 		texture_parameter(tex, gl.TEXTURE_WRAP_S, cast(i32)wrap, loc = loc)
 		texture_parameter(tex, gl.TEXTURE_WRAP_T, cast(i32)wrap, loc = loc)
@@ -165,7 +165,7 @@ make_texture_array :: proc(
 	levels = max(1, min(levels, texture_mipmap_level_count(width, height)))
 	tex.levels = levels
 
-	when ODIN_DEBUG {
+	when OPENGL_DEBUG {
 		gl.CreateTextures(tex.target, 1, &tex.handle, loc = loc)
 		texture_parameter(tex, gl.TEXTURE_WRAP_S, cast(i32)wrap, loc = loc)
 		texture_parameter(tex, gl.TEXTURE_WRAP_T, cast(i32)wrap, loc = loc)
@@ -203,7 +203,7 @@ texture_set_layer_level :: proc(
 		log.warnf("Setting texture {} layer {} level {}: was not provided enough bytes", tex.name, layer, level)
 		return
 	}
-	when ODIN_DEBUG {
+	when OPENGL_DEBUG {
 		gl.TextureSubImage3D(
 			tex.handle,
 			level,
@@ -244,7 +244,7 @@ texture_set_level :: proc(tex: Texture, level: i32, width, height: i32, data: []
 		log.warnf("Setting texture {} level {}: was not provided enough bytes", tex.name, level)
 		return
 	}
-	when ODIN_DEBUG {
+	when OPENGL_DEBUG {
 		gl.TextureSubImage2D(
 			tex.handle,
 			level,
@@ -273,7 +273,7 @@ texture_set_level :: proc(tex: Texture, level: i32, width, height: i32, data: []
 }
 
 generate_texture_mipmap :: proc(tex: Texture, loc := #caller_location) {
-	when ODIN_DEBUG {
+	when OPENGL_DEBUG {
 		gl.GenerateTextureMipmap(tex.handle, loc = loc)
 	} else {
 		gl.GenerateTextureMipmap(tex.handle)
@@ -281,7 +281,7 @@ generate_texture_mipmap :: proc(tex: Texture, loc := #caller_location) {
 }
 
 texture_parameter_i32 :: proc(tex: Texture, pname: u32, value: i32, loc := #caller_location) {
-	when ODIN_DEBUG {
+	when OPENGL_DEBUG {
 		gl.TextureParameteri(tex.handle, pname, value, loc = loc)
 	} else {
 		gl.TextureParameteri(tex.handle, pname, value)
@@ -289,7 +289,7 @@ texture_parameter_i32 :: proc(tex: Texture, pname: u32, value: i32, loc := #call
 }
 
 texture_parameter_f32 :: proc(tex: Texture, pname: u32, value: f32, loc := #caller_location) {
-	when ODIN_DEBUG {
+	when OPENGL_DEBUG {
 		gl.TextureParameterf(tex.handle, pname, value, loc = loc)
 	} else {
 		gl.TextureParameterf(tex.handle, pname, value)
@@ -355,7 +355,7 @@ load_texture :: proc(path: string) -> (tex: Texture) {
 }
 
 bind_texture_unit :: proc(unit: u32, tex: Texture, loc := #caller_location) {
-	when ODIN_DEBUG {
+	when OPENGL_DEBUG {
 		gl.BindTextureUnit(unit, tex.handle, loc = loc)
 	} else {
 		gl.BindTextureUnit(unit, tex.handle)
@@ -363,7 +363,7 @@ bind_texture_unit :: proc(unit: u32, tex: Texture, loc := #caller_location) {
 }
 
 unbind_texture_unit :: proc(unit: u32, loc := #caller_location) {
-	when ODIN_DEBUG {
+	when OPENGL_DEBUG {
 		gl.BindTextureUnit(unit, 0, loc = loc)
 	} else {
 		gl.BindTextureUnit(unit, 0)
@@ -372,7 +372,7 @@ unbind_texture_unit :: proc(unit: u32, loc := #caller_location) {
 
 destroy_texture :: proc(tex: ^Texture, loc := #caller_location) {
 	log.debugf("Destroying texture '{}'", tex.name)
-	when ODIN_DEBUG {
+	when OPENGL_DEBUG {
 		gl.DeleteTextures(1, &tex.handle, loc = loc)
 	} else {
 		gl.DeleteTextures(1, &tex.handle)

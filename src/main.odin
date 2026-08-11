@@ -93,11 +93,11 @@ init_logger :: proc() -> log.Logger {
 
 default_context :: proc() -> runtime.Context {
 	ctx := runtime.default_context()
+	ctx.logger = logger
 	when ODIN_DEBUG {
 		assert(tracking_allocator.backing.procedure != nil)
 		assert(logger.data != nil)
 		ctx.allocator = mem.tracking_allocator(&tracking_allocator)
-		ctx.logger = logger
 	}
 	return ctx
 }

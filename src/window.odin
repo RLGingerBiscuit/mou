@@ -145,7 +145,7 @@ resize_window :: proc(state: ^State, width, height: i32, loc := #caller_location
 	wnd.flags &~= {.Minimised}
 	assert(width > 0, "window width must be > 0")
 	assert(height > 0, "window height must be > 0")
-	when ODIN_DEBUG {
+	when OPENGL_DEBUG {
 		gl.Viewport(0, 0, width, height, loc = loc)
 	} else {
 		gl.Viewport(0, 0, width, height)
@@ -158,7 +158,7 @@ show_window :: proc(wnd: ^Window, loc := #caller_location) {
 	wnd.flags |= {.Visible}
 	glfw.ShowWindow(wnd.handle)
 	window_size := get_window_size(wnd^)
-	when ODIN_DEBUG {
+	when OPENGL_DEBUG {
 		gl.Viewport(0, 0, window_size.x, window_size.y, loc = loc)
 	} else {
 		gl.Viewport(0, 0, window_size.x, window_size.y)

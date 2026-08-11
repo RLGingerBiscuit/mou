@@ -28,7 +28,7 @@ Framebuffer :: struct {
 }
 
 make_framebuffer :: proc(attachments: []Framebuffer_Attachment, loc := #caller_location) -> (fbo: Framebuffer) {
-	when ODIN_DEBUG {
+	when OPENGL_DEBUG {
 		gl.CreateFramebuffers(1, &fbo.handle, loc = loc)
 	} else {
 		gl.CreateFramebuffers(1, &fbo.handle)
@@ -61,7 +61,7 @@ make_framebuffer :: proc(attachments: []Framebuffer_Attachment, loc := #caller_l
 	colour_attachments: [len(Attachment_Type)]u32
 	colour_attachment_count := 0
 	for a in fbo.attachments {
-		when ODIN_DEBUG {
+		when OPENGL_DEBUG {
 			gl.NamedFramebufferTexture(fbo.handle, cast(u32)a.type, a.tex.handle, 0, loc = loc)
 		} else {
 			gl.NamedFramebufferTexture(fbo.handle, cast(u32)a.type, a.tex.handle, 0)
@@ -74,7 +74,7 @@ make_framebuffer :: proc(attachments: []Framebuffer_Attachment, loc := #caller_l
 	}
 
 	if colour_attachment_count == 0 {
-		when ODIN_DEBUG {
+		when OPENGL_DEBUG {
 			gl.NamedFramebufferDrawBuffer(fbo.handle, gl.NONE, loc = loc)
 			gl.NamedFramebufferReadBuffer(fbo.handle, gl.NONE, loc = loc)
 		} else {
@@ -82,7 +82,7 @@ make_framebuffer :: proc(attachments: []Framebuffer_Attachment, loc := #caller_l
 			gl.NamedFramebufferReadBuffer(fbo.handle, gl.NONE)
 		}
 	} else if colour_attachment_count == 1 {
-		when ODIN_DEBUG {
+		when OPENGL_DEBUG {
 			gl.NamedFramebufferDrawBuffer(fbo.handle, colour_attachments[0], loc = loc)
 			gl.NamedFramebufferReadBuffer(fbo.handle, colour_attachments[0], loc = loc)
 		} else {
@@ -90,7 +90,7 @@ make_framebuffer :: proc(attachments: []Framebuffer_Attachment, loc := #caller_l
 			gl.NamedFramebufferReadBuffer(fbo.handle, colour_attachments[0])
 		}
 	} else {
-		when ODIN_DEBUG {
+		when OPENGL_DEBUG {
 			gl.NamedFramebufferDrawBuffers(
 				fbo.handle,
 				cast(i32)colour_attachment_count,
@@ -114,7 +114,7 @@ make_framebuffer :: proc(attachments: []Framebuffer_Attachment, loc := #caller_l
 }
 
 destroy_framebuffer :: proc(fbo: ^Framebuffer, loc := #caller_location) {
-	when ODIN_DEBUG {
+	when OPENGL_DEBUG {
 		gl.DeleteFramebuffers(1, &fbo.handle, loc = loc)
 	} else {
 		gl.DeleteFramebuffers(1, &fbo.handle)
@@ -123,7 +123,7 @@ destroy_framebuffer :: proc(fbo: ^Framebuffer, loc := #caller_location) {
 }
 
 bind_framebuffer :: proc(fbo: Framebuffer, target: Framebuffer_Target, loc := #caller_location) {
-	when ODIN_DEBUG {
+	when OPENGL_DEBUG {
 		gl.BindFramebuffer(cast(u32)target, fbo.handle, loc = loc)
 	} else {
 		gl.BindFramebuffer(cast(u32)target, fbo.handle)
@@ -131,7 +131,7 @@ bind_framebuffer :: proc(fbo: Framebuffer, target: Framebuffer_Target, loc := #c
 }
 
 unbind_framebuffer :: proc(target: Framebuffer_Target, loc := #caller_location) {
-	when ODIN_DEBUG {
+	when OPENGL_DEBUG {
 		gl.BindFramebuffer(cast(u32)target, 0, loc = loc)
 	} else {
 		gl.BindFramebuffer(cast(u32)target, 0)
@@ -151,7 +151,7 @@ resize_framebuffer :: proc(fbo: ^Framebuffer, width, height: i32, loc := #caller
 			a.tex.levels,
 		)
 
-		when ODIN_DEBUG {
+		when OPENGL_DEBUG {
 			gl.NamedFramebufferTexture(fbo.handle, cast(u32)a.type, new_tex.handle, 0, loc = loc)
 		} else {
 			gl.NamedFramebufferTexture(fbo.handle, cast(u32)a.type, new_tex.handle, 0)
