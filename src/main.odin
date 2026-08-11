@@ -172,6 +172,27 @@ main :: proc() {
 	defer destroy_window(&state.window)
 	window_disable_cursor(&state.window)
 
+	setup_opengl_debug()
+
+	gl.Enable(gl.CULL_FACE)
+	gl.BlendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA)
+
+	{
+		vendor := gl.GetString(gl.VENDOR)
+		renderer := gl.GetString(gl.RENDERER)
+		version := gl.GetString(gl.VERSION)
+		sl_ver := gl.GetString(gl.SHADING_LANGUAGE_VERSION)
+		profile: i32
+		gl.GetIntegerv(gl.CONTEXT_PROFILE_MASK, &profile)
+		log.infof("Vendor: {}", vendor)
+		log.infof("Renderer: {}", renderer)
+		log.infof("Version: {}", version)
+		log.infof("Shader Lang Version: {}", sl_ver)
+		log.infof("Profile: {}", profile)
+
+		vendor_is_intel = vendor == "Intel"
+	}
+
 	init_player(
 		&state.player,
 		&state.window,
@@ -183,11 +204,6 @@ main :: proc() {
 		fovx = DEFAULT_FOV,
 		render_distance = state.render_distance,
 	)
-
-	setup_opengl_debug()
-
-	gl.Enable(gl.CULL_FACE)
-	gl.BlendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA)
 
 	opaque_shader := make_shader("assets/shaders/chunk.vert", "assets/shaders/chunk.frag")
 	defer destroy_shader(&opaque_shader)
@@ -267,21 +283,10 @@ main :: proc() {
 	show_window(&state.window)
 	window_center_cursor(&state.window)
 
-	gl.LineWidth(max(2.5, f32(get_window_size(state.window).x) / 1920 * 2.5))
-
-	{
-		vendor := gl.GetString(gl.VENDOR)
-		renderer := gl.GetString(gl.RENDERER)
-		version := gl.GetString(gl.VERSION)
-		sl_ver := gl.GetString(gl.SHADING_LANGUAGE_VERSION)
-		profile: i32
-		gl.GetIntegerv(gl.CONTEXT_PROFILE_MASK, &profile)
-		log.infof("Vendor: {}", vendor)
-		log.infof("Renderer: {}", renderer)
-		log.infof("Version: {}", version)
-		log.infof("Shader Lang Version: {}", sl_ver)
-		log.infof("Profile: {}", profile)
+	if !vendor_is_intel {
+		gl.LineWidth(max(2.5, f32(get_window_size(state.window).x) / 1920 * 2.5))
 	}
+
 
 	prev_delta_times: [dynamic; 60]f64
 	for !window_should_close(state.window) {

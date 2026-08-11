@@ -88,6 +88,8 @@ vertex_array_attrib_pointer :: proc(
 	}
 }
 
+vendor_is_intel: bool
+
 vertex_array_attrib_i_pointer :: proc(
 	vao: Vertex_Array,
 	binding_index: u32,
@@ -97,14 +99,30 @@ vertex_array_attrib_i_pointer :: proc(
 	relative_offset: u32,
 	loc := #caller_location,
 ) {
+	// Uhhh Intel why?
+	// HACK: Intel totally just ignores DSA AttribIFormat for some reason, so use not that
 	when OPENGL_DEBUG {
-		gl.VertexArrayAttribIFormat(vao.handle, index, size, cast(u32)type, relative_offset, loc = loc)
-		gl.VertexArrayAttribBinding(vao.handle, index, binding_index, loc = loc)
-		gl.EnableVertexArrayAttrib(vao.handle, index, loc = loc)
+		if vendor_is_intel {
+			gl.BindVertexArray(vao.handle, loc = loc)
+			gl.VertexAttribIFormat(index, size, cast(u32)type, relative_offset, loc = loc)
+			gl.VertexAttribBinding(index, binding_index, loc = loc)
+			gl.EnableVertexAttribArray(index, loc = loc)
+		} else {
+			gl.VertexArrayAttribIFormat(vao.handle, index, size, cast(u32)type, relative_offset, loc = loc)
+			gl.VertexArrayAttribBinding(vao.handle, index, binding_index, loc = loc)
+			gl.EnableVertexArrayAttrib(vao.handle, index, loc = loc)
+		}
 	} else {
-		gl.VertexArrayAttribIFormat(vao.handle, index, size, cast(u32)type, relative_offset)
-		gl.VertexArrayAttribBinding(vao.handle, index, binding_index)
-		gl.EnableVertexArrayAttrib(vao.handle, index)
+		if vendor_is_intel {
+			gl.BindVertexArray(vao.handle)
+			gl.VertexAttribIFormat(index, size, cast(u32)type, relative_offset)
+			gl.VertexAttribBinding(index, binding_index)
+			gl.EnableVertexAttribArray(index)
+		} else {
+			gl.VertexArrayAttribIFormat(vao.handle, index, size, cast(u32)type, relative_offset)
+			gl.VertexArrayAttribBinding(vao.handle, index, binding_index)
+			gl.EnableVertexArrayAttrib(vao.handle, index)
+		}
 	}
 }
 

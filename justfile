@@ -12,7 +12,8 @@ odin_exe := 'odin'
 odin_args := '-vet -vet-cast -vet-tabs -strict-style -collection:third=third'
 build_args := odin_args + ' -keep-executable'
 debug_args := build_args + ' -debug'
-release_args := build_args + ' -o:speed -disable-assert' + if os_family() == 'windows' { ' -subsystem:windows' } else { '' }
+release_args := build_args + ' -o:speed -disable-assert'
+package_args := release_args + if os_family() == 'windows' { ' -subsystem:windows' } else { '' }
 
 # Default recipe which runs `just build-release`
 default: build-release
@@ -47,6 +48,10 @@ build-release *args: _init
 	{{odin_exe}} build {{src_dir}} -out:{{out_dir}}/{{name}}{{ext}} {{release_args}} {{args}}
 alias build := build-release
 
+# Compiles with package profile
+build-package *args: _init
+	{{odin_exe}} build {{src_dir}} -out:{{out_dir}}/{{name}}{{ext}} {{package_args}} {{args}}
+
 # Runs `odin check`
 check: _init
 	{{odin_exe}} check {{src_dir}} {{odin_args}}
@@ -62,7 +67,7 @@ run-release *args: _init
 alias run := run-release
 
 # Packages a release build of the application into a 'packaged' folder
-package: build-release
+package: build-package
 	@just _package-{{os_family()}}
 
 _package-windows:
